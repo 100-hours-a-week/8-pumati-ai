@@ -4,6 +4,7 @@ import torch
 from huggingface_hub import login
 from faker import Faker
 import os
+import re
 
 
 from app.context_construction.query_rewriter import GemmaPrompt
@@ -18,10 +19,12 @@ class GemmaModel:
         load_dotenv()
         login(token=os.getenv("HUGGINGFACE_TOKEN"))
         fake = Faker()
+        fake_ko = Faker('ko_KR')
 
         self.model_name = "google/gemma-3-1b-it"
         self.device = torch.device("cpu")
-        self.fake_name = fake.first_name()
+        self.fake_nickname = fake.first_name()
+        self.fake_name = fake_ko.name()
         
         self.tokenizer = None
         self.model = None
@@ -41,8 +44,15 @@ class GemmaModel:
     def model_inference(self):
         prompt_builder = GemmaPrompt(self.data)
         prompt = prompt_builder.generate_prompt()
-        output = self.pipe(prompt, max_new_tokens=40)[0]["generated_text"]
-        generated_comment = output[len(prompt):].strip()
+        output = self.pipe(prompt, max_new_tokens=100)[0]["generated_text"]
+        comment_string = output[len(prompt):].strip()
+
+        #생성된 댓글 중 JSON 안에 있는 댓글만 가져오기.
+        try:
+            find_comment = re.findall(r'{.*?}', comment_string, re.DOTALL)
+            generated_comment = find_comment[0].strip()
+        except:
+            generated_comment = '{\n           "content": "좋습니다." \n}'
     
         return generated_comment
     
@@ -60,7 +70,7 @@ if __name__ == "__main__":
 
     
     start = time.time()
-    print(start)
+    print("start")
     gemma = GemmaModel(dummy_data)
     gemma.load_gemma()
     comment = gemma.model_inference()
