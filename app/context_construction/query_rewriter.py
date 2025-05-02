@@ -1,3 +1,5 @@
+# app/context_construction/query_rewriter.py
+
 from app.fast_api.schemas.comment_schemas import CommentRequest
 
 # JSON 데이터 모델 정의
@@ -35,6 +37,7 @@ class GemmaPrompt:
         return Gemma_prompt
 
 ##fortune
+
 def build_fortune_prompt(course: str, date: str) -> str:
     return f"""
 You are an AI that only outputs a single JSON object—nothing else.
@@ -43,6 +46,7 @@ Output exactly this JSON structure with values in Korean.
 overall, devLuck each short one‐sentence.
 overall에는 전반적인 하루 운세를 적고, devLuck에는 course별 개발자용 운세 적어줘.
 Output exactly:
+```json
 {{
   "overall": "",
   "devLuck": ""
