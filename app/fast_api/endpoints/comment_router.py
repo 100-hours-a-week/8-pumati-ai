@@ -1,5 +1,6 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks
 from dotenv import load_dotenv
+from faker import Faker
 import requests
 import os
 
@@ -10,7 +11,7 @@ from app.fast_api.schemas.comment_schemas import CommentRequest
 # 서버 설정
 ########################
 load_dotenv()
-comment_app = FastAPI()
+comment_app = APIRouter()
 RECEIVER_API_BASE_URL = os.getenv("RECEIVER_API_URL", "https://abcd1234.ngrok.io") #백엔드 주소 입력.
 
 
@@ -26,8 +27,10 @@ def generate_and_send(project_id: str, request_data: CommentRequest):
         gemma.load_gemma()
 
         for i in range(4):
-            author_name = gemma.fake_name
-            author_nickname = gemma.fake_nickname
+            fake = Faker()
+            fake_ko = Faker('ko_KR')
+            author_name = fake.first_name()
+            author_nickname = fake_ko.name()
 
             generated_comment = gemma.model_inference()
 

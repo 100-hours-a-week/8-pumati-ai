@@ -1,20 +1,22 @@
 from fastapi import FastAPI
-from schemas import CommentResponse
+from pydantic import BaseModel
 
 app = FastAPI()
 
-@app.post("/api/projects/{project_id}/ai-comments")
-async def receive_comment(project_id: str, data: CommentResponse):
-    print(f"✅ 댓글 수신 완료! project_id={project_id}")
-    print(f"📦 총 수신 댓글 수: {data.count}")
+# 댓글 하나만 받을 모델
+class CommentRequest(BaseModel):
+    content: str
+    authorName: str
+    authorNickname: str
 
-    for comment in data.commentsData:
-        print(f"- {comment.authorName} ({comment.authorNickname}) : {comment.content}")
+@app.post("/api/projects/{project_id}/ai-comments")
+async def receive_comment(project_id: str, comment: CommentRequest):
+    
+    # 받은 댓글 출력
+    print(f"- {comment.authorName} ({comment.authorNickname}) : {comment.content}")
 
     return {
         "status": "received",
         "project_id": project_id,
-        "received_comments": data.count,
-        "commentsData": [comment.dict() for comment in data.commentsData]  # 받은 댓글 그대로 응답으로 돌려줌 (옵션)
+        "received_comment": comment.dict()  # 받은 댓글 그대로 돌려줌
     }
-

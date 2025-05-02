@@ -17,14 +17,10 @@ import time
 class GemmaModel:
     def __init__(self, data: CommentRequest):
         load_dotenv()
-        login(token=os.getenv("HUGGINGFACE_TOKEN"))
-        fake = Faker()
-        fake_ko = Faker('ko_KR')
+        login(token=os.getenv("HF_AUTH_TOKEN"))
 
         self.model_name = "google/gemma-3-1b-it"
         self.device = torch.device("cpu")
-        self.fake_nickname = fake.first_name()
-        self.fake_name = fake_ko.name()
         
         self.tokenizer = None
         self.model = None
@@ -44,7 +40,7 @@ class GemmaModel:
     def model_inference(self):
         prompt_builder = GemmaPrompt(self.data)
         prompt = prompt_builder.generate_prompt()
-        output = self.pipe(prompt, max_new_tokens=100)[0]["generated_text"]
+        output = self.pipe(prompt, max_new_tokens=200)[0]["generated_text"]
         comment_string = output[len(prompt):].strip()
 
         #생성된 댓글 중 JSON 안에 있는 댓글만 가져오기.
