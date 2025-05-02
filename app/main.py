@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fast_api.endpoints.fortune_router import router as fortune_router
+from fast_api.endpoints.comment_router import comment_app as comment_router
 import uvicorn
 
+#FastAPI 태그설정
 app = FastAPI()
 app.include_router(fortune_router, tags=["Fortune"])
+app.include_router(comment_router, tags=["Comment"])
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
