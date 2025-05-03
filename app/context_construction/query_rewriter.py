@@ -15,23 +15,22 @@ class GemmaPrompt:
     
     def generate_prompt(self):
         Gemma_prompt = f"""
-        너는 개발자 커뮤니티에서 활동하는 AI 커뮤니티 회원이야.
-        아래 **프로젝트 정보:**를 바탕으로, '{self.comment_type}' 유형의 댓글을 작성해줘.
+        너는 3년차 친근한 개발자야.
+        아래 **프로젝트 정보**를 참고해서 '{self.comment_type}'유형의 댓글을 20자 이내로 조금은 개성있게 혹은 약간 유머있게 다양한 댓글을 작성해줘.
+        반드시 JSON 형식으로만 출력하고 프로젝트 정보등 다른 문장은 쓰지 마.
 
-        **프로젝트 정보:**
+        **프로젝트 정보**
         - projectName: {self.team_projectName}
         - shortIntro: {self.team_shortIntro}
-        - deployedUrl: {self.team_deployedUrl} 
+        - deployedUrl: {self.team_deployedUrl}
         - githubUrl: {self.team_githubUrl}
         - description: {self.team_description}
         - tags: {self.team_tags}
 
-        개발자 커뮤니티에 어울리는 스타일의 말투로 기술적 특성이나 장점을 녹여내서 아래 Json형태로 한국어로 작성해줘. 댓글은 문자열 형태로, 최대 30자 이내로 한문장만 작성해줘. **프로젝트 정보**, **질문**처럼 댓글과 상관없는 문자는 모두 빼줘.
-
-        **출력 JSON 형식 (예시):**
-        "content" : "Fastapi로 빠르게 서빙한것이 인상 깊었습니다."
-
+        **출력 예시 (Json)**
+        {{ "content": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕 FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
+
         return Gemma_prompt
 
 ##fortune
