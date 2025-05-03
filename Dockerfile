@@ -1,18 +1,63 @@
-# Python 3.10 기반 이미지 선택
-FROM python:3.10
+# ──────────────────────────────────────────────────
+# 1. 베이스 이미지
+#    GCP Deep Learning VM PyTorch2.1+CUDA12.1+Ubuntu22.04+Py3.10
+# ──────────────────────────────────────────────────
+FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 
-# 시스템 업데이트 + git 설치
-RUN apt-get update && apt-get install -y git
+# ──────────────────────────────────────────────────
+# 2. 환경 변수
+#    - PYTHONPATH에 /workspace/app 추가
+#    - 기타 설정
+# ──────────────────────────────────────────────────
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    TOKENIZERS_PARALLELISM=false \
+    PYTHONPATH=/workspace/app
 
-# 작업 폴더 설정
-WORKDIR /app
+# ──────────────────────────────────────────────────
+# 3. 작업 디렉토리
+# ──────────────────────────────────────────────────
+WORKDIR /workspace
 
-# requirements.txt 복사 후 설치
+# ──────────────────────────────────────────────────
+# 4. 시스템 패키지 설치
+# ──────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      python3-dev \
+      git \
+    && rm -rf /var/lib/apt/lists/*
+
+# ──────────────────────────────────────────────────
+# 5. Python 의존성 설치
+# ──────────────────────────────────────────────────
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip uninstall -y torch torchvision torch_xla || true \
+ && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir --upgrade tokenizers transformers faker
 
-# 소스 코드 복사
-COPY . .
+# ──────────────────────────────────────────────────
+# 6. 애플리케이션 코드 복사
+# ──────────────────────────────────────────────────
+COPY . /workspace/
 
-# FastAPI 서버 실행 예시 (필요 시 수정)
-CMD ["uvicorn", "app.fast_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ──────────────────────────────────────────────────
+# 7. 디버그: 빌드 시점에 출력
+#    * find, ls, sys.path, fast_api 설치 여부 확인
+# ──────────────────────────────────────────────────
+RUN echo "===== /workspace/app 구조 =====" \
+ && find /workspace/app -maxdepth 2 | sort \
+ && echo "\n===== Python sys.path =====" \
+ && python3 -c "import sys; print(sys.path)" \
+ && echo "\n===== fast_api 패키지 =====" \
+ && ls -R /workspace/app/fast_api
+
+# ──────────────────────────────────────────────────
+# 8. 포트 노출 및 컨테이너 시작
+# ──────────────────────────────────────────────────
+EXPOSE 8000
+
+# 9. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
+ENTRYPOINT ["python3", "-m", "uvicorn"]
+CMD ["main:app", "--host", "0.0.0.0", "--port", "8000"]

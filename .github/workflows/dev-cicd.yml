@@ -1,0 +1,113 @@
+name: Docker CI/CD 파이프라인
+
+on:
+  push:
+    branches: [ jacky ]
+    paths:
+      - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
+      - '.github/workflows/dev-cicd.yml' # dev-cicd.yml 코드가 변경될 때에도 실행
+  pull_request:
+    branches: [ jacky]
+  workflow_dispatch:  # 수동 실행 옵션
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v3
+      
+    - name: Google Cloud 인증 설정
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}  # GitHub 시크릿에 서비스 계정 키 설정 필요
+        
+    - name: Google Cloud SDK 설정
+      uses: google-github-actions/setup-gcloud@v1
+      
+    - name: Docker 인증 설정
+      run: |
+        gcloud auth configure-docker
+        
+    - name: Docker Buildx 설정
+      uses: docker/setup-buildx-action@v2
+      
+    - name: 환경 변수 설정
+      id: env
+      run: |
+        echo "PROJECT_ID=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "REGION=asia-east1" >> $GITHUB_ENV
+        echo "MIG_NAME=l4-spot" >> $GITHUB_ENV
+        echo "VERSION=${GITHUB_SHA::8}" >> $GITHUB_ENV
+        
+    - name: 이미지 빌드 및 푸시
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64  # x86_64 아키텍처 명시
+        push: true
+        tags: |
+          gcr.io/ktb8team/pumati-ai:latest
+          gcr.io/ktb8team/pumati-ai:${{ github.sha }}
+          
+    # # GCS에 이미지 백업 (스타트업 스크립트 사용을 위해)
+    # - name: 이미지 GCS 백업
+    #   run: |
+    #     # 이미지를 tar 파일로 저장
+    #     docker pull gcr.io/ktb8team/pumati-ai:${{ github.sha }}
+    #     docker save gcr.io/ktb8team/pumati-ai:${{ github.sha }} > ai-app.tar
+        
+    #     # GCS에 업로드
+    #     gsutil cp ai-app.tar gs://ktb8team-static-storage/ai/ai-test.tar
+        
+    # # 새 인스턴스 템플릿 생성
+    # - name: 인스턴스 템플릿 생성
+    #   run: |
+    #     # 템플릿 이름에 버전 추가
+    #     TEMPLATE_NAME="l4-spot-${{ env.VERSION }}"
+        
+    #     # 새 인스턴스 템플릿 생성
+    #     gcloud compute instance-templates create ${TEMPLATE_NAME} \
+    #       --machine-type=g2-standard-4 \
+    #       --image-family=pytorch-latest-cu121-ubuntu-2204-py310 \
+    #       --image-project=deeplearning-platform-release \
+    #       --accelerator="type=nvidia-l4,count=1" \
+    #       --region=${{ env.REGION }} \
+    #       --spot \
+    #       --maintenance-policy=terminate \
+    #       --metadata=install-nvidia-driver=true \
+    #       --metadata-from-file=startup-script=.github/scripts/startup-script.sh \
+    #       --boot-disk-size=100GB \
+    #       --boot-disk-type=pd-ssd \
+    #       --scopes=https://www.googleapis.com/auth/cloud-platform \
+    #       --network=default
+          
+    # # MIG 템플릿 업데이트
+    # - name: MIG 템플릿 업데이트
+    #   run: |
+    #     gcloud compute instance-groups managed set-instance-template \
+    #       ${{ env.MIG_NAME }} \
+    #       --region=${{ env.REGION }} \
+    #       --template=l4-spot-${{ env.VERSION }}
+          
+    # # 모든 인스턴스 재생성
+    # - name: 인스턴스 재생성
+    #   run: |
+    #     gcloud compute instance-groups managed recreate-instances \
+    #       ${{ env.MIG_NAME }} \
+    #       --region=${{ env.REGION }} \
+    #       --instances=all
+          
+    # # 배포 알림 (선택사항)
+    # - name: 배포 알림
+    #   if: ${{ success() }}
+    #   run: |
+    #     # Discord 웹훅이 설정되어 있다면 알림 전송
+    #     if [ -n "${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}" ]; then
+    #       curl -H "Content-Type: application/json" \
+    #         -X POST \
+    #         -d '{"content": "🚀 pumati-ai 새 버전(${{ env.VERSION }})이 배포되었습니다. 이미지: gcr.io/ktb8team/pumati-ai:${{ github.sha }}"}' \
+    #         ${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}
+    #     fi
