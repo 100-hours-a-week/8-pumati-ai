@@ -33,7 +33,7 @@ while true; do
     curl -H "Content-Type: application/json" \
          -X POST \
          -d '{"content": "🚨 GCP 스팟 인스턴스가 중단(preempt)됩니다. 약 30초 내 종료 예정입니다."}' \
-         "${secrets.WEBHOOK_URL_JACKY}"
+         "${secrets.DISCORD_WEBHOOK_URL_JACKY}"
     break
   fi
   sleep 5
@@ -127,9 +127,12 @@ if [ -n "$IMAGE_NAME" ]; then
     docker run -d --gpus all -P $IMAGE_NAME
   fi
 else
-  log_message "❌ 이미지 로드 실패 - fallback으로 nginx 실행 시도"
-  docker pull nginx:latest
-  docker run -d -p 8000:80 nginx:latest
+  log_message "❌ 이미지 로드 실패"
+  # Discord로 알림 전송
+  curl -H "Content-Type: application/json" \
+       -X POST \
+       -d '{"content": "🚨 이미지 로드 실패: Docker 이미지를 GCS에서 로드하지 못했습니다. 서버 $(hostname)를 확인해주세요."}' \
+       "${secrets.DISCORD_WEBHOOK_URL_JACKY}"
 fi
 
 ###################################

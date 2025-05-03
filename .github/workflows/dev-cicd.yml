@@ -7,8 +7,14 @@ on:
       - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
       - '.github/workflows/dev-cicd.yml' # dev-cicd.yml 코드가 변경될 때에도 실행
   pull_request:
-    branches: [ jacky]
+    branches: [ jacky ]
   workflow_dispatch:  # 수동 실행 옵션
+    inputs:
+      create_custom_image:
+        description: '새 커스텀 이미지를 생성합니다 (최초 배포 시에만 필요)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-deploy:
@@ -40,74 +46,150 @@ jobs:
         echo "REGION=asia-east1" >> $GITHUB_ENV
         echo "MIG_NAME=l4-spot" >> $GITHUB_ENV
         echo "VERSION=${GITHUB_SHA::8}" >> $GITHUB_ENV
+        echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+        echo "TEMP_INSTANCE=temp-image-builder-$RANDOM" >> $GITHUB_ENV
         
     - name: 이미지 빌드 및 푸시
       uses: docker/build-push-action@v4
       with:
         context: .
         file: ./Dockerfile
-        platforms: linux/amd64  # x86_64 아키텍처 명시
+        platforms: linux/amd64
         push: true
+        cache-from: type=registry,ref=gcr.io/ktb8team/pumati-ai:buildcache
+        cache-to: type=registry,ref=gcr.io/ktb8team/pumati-ai:buildcache,mode=max
         tags: |
           gcr.io/ktb8team/pumati-ai:latest
           gcr.io/ktb8team/pumati-ai:${{ github.sha }}
           
-    # # GCS에 이미지 백업 (스타트업 스크립트 사용을 위해)
-    # - name: 이미지 GCS 백업
-    #   run: |
-    #     # 이미지를 tar 파일로 저장
-    #     docker pull gcr.io/ktb8team/pumati-ai:${{ github.sha }}
-    #     docker save gcr.io/ktb8team/pumati-ai:${{ github.sha }} > ai-app.tar
+    # GCS에 이미지 백업 (스타트업 스크립트 사용을 위해)
+    - name: 이미지 GCS 백업
+      run: |
+        # 이미지를 tar 파일로 저장
+        docker pull gcr.io/ktb8team/pumati-ai:${{ github.sha }}
+        docker save gcr.io/ktb8team/pumati-ai:${{ github.sha }} > ai-app.tar
         
-    #     # GCS에 업로드
-    #     gsutil cp ai-app.tar gs://ktb8team-static-storage/ai/ai-test.tar
+        # GCS에 업로드
+        gsutil cp ai-app.tar gs://ktb8team-static-storage/ai/ai-test.tar
         
-    # # 새 인스턴스 템플릿 생성
-    # - name: 인스턴스 템플릿 생성
-    #   run: |
-    #     # 템플릿 이름에 버전 추가
-    #     TEMPLATE_NAME="l4-spot-${{ env.VERSION }}"
+    # 커스텀 이미지 생성 (최초 배포 시에만 실행)
+    - name: 커스텀 이미지 생성
+      if: github.event.inputs.create_custom_image == 'true'
+      run: |
+        echo "▶ 커스텀 이미지 빌드를 위한 임시 인스턴스 생성..."
         
-    #     # 새 인스턴스 템플릿 생성
-    #     gcloud compute instance-templates create ${TEMPLATE_NAME} \
-    #       --machine-type=g2-standard-4 \
-    #       --image-family=pytorch-latest-cu121-ubuntu-2204-py310 \
-    #       --image-project=deeplearning-platform-release \
-    #       --accelerator="type=nvidia-l4,count=1" \
-    #       --region=${{ env.REGION }} \
-    #       --spot \
-    #       --maintenance-policy=terminate \
-    #       --metadata=install-nvidia-driver=true \
-    #       --metadata-from-file=startup-script=.github/scripts/startup-script.sh \
-    #       --boot-disk-size=100GB \
-    #       --boot-disk-type=pd-ssd \
-    #       --scopes=https://www.googleapis.com/auth/cloud-platform \
-    #       --network=default
+        # 시작 스크립트를 GCS에 업로드
+        gsutil cp .github/scripts/startup-script.sh gs://ktb8team-static-storage/scripts/
+        
+        # 임시 인스턴스 생성
+        gcloud compute instances create ${{ env.TEMP_INSTANCE }} \
+          --machine-type=n1-standard-2 \
+          --zone=${{ env.REGION }}-a \
+          --image-family=pytorch-latest-cu121-ubuntu-2204-py310 \
+          --image-project=deeplearning-platform-release \
+          --metadata=install-nvidia-driver=true \
+          --metadata=startup-script-url=gs://ktb8team-static-storage/scripts/startup-script.sh \
+          --scopes=https://www.googleapis.com/auth/cloud-platform \
+          --boot-disk-size=100GB
           
-    # # MIG 템플릿 업데이트
-    # - name: MIG 템플릿 업데이트
-    #   run: |
-    #     gcloud compute instance-groups managed set-instance-template \
-    #       ${{ env.MIG_NAME }} \
-    #       --region=${{ env.REGION }} \
-    #       --template=l4-spot-${{ env.VERSION }}
+        echo "▶ 인스턴스 생성됨, 이미지 빌드 중..."
+        
+        # 이미지 빌드 완료까지 대기 (15분)
+        for i in {1..30}; do
+          if gcloud compute ssh ${{ env.TEMP_INSTANCE }} --zone=${{ env.REGION }}-a --command="test -f /tmp/image-ready" &> /dev/null; then
+            echo "✅ 이미지 준비 완료!"
+            break
+          fi
+          echo "이미지 빌드 중... 대기 중 ($i/30)"
+          sleep 30
+        done
+        
+        # 인스턴스 중지
+        gcloud compute instances stop ${{ env.TEMP_INSTANCE }} --zone=${{ env.REGION }}-a
+        
+        # 디스크에서 이미지 생성
+        gcloud compute images create pumati-ai-${{ env.VERSION }} \
+          --source-disk=${{ env.TEMP_INSTANCE }} \
+          --source-disk-zone=${{ env.REGION }}-a \
+          --family=pumati-ai
           
-    # # 모든 인스턴스 재생성
-    # - name: 인스턴스 재생성
-    #   run: |
-    #     gcloud compute instance-groups managed recreate-instances \
-    #       ${{ env.MIG_NAME }} \
-    #       --region=${{ env.REGION }} \
-    #       --instances=all
+        # 인스턴스 삭제
+        gcloud compute instances delete ${{ env.TEMP_INSTANCE }} --zone=${{ env.REGION }}-a --quiet
+        
+        echo "✅ 커스텀 이미지 생성 완료: pumati-ai-${{ env.VERSION }}"
+    
+    # 새 인스턴스 템플릿 생성 (기존 커스텀 이미지 사용 또는 기본 이미지 + 스타트업 스크립트)    
+    - name: 인스턴스 템플릿 생성
+      run: |
+        # 템플릿 이름에 버전 추가
+        TEMPLATE_NAME="l4-spot-${{ env.VERSION }}"
+        
+        # 커스텀 이미지 확인
+        if [[ "${{ github.event.inputs.create_custom_image }}" == "true" ]]; then
+          # 새로 생성된 커스텀 이미지 사용
+          echo "▶ 새로 생성된 커스텀 이미지로 템플릿 생성"
+          gcloud compute instance-templates create ${TEMPLATE_NAME} \
+            --machine-type=g2-standard-4 \
+            --image=pumati-ai-${{ env.VERSION }} \
+            --accelerator="type=nvidia-l4,count=1" \
+            --region=${{ env.REGION }} \
+            --spot \
+            --maintenance-policy=terminate \
+            --boot-disk-size=100GB \
+            --boot-disk-type=pd-ssd \
+            --scopes=https://www.googleapis.com/auth/cloud-platform \
+            --network=default
+        else
+          # 기존 이미지 + 스타트업 스크립트 사용
+          echo "▶ 기본 이미지 + 스타트업 스크립트로 템플릿 생성" 
+          gcloud compute instance-templates create ${TEMPLATE_NAME} \
+            --machine-type=g2-standard-4 \
+            --image-family=pytorch-latest-cu121-ubuntu-2204-py310 \
+            --image-project=deeplearning-platform-release \
+            --accelerator="type=nvidia-l4,count=1" \
+            --region=${{ env.REGION }} \
+            --spot \
+            --maintenance-policy=terminate \
+            --metadata=install-nvidia-driver=true \
+            --metadata-from-file=startup-script=.github/scripts/startup-script.sh \
+            --boot-disk-size=100GB \
+            --boot-disk-type=pd-ssd \
+            --scopes=https://www.googleapis.com/auth/cloud-platform \
+            --network=default
+        fi
           
-    # # 배포 알림 (선택사항)
-    # - name: 배포 알림
-    #   if: ${{ success() }}
-    #   run: |
-    #     # Discord 웹훅이 설정되어 있다면 알림 전송
-    #     if [ -n "${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}" ]; then
-    #       curl -H "Content-Type: application/json" \
-    #         -X POST \
-    #         -d '{"content": "🚀 pumati-ai 새 버전(${{ env.VERSION }})이 배포되었습니다. 이미지: gcr.io/ktb8team/pumati-ai:${{ github.sha }}"}' \
-    #         ${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}
-    #     fi
+    # MIG 템플릿 업데이트
+    - name: MIG 템플릿 업데이트
+      run: |
+        gcloud compute instance-groups managed set-instance-template \
+          ${{ env.MIG_NAME }} \
+          --region=${{ env.REGION }} \
+          --template=l4-spot-${{ env.VERSION }}
+          
+    # 모든 인스턴스 재생성
+    - name: 인스턴스 재생성
+      run: |
+        gcloud compute instance-groups managed recreate-instances \
+          ${{ env.MIG_NAME }} \
+          --region=${{ env.REGION }} \
+          --instances=all
+          
+    # 배포 알림 (선택사항)
+    - name: 배포 알림
+      if: ${{ success() }}
+      run: |
+        # Discord 웹훅이 설정되어 있다면 알림 전송
+        if [ -n "${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}" ]; then
+          # 배포 메시지 구성
+          if [[ "${{ github.event.inputs.create_custom_image }}" == "true" ]]; then
+            DEPLOY_MSG="🚀 pumati-ai 새 버전(${{ env.VERSION }})이 ${{ env.ENVIRONMENT }}에 배포되었습니다. 새 커스텀 이미지 생성 완료: pumati-ai-${{ env.VERSION }}"
+          else
+            DEPLOY_MSG="🚀 pumati-ai 새 버전(${{ env.VERSION }})이 ${{ env.ENVIRONMENT }}에 배포되었습니다. 이미지: gcr.io/ktb8team/pumati-ai:${{ github.sha }}"
+          fi
+          
+          # 알림 전송
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"content\": \"$DEPLOY_MSG\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}
+        fi
