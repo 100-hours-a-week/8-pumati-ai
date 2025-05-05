@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from fast_api.endpoints.fortune_router import router as fortune_router
-from fast_api.endpoints.comment_router import comment_app as comment_router
+from app.fast_api.endpoints.fortune_router import router as fortune_router
+from app.fast_api.endpoints.comment_router import comment_app as comment_router
 import uvicorn
 
 #FastAPI 태그설정

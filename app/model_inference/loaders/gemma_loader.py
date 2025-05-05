@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = "google/gemma-3-1b-it"
 FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
+CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 200
 TEMPERATURE = 0.9
 TOP_P = 0.9
@@ -35,17 +36,14 @@ class GemmaModel:
     Gemma 모델을 사용해 댓글 생성을 담당하는 클래스
     """
     _is_authenticated = False
-    def __init__(self, data: CommentRequest):
+    def __init__(self):
         self._authenticate_huggingface()
-
-        self.model_name: str = MODEL_NAME
-        self.device = torch.device("cpu")
-        
-        self.tokenizer: Optional[AutoTokenizer] = None
-        self.model: Optional[AutoModelForCausalLM] = None
-        self.pipe: Optional[pipeline] = None
-
-        self.data: CommentRequest = data # 타입 힌트 + 변수 선언 방식
+        self.model_name = MODEL_NAME
+        self.device = CPU_DEVICE
+        self.tokenizer = None
+        self.model = None
+        self.pipe = None
+        logger.info("Device 설정: Device는 의도적으로 CPU로 고정됩니다.")
     
     def _authenticate_huggingface(self) -> None:
         """
@@ -78,27 +76,28 @@ class GemmaModel:
                 model=self.model, 
                 tokenizer=self.tokenizer, 
                 device=-1, 
-                temperature=0.9, 
-                top_p=0.9, 
+                temperature=TEMPERATURE, 
+                top_p=TOP_P, 
                 do_sample=True
             )
             logger.info("Gemma 모델 로드 완료.")
 
     # 댓글 생성
-    def model_inference(self) -> str:
+    def generate_comment(self, request_data: CommentRequest) -> str:
         """
         프롬프트를 기반으로 댓글을 생성하고 JSON 포맷으로 후처리합니다.
         생성된 결과가 유효하지 않으면 fallback 메시지를 반환합니다.
         """
-        prompt_builder = GemmaPrompt(self.data)
+        prompt_builder = GemmaPrompt(request_data)
         prompt: str = prompt_builder.generate_prompt()
 
         logger.info("댓글 생성을 시작합니다.")
-        outputs = self.pipe(prompt, max_new_tokens=200)[0]["generated_text"]
+        outputs = self.pipe(prompt, max_new_tokens = MAX_NEW_TOKENS)[0]["generated_text"]
         output_text = outputs[len(prompt):].strip()
 
         #JSON 블록 추출
         try:
+            logger.info("llm 댓글 추출 성공 : %s", output_text)
             find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
             generated_comment = find_comment[0].strip()
             logger.info("JSON 형식의 댓글 추출 성공.")
@@ -107,6 +106,11 @@ class GemmaModel:
             generated_comment = FALLBACK_COMMENT
     
         return generated_comment
+    
+
+# 싱글턴 인스턴스 생성 (서버 시작 시 1회만 실행)
+gemma_model_instance = GemmaModel()
+gemma_model_instance.load_gemma()
 
 # ----------------------------
 # 테스트 코드
@@ -117,13 +121,14 @@ if __name__ == "__main__":
 
     dummy_data = CommentRequest(
         comment_type="칭찬",
-        team_projectName="AI 이력서 생성기",
-        team_shortIntro="LLM 기반 이력서 자동 생성",
+        team_projectName="품앗이 서비스",
+        team_shortIntro="서로의 프로젝트 웹페이지를 방문하여 트래픽을 늘려줌",
         team_deployedUrl="https://resume.site",
         team_githubUrl="https://github.com/example",
         team_description="FastAPI + React 기반 프로젝트",
-        team_tags=["AI", "LLM", "FastAPI"],
+        team_tags=["AI", "Gemma", "GCP", "UI 친근함"],
     )
+    
 
     start = time.time()
     logger.info("테스트 시작.")
