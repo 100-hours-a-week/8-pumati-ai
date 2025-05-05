@@ -1,8 +1,8 @@
 # app/fast_api/endpoints/fortune_router.py
 
 from fastapi import APIRouter, HTTPException
-from fast_api.schemas.fortune_schema import FortuneRequest, FortuneResponse
-from model_inference.inference_runner import run_fortune_model
+from app.fast_api.schemas.fortune_schema import FortuneRequest, FortuneResponse
+from app.model_inference.inference_runner import run_fortune_model
 import json, re
 import time
 

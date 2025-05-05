@@ -12,3 +12,4 @@ accelerate>=0.20.3
 bitsandbytes>=0.41.0
 llama-cpp-python
 langchain
+Faker>=18.0.0

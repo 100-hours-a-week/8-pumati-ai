@@ -2,8 +2,8 @@
 
 import json
 import re
-from context_construction.query_rewriter import build_fortune_prompt
-from model_inference.loaders.HyperCLOVA_loader import generate_fortune_text
+from app.context_construction.query_rewriter import build_fortune_prompt
+from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text
 
 def run_fortune_model(course: str, date: str) -> dict:
     # 1) JSON 전용 프롬프트 생성
