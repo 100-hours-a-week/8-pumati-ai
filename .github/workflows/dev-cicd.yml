@@ -2,7 +2,7 @@ name: Docker CI/CD 파이프라인
 
 on:
   push:
-    branches: [ jacky1 ]
+    branches: [ jacky ]
     paths:
       - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
       - '.github/workflows/dev-cicd.yml' # dev-cicd.yml 코드가 변경될 때에도 실행
@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # 셀프 호스티드 러너 사용(GPU 인스턴스)
     
     steps:
     - name: 코드 체크아웃
