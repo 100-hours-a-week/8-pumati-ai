@@ -18,7 +18,7 @@ model_id = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 tokenizer = AutoTokenizer.from_pretrained(
     model_id,
     trust_remote_code=True,
-    use_auth_token=hf_token,
+    token=hf_token,
 )
 
 # ─── 3. 디바이스 감지 & Full-Precision 모델 로드 ───────────
@@ -36,7 +36,7 @@ if torch.cuda.is_available():
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         trust_remote_code=True,
-        use_auth_token=hf_token,
+        token=hf_token,
         torch_dtype=torch.float16,
         device_map="auto",
     )
@@ -57,7 +57,7 @@ else:
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         trust_remote_code=True,
-        use_auth_token=hf_token,
+        token=hf_token,
         torch_dtype=torch.float32,
     ).to("cpu")
     device = torch.device("cpu")
