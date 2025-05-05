@@ -32,7 +32,7 @@ class GemmaModel:
         if self.pipe is None:  # 이미 로드한 경우 다시 로딩 안 하게 -> 서버 안정성을 높이기 위함.
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name).to(self.device)
-            self.pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, device=-1)
+            self.pipe = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer, device=-1, temperature=0.9, top_p=0.9, do_sample=True)
 
 
 
@@ -42,13 +42,15 @@ class GemmaModel:
         prompt = prompt_builder.generate_prompt()
         output = self.pipe(prompt, max_new_tokens=200)[0]["generated_text"]
         comment_string = output[len(prompt):].strip()
+        print(comment_string)
 
         #생성된 댓글 중 JSON 안에 있는 댓글만 가져오기.
         try:
             find_comment = re.findall(r'{.*?}', comment_string, re.DOTALL)
             generated_comment = find_comment[0].strip()
         except:
-            generated_comment = '{\n           "content": "좋습니다." \n}'
+            
+            generated_comment = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
     
         return generated_comment
     
