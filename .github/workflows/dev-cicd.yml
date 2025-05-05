@@ -2,12 +2,12 @@ name: Docker CI/CD 파이프라인
 
 on:
   push:
-    branches: [ jacky ]
+    branches: [ jacky1 ]
     paths:
       - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
       - '.github/workflows/dev-cicd.yml' # dev-cicd.yml 코드가 변경될 때에도 실행
   pull_request:
-    branches: [ jacky ]
+    branches: [ jacky1 ]
   workflow_dispatch:  # 수동 실행 옵션
     inputs:
       create_custom_image:

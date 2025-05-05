@@ -1,0 +1,111 @@
+name: 셀프 호스티드 GPU Docker CI/CD 파이프라인
+
+on:
+  push:
+    branches: [ jacky ] # 이 부분은 필요에 따라 변경 가능
+    paths:
+      - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
+      - '.github/workflows/dev-cicd-self-hosted.yml' # 워크플로우 파일 변경 시 실행
+  workflow_dispatch:  # 수동 실행 옵션
+    inputs:
+      custom_deployment:
+        description: '커스텀 배포 옵션 (선택사항)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-deploy:
+    # 셀프 호스티드 러너 지정 (GPU 인스턴스에 설치된 러너)
+    runs-on: self-hosted
+    
+    steps:
+    - name: 코드 체크아웃
+      uses: actions/checkout@v3
+      
+    # 환경 변수 설정
+    - name: 환경 변수 설정
+      id: env
+      run: |
+        echo "VERSION=${GITHUB_SHA::8}" >> $GITHUB_ENV
+        echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+        echo "IMAGE_NAME=pumati-ai" >> $GITHUB_ENV
+        
+    # Docker 빌드 및 태그 설정
+    - name: Docker 이미지 빌드
+      run: |
+        # 로컬 Docker 캐시 활용
+        docker build \
+          --cache-from ${IMAGE_NAME}:buildcache \
+          -t ${IMAGE_NAME}:latest \
+          -t ${IMAGE_NAME}:${{ github.sha }} \
+          -f ./Dockerfile .
+          
+        # 캐시 이미지 업데이트
+        docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:buildcache
+      
+    # 애플리케이션 시작 전 기존 실행 중인 컨테이너 정리
+    - name: 기존 컨테이너 정리
+      run: |
+        # 기존 컨테이너가 있다면 중지
+        if docker ps -a | grep -q ${IMAGE_NAME}; then
+          echo "기존 컨테이너 중지 및 제거 중..."
+          docker stop $(docker ps -a -q --filter ancestor=${IMAGE_NAME} --format="{{.ID}}") || true
+          docker rm $(docker ps -a -q --filter ancestor=${IMAGE_NAME} --format="{{.ID}}") || true
+        fi
+    
+    # GPU 컨테이너 실행
+    - name: 애플리케이션 컨테이너 시작
+      run: |
+        echo "🚀 GPU 컨테이너 시작 중..."
+        
+        # NVIDIA 드라이버 상태 확인
+        nvidia-smi
+        
+        # GPU를 사용하여 컨테이너 실행
+        docker run -d \
+          --gpus all \
+          -p 8000:8000 \
+          --name ${IMAGE_NAME}-${{ env.VERSION }} \
+          --restart unless-stopped \
+          ${IMAGE_NAME}:${{ github.sha }}
+        
+        echo "✅ 컨테이너 시작 완료: ${IMAGE_NAME}-${{ env.VERSION }}"
+        
+    # 컨테이너 상태 확인
+    - name: 컨테이너 상태 확인
+      run: |
+        echo "컨테이너 상태 확인 중..."
+        sleep 10
+        if docker ps | grep -q ${IMAGE_NAME}-${{ env.VERSION }}; then
+          echo "✅ 컨테이너가 정상적으로 실행 중입니다."
+        else
+          echo "❌ 컨테이너 실행 실패"
+          docker logs ${IMAGE_NAME}-${{ env.VERSION }}
+          exit 1
+        fi
+    
+    # 불필요한 이미지 정리 (선택사항)
+    - name: 이미지 정리
+      if: success()
+      run: |
+        echo "불필요한 이미지 정리 중..."
+        # 태그되지 않은 이미지 삭제
+        docker image prune -f
+        
+        # 특정 수 이상의 이전 버전 이미지 삭제 (최신 3개 유지)
+        docker images --format "{{.Repository}}:{{.Tag}}" | grep ${IMAGE_NAME} | grep -v 'latest' | grep -v 'buildcache' | grep -v ${{ github.sha }} | sort -r | tail -n +4 | xargs -r docker rmi
+    
+    # 배포 알림 (Discord 또는 기타 메시지 서비스)
+    - name: 배포 알림
+      if: success()
+      run: |
+        # Discord 웹훅이 설정되어 있다면 알림 전송
+        if [ -n "${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}" ]; then
+          DEPLOY_MSG="🚀 pumati-ai 새 버전(${{ env.VERSION }})이 GPU 셀프 호스트 러너에 배포되었습니다."
+          
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"content\": \"$DEPLOY_MSG\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}
+        fi 
