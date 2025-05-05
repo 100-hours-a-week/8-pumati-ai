@@ -1,5 +1,4 @@
-torch==2.1.0
-torchvision==0.16.0
+torch==2.1.0+cu121
 transformers==4.38.2 #hf 모델 로드하고 추론 핵심 라이브러리
 safetensors #HuggingFace 모델이 저장되는 .safetensors 파일 포맷을 빠르고 안전하게 로드하기 위한 라이브러리
 fastapi
