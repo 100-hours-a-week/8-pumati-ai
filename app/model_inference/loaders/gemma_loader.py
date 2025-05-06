@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import logging
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
@@ -25,7 +26,10 @@ FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서�
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 200
 TEMPERATURE = 0.9
-TOP_P = 0.9
+TOP_P = 0.95
+REPETITION_PENALTY = 1.2
+MAX_RETRY = 10
+
 
 # ----------------------------
 # GemmaModel 클래스
@@ -78,34 +82,63 @@ class GemmaModel:
                 device=-1, 
                 temperature=TEMPERATURE, 
                 top_p=TOP_P, 
-                do_sample=True
+                do_sample=True,
+                repetition_penalty=REPETITION_PENALTY
             )
             logger.info("Gemma 모델 로드 완료.")
 
     # 댓글 생성
-    def generate_comment(self, request_data: CommentRequest) -> str:
+    def validate_generated_comment(self, generated_comment_dict: dict) -> bool:
         """
-        프롬프트를 기반으로 댓글을 생성하고 JSON 포맷으로 후처리합니다.
-        생성된 결과가 유효하지 않으면 fallback 메시지를 반환합니다.
+        생성된 댓글 JSON이 유효한지 검사.
+        필수 필드(content)가 없거나 값이 비어있으면 False
         """
+        if "content" not in generated_comment_dict:
+            return False
+
+        content = generated_comment_dict["content"]
+
+        if not isinstance(content, str) or not content.strip():
+            return False
+        
+        if len(content.split()) <= 2:
+            return False
+
+        return True
+
+
+    def generate_comment(self, request_data: CommentRequest) -> dict:
         prompt_builder = GemmaPrompt(request_data)
         prompt: str = prompt_builder.generate_prompt()
 
-        logger.info("댓글 생성을 시작합니다.")
-        outputs = self.pipe(prompt, max_new_tokens = MAX_NEW_TOKENS)[0]["generated_text"]
-        output_text = outputs[len(prompt):].strip()
+        for attempt in range(1, MAX_RETRY + 1):
+            logger.info(f"댓글 생성 시도 {attempt}회")
+            outputs = self.pipe(prompt, max_new_tokens=MAX_NEW_TOKENS)[0]["generated_text"]
+            output_text = outputs[len(prompt):].strip()
 
-        #JSON 블록 추출
-        try:
-            logger.info("llm 댓글 추출 성공 : %s", output_text)
-            find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
-            generated_comment = find_comment[0].strip()
-            logger.info("JSON 형식의 댓글 추출 성공.")
-        except IndexError:
-            logger.warning("JSON 추출 실패 → fallback 메시지 사용.")
-            generated_comment = FALLBACK_COMMENT
-    
-        return generated_comment
+            try:
+                find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
+                generated_comment_str = find_comment[0].strip()
+                generated_comment_dict = json.loads(generated_comment_str)
+
+                # ✅ 유효성 검사 추가 (이게 핵심)
+                if self.validate_generated_comment(generated_comment_dict):
+                    logger.info("JSON 파싱 + 유효성 검사 성공.")
+                    generated_comment = generated_comment_dict.get("content", "").strip()
+                    return generated_comment
+                else:
+                    raise ValueError("생성된 JSON에 content가 없거나 비어 있음")
+
+            except (IndexError, json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"댓글 생성 실패 (시도 {attempt}회): {e}")
+
+                if attempt < MAX_RETRY:
+                    continue
+                else:
+                    logger.warning("최대 재시도 도달 → fallback 사용.")
+                    return json.loads(FALLBACK_COMMENT)
+
+
     
 
 # 싱글턴 인스턴스 생성 (서버 시작 시 1회만 실행)
