@@ -1,30 +1,33 @@
 # app/model_inference/inference_runner.py
 
-import json
 import re
 from app.context_construction.query_rewriter import build_fortune_prompt
 from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text
+from langchain_core.output_parsers import JsonOutputParser
 
-def run_fortune_model(course: str, date: str) -> dict:
-    # 1) JSON 전용 프롬프트 생성
-    prompt = build_fortune_prompt(course, date)
+# 1. JSONOutputParser 초기화
+parser = JsonOutputParser()
 
-    # 2) 모델에 프롬프트만 전달
+def run_fortune_model(name: str, course: str, date: str) -> dict:
+    """
+    name, course, date를 받아 개인화된 운세 JSON을 반환합니다.
+    JSONOutputParser를 사용하여 파싱합니다.
+    """
+    # 1) 프롬프트 생성
+    prompt = build_fortune_prompt(name, course, date)
+
+    # 2) 모델 호출
     raw = generate_fortune_text(prompt)
 
-    # 3) { … } 블록 모두 찾고, 마지막 블록만 취함
-    blocks = re.findall(r"\{[\s\S]*?\}", raw)
-    if not blocks:
-        raise RuntimeError(f"모델 출력에 JSON 블록이 없습니다:\n{raw}")
-    last = blocks[-1]
+    # 3) 이미 dict인 경우 그대로 반환
+    if isinstance(raw, dict):
+        return raw
 
-    # 4) JSON 파싱
+    # 4) 파싱 시도
     try:
-        return json.loads(last)
-    except json.JSONDecodeError as e:
-        # 디버그용 전체 raw 및 추출 블록 출력
-        raise RuntimeError(
-            f"JSON 파싱 실패: {e}\n"
-            f"추출된 블록:\n{last}\n\n"
-            f"원본 출력:\n{raw}"
-        )
+        result = parser.parse(str(raw))
+    except Exception as e:
+        print(f"[❗️ JSON 파싱 실패]: {e}")
+        return {}
+
+    return result
