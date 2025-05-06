@@ -1,40 +1,57 @@
 # app/context_construction/query_rewriter.py
 
 from app.fast_api.schemas.comment_schemas import CommentRequest
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # JSON 데이터 모델 정의
 class GemmaPrompt:
+    """
+    프로젝트 정보를 기반으로 Gemma 프롬프트를 생성하는 클래스
+    """
     def __init__(self, data: CommentRequest):
 
-        self.comment_type = data.comment_type
-        self.team_projectName = data.team_projectName
-        self.team_shortIntro = data.team_shortIntro
-        self.team_deployedUrl = data.team_deployedUrl
-        self.team_githubUrl = data.team_githubUrl
-        self.team_description = data.team_description
-        self.team_tags = data.team_tags
+        self.comment_type = self._escape(data.comment_type)
+        self.team_projectName = self._escape(data.team_projectName)
+        self.team_shortIntro = self._escape(data.team_shortIntro)
+        self.team_deployedUrl = self._escape(data.team_deployedUrl)
+        self.team_githubUrl = self._escape(data.team_githubUrl)
+        self.team_description = self._escape(data.team_description)
+        self.team_tags = self._escape(data.team_tags)
     # JSON 파일 로드 함수
-    
-    def generate_prompt(self):
-        Gemma_prompt = f"""
-        너는 개발자 커뮤니티에서 활동하는 AI 커뮤니티 회원이야.
-        아래 **프로젝트 정보:**를 바탕으로, '{self.comment_type}' 유형의 댓글을 작성해줘.
 
-        **프로젝트 정보:**
+    def _escape(self, text: str) -> str:
+        """
+        문자열을 JSON 안전하게 escape 처리합니다.
+        (따옴표를 포함한 특수 문자를 안전하게 변환합니다.)
+        """
+        return json.dumps(text, ensure_ascii=False)[1:-1]  # 양쪽 따옴표 제거
+    
+    def generate_prompt(self) -> str:
+        """
+        프로젝트 정보를 기반으로 LLM 프롬프트 문자열 생성
+        """
+        gemma_prompt = f"""
+        너는 3년차 긍정적인 개발자야.
+        아래 **프로젝트 정보**를 고려해서 '{self.comment_type}'유형의 댓글을 20자 이내로 약간 개성있는 다양한 댓글을 작성해줘.
+        반드시 JSON 형식으로만 출력하고 프로젝트 정보등 다른 문장은 쓰지 마.
+
+        **프로젝트 정보**
         - projectName: {self.team_projectName}
         - shortIntro: {self.team_shortIntro}
-        - deployedUrl: {self.team_deployedUrl} 
+        - deployedUrl: {self.team_deployedUrl}
         - githubUrl: {self.team_githubUrl}
         - description: {self.team_description}
-        - tags: {self.team_tags}
+        - tags: {self.team_tags} 
 
-        개발자 커뮤니티에 어울리는 스타일의 말투로 기술적 특성이나 장점을 녹여내서 아래 Json형태로 한국어로 작성해줘. 댓글은 문자열 형태로, 최대 30자 이내로 한문장만 작성해줘. **프로젝트 정보**, **질문**처럼 댓글과 상관없는 문자는 모두 빼줘.
-
-        **출력 JSON 형식 (예시):**
-        "content" : "Fastapi로 빠르게 서빙한것이 인상 깊었습니다."
-
+        **출력 예시 (Json)**
+        {{ "content": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
+        {{ "content": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
-        return Gemma_prompt
+
+        return gemma_prompt.strip()
 
 ##fortune
 
