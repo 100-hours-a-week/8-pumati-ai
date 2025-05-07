@@ -1,0 +1,32 @@
+# 1. CPU 최적화 베이스 이미지
+FROM python:3.10-slim
+
+# 2. 환경 변수
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    TOKENIZERS_PARALLELISM=false \
+    PYTHONPATH=/workspace/app
+
+# 3. 작업 디렉토리
+WORKDIR /workspace
+
+# 4. 시스템 패키지 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    git \
+ && rm -rf /var/lib/apt/lists/*
+
+# 5. Python 패키지 설치
+COPY requirements.cpu.txt requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+# 6. 애플리케이션 코드 복사
+COPY . /workspace/
+
+# 7. 포트 오픈 및 실행
+EXPOSE 8080
+
+ENTRYPOINT ["python3", "-m", "uvicorn"]
+CMD ["main:app", "--host", "0.0.0.0", "--port", "8080"]

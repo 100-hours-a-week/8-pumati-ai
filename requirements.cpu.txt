@@ -1,0 +1,10 @@
+torch==2.1.0
+transformers==4.38.2
+safetensors
+fastapi
+uvicorn==0.29.0
+huggingface-hub
+python-dotenv
+Faker>=18.0.0
+requests
+pydantic==1.10.13
