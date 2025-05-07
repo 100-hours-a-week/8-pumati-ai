@@ -2,7 +2,7 @@ name: 셀프 호스티드 GPU Docker CI/CD 파이프라인
 
 on:
   push:
-    branches: [ jacky ] # 이 부분은 필요에 따라 변경 가능
+    branches: [ jacky1 ] # 이 부분은 필요에 따라 변경 가능
     paths:
       - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
       - '.github/workflows/dev-cicd-self-hosted.yml' # 워크플로우 파일 변경 시 실행

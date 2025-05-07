@@ -2,7 +2,7 @@ name: Docker CI/CD 파이프라인
 
 on:
   push:
-    branches: [ jacky ]
+    branches: [ jacky1 ]
     paths:
       - 'app/**'  # 애플리케이션 코드가 변경될 때만 실행
       - '.github/workflows/dev-cicd.yml' # dev-cicd.yml 코드가 변경될 때에도 실행
@@ -20,10 +20,12 @@ jobs:
   build-and-deploy:
     runs-on: self-hosted # 셀프 호스티드 러너 사용(GPU 인스턴스)
     
-    steps:
+    steps:    
+
+
     - name: 코드 체크아웃
       uses: actions/checkout@v3
-      
+
     - name: Google Cloud 인증 설정
       uses: google-github-actions/auth@v1
       with:
@@ -193,3 +195,10 @@ jobs:
             -d "{\"content\": \"$DEPLOY_MSG\"}" \
             ${{ secrets.DISCORD_WEBHOOK_URL_JACKY }}
         fi
+        
+    - name: 디스크 공간 정리
+      run: |
+        echo "디스크 공간 정리 중..."
+        docker system prune -a -f
+        find /opt/actions-runner/_diag -name "*.log" -type f -mtime +1 -delete
+        df -h
