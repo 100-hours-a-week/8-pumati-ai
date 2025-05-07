@@ -5,7 +5,7 @@ from typing import Literal, Dict
 from pydantic import BaseModel
 
 class FortuneRequest(BaseModel):
-    memberId: int
+    name: str
     course: str
     date: str
 
