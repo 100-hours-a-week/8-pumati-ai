@@ -156,6 +156,11 @@ jobs:
                   "name": "🌐 서비스 URL 🔗",
                   "value": "['"${SERVICE_URL}"']('"${SERVICE_URL}"')",
                   "inline": false
+                },
+                {
+                  "name": "🔄 GitHub Actions 🔍",
+                  "value": "[워크플로우 실행 결과 보기](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                  "inline": false
                 }
               ],
               "thumbnail": {
