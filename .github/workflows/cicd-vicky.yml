@@ -1,4 +1,8 @@
 # cicd-vicky.yml
+
+# 비키는 추후 HF_AUTH_TOKEN_ANNA 를 비키껄로 바꿔주셔야 합니다. 재키에게 문의
+
+
 # GitHub Actions 워크플로우 이름
 name: Build and Push to Artifact Registry
 
@@ -59,9 +63,7 @@ jobs:
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
-            --build-arg BUILDKIT_MULTI_PLATFORM=1 \
-            --build-arg BUILDKIT_PROGRESS=plain \
-            --build-arg PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512 \
+            --build-arg HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -f ${{ env.DOCKERFILE_PATH }} .
 

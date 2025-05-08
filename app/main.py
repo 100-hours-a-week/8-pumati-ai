@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-# from app.fast_api.endpoints.fortune_router import router as fortune_router
+from app.fast_api.endpoints.fortune_router import router as fortune_router
 from app.fast_api.endpoints.comment_router import comment_app as comment_router
 import uvicorn
 
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],  # 모든 헤더 허용
 )
 
-# app.include_router(fortune_router, prefix="/api/llm", tags=["Fortune"])
+app.include_router(fortune_router, prefix="/api/llm", tags=["Fortune"])
 app.include_router(comment_router, tags=["Comment"])
 
 if __name__ == "__main__":
