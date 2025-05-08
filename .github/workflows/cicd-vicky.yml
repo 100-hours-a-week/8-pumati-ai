@@ -124,7 +124,7 @@ jobs:
           
           # Discord 웹훅 페이로드
           curl -H "Content-Type: application/json" -X POST -d '{
-            "username": "🤖 VICKY 빌드 & 배포 봇",
+            "username": "🤖 PUMATI 인공지능 빌드 & 배포 봇",
             "avatar_url": "https://avatars.githubusercontent.com/u/583231",
             "content": "🌟 **'"${COMMIT_AUTHOR}"'** 님이 새 빌드를 완료하고 Cloud Run에 배포했습니다! 🚀",
             "embeds": [{
