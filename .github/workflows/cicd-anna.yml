@@ -1,0 +1,83 @@
+# cicd-anna.yml
+
+# GitHub Actions 워크플로우 이름
+name: Build and Push Anna AI Image
+
+# 워크플로우 트리거 조건 설정
+# main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
+on:
+  push:
+    branches:
+      - fix/5-jsonoutput
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker image
+    runs-on: self-hosted
+    
+
+    # 환경 변수 설정
+    env:
+      GCP_PROJECT_ID: ktb8team-458916 
+      ARTIFACT_REGISTRY_LOCATION: "asia-east1"
+      ARTIFACT_REGISTRY_REPO: "ktb8team"
+      IMAGE_NAME: "dev/ai-anna"
+      DOCKERFILE_PATH: "Dockerfile.cpu"
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # NVIDIA Container Toolkit 상태 확인
+      - name: Verify NVIDIA Container Toolkit
+        run: |
+          nvidia-smi
+          docker info | grep -i nvidia
+
+      # 2. Google Cloud 인증 (서비스 계정 키 사용)
+      # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 3. Google Cloud SDK (gcloud CLI) 설정 (선택 사항, auth 단계에서 이미 gcloud가 설정될 수 있음)
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      # 4. Artifact Registry에 Docker 인증 설정
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
+
+      # 5. Docker 레이어 캐싱
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # 6. Docker BuildKit 활성화 + GPU 사용
+      - name: Build Docker image with GPU
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --platform=linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg CUDA_VISIBLE_DEVICES=all \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
+            -f ${{ env.DOCKERFILE_PATH }} .
+
+      # 7. Docker 이미지를 Artifact Registry에 푸시
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # 8. 이미지 주소 출력
+      - name: Output image URL
+        run: |
+          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
