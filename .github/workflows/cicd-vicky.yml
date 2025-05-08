@@ -30,6 +30,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # NVIDIA Container Toolkit 상태 확인
+      - name: Verify NVIDIA Container Toolkit
+        run: |
+          nvidia-smi
+          docker info | grep -i nvidia
+
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
       - name: Google Auth
@@ -46,12 +52,16 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
 
-      # 5. Docker 이미지 빌드
-      # github.sha는 현재 커밋의 SHA 해시로, 이미지 태그의 고유성을 보장합니다.
-      # linux/amd64 플랫폼을 명시합니다.
-      - name: Build Docker image
+      # 5. Docker BuildKit 활성화 + GPU 사용 + 캐시 최적화
+      - name: Build Docker image with GPU
         run: |
-          DOCKER_BUILDKIT=1 docker build --platform linux/amd64 \
+          DOCKER_BUILDKIT=1 docker build \
+            --platform=linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg CUDA_VISIBLE_DEVICES=all \
+            --build-arg BUILDKIT_MULTI_PLATFORM=1 \
+            --build-arg BUILDKIT_PROGRESS=plain \
+            --build-arg PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512 \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -f ${{ env.DOCKERFILE_PATH }} .
 
@@ -73,3 +83,56 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+
+      # Discord로 빌드 성공 알림 보내기
+      - name: Send Discord notification
+        if: success()
+        run: |
+          # 현재 시간 (KST)
+          CURRENT_TIME=$(TZ='Asia/Seoul' date '+%Y년 %m월 %d일 %H:%M:%S')
+          
+          # 이미지 URL
+          IMAGE_URL="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+          # 커밋 작성자와 메시지
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
+          
+          # Discord 웹훅 페이로드
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "username": "🤖 AI 빌드 봇",
+            "avatar_url": "https://avatars.githubusercontent.com/u/583231",
+            "embeds": [{
+              "title": "✅ 🚀 AI 서비스 빌드 성공! 🎉 🎊",
+              "color": 3066993,
+              "description": "🔥 AI 서비스의 Docker 이미지 빌드 및 푸시가 성공적으로 완료되었습니다! 🌟 짝짝짝~ 🙌",
+              "fields": [
+                {
+                  "name": "🕒 빌드 시간 ⏰",
+                  "value": "🗓️ '"${CURRENT_TIME}"' 🕰️",
+                  "inline": true
+                },
+                {
+                  "name": "👨‍💻 커밋 작성자 ✍️",
+                  "value": "🧙 '"${COMMIT_AUTHOR}"' 💪",
+                  "inline": true
+                },
+                {
+                  "name": "📝 커밋 메시지 💬",
+                  "value": "📌 '"${COMMIT_MESSAGE}"' 📎"
+                },
+                {
+                  "name": "🖼️ 이미지 URL 📦",
+                  "value": "```'"${IMAGE_URL}"'```"
+                },
+                {
+                  "name": "🔗 GitHub Actions 🔄",
+                  "value": "📊 [워크플로우 실행 결과 보기](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) 📈"
+                }
+              ],
+              "footer": {
+                "text": "🏆 ktb8team AI 이미지 빌드 시스템 🛠️"
+              },
+              "timestamp": "'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'"
+            }]
+          }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
