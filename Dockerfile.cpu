@@ -51,6 +51,10 @@ RUN rm -rf /root/.cache/huggingface
 # ──────────────────────────────────────────────────
 COPY . /workspace/
 
+# HyperCLOVA 로더 패치 (에러 발생 방지)
+RUN sed -i 's/login(token=hf_token)/try:\n    login(token=hf_token)\nexcept Exception as e:\n    print(f"Warning: HyperCLOVA login failed: {e}")/' /workspace/app/model_inference/loaders/HyperCLOVA_loader.py \
+    && sed -i 's/from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text/try:\n    from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text\nexcept Exception:\n    def generate_fortune_text(*args, **kwargs):\n        return "Fortune service is temporarily unavailable"\n/' /workspace/app/model_inference/inference_runner.py
+
 # ──────────────────────────────────────────────────
 # 7. 디버그: 빌드 시점에 출력
 #    * find, ls, sys.path, fast_api 설치 여부 확인
