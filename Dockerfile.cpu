@@ -61,4 +61,4 @@ EXPOSE 8080
 
 # 9. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
 ENTRYPOINT ["python3", "-m", "uvicorn"]
-CMD ["main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
