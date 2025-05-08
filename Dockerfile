@@ -46,6 +46,6 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY . /workspace/
 
 # 포트 노출 및 FastAPI 서버 실행
-EXPOSE 8000
+EXPOSE 8080
 ENTRYPOINT ["python3", "-m", "uvicorn"]
 CMD ["main:app", "--host", "0.0.0.0", "--port", "8080"]
