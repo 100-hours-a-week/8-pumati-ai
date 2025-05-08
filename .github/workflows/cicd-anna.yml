@@ -22,7 +22,7 @@ jobs:
       ARTIFACT_REGISTRY_LOCATION: "asia-east1"
       ARTIFACT_REGISTRY_REPO: "ktb8team"
       IMAGE_NAME: "dev/ai-anna"
-      DOCKERFILE_PATH: "Dockerfile.cpu"
+      DOCKERFILE_PATH: "Dockerfile"
 
     steps:
       # 1. 코드 체크아웃
