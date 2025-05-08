@@ -1,0 +1,64 @@
+# ──────────────────────────────────────────────────
+# 1. 베이스 이미지
+#    GCP Deep Learning VM PyTorch2.1+CUDA12.1+Ubuntu22.04+Py3.10
+# ──────────────────────────────────────────────────
+FROM python:3.10
+
+# ──────────────────────────────────────────────────
+# 2. 환경 변수
+#    - PYTHONPATH에 /workspace/app 추가
+#    - 기타 설정
+# ──────────────────────────────────────────────────
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    TOKENIZERS_PARALLELISM=false \
+    PYTHONPATH=/workspace/app
+
+# ──────────────────────────────────────────────────
+# 3. 작업 디렉토리
+# ──────────────────────────────────────────────────
+WORKDIR /workspace
+
+# ──────────────────────────────────────────────────
+# 4. 시스템 패키지 설치
+# ──────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      python3-dev \
+      git \
+    && rm -rf /var/lib/apt/lists/*
+
+# ──────────────────────────────────────────────────
+# 5. Python 의존성 설치
+# ──────────────────────────────────────────────────
+COPY requirements.cpu.txt requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip uninstall -y torch torch_xla || true \
+ && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir --upgrade tokenizers transformers faker
+RUN rm -rf /root/.cache/huggingface
+
+# ──────────────────────────────────────────────────
+# 6. 애플리케이션 코드 복사
+# ──────────────────────────────────────────────────
+COPY . /workspace/
+
+# ──────────────────────────────────────────────────
+# 7. 디버그: 빌드 시점에 출력
+#    * find, ls, sys.path, fast_api 설치 여부 확인
+# ──────────────────────────────────────────────────
+RUN echo "===== /workspace/app 구조 =====" \
+ && find /workspace/app -maxdepth 2 | sort \
+ && echo "\n===== Python sys.path =====" \
+ && python3 -c "import sys; print(sys.path)" \
+ && echo "\n===== fast_api 패키지 =====" \
+ && ls -R /workspace/app/fast_api
+
+# ──────────────────────────────────────────────────
+# 8. 포트 노출 및 컨테이너 시작
+# ──────────────────────────────────────────────────
+EXPOSE 8080
+
+# 9. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
+ENTRYPOINT ["python3", "-m", "uvicorn"]
+CMD ["main:app", "--host", "0.0.0.0", "--port", "8080"]
