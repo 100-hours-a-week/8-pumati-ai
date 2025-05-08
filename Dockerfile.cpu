@@ -32,10 +32,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 5. Python 의존성 설치
 # ──────────────────────────────────────────────────
 COPY requirements.cpu.txt requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
- && pip uninstall -y torch torch_xla || true \
- && pip install --no-cache-dir -r requirements.txt \
- && pip install --no-cache-dir --upgrade tokenizers transformers faker
+# RUN pip install --no-cache-dir --upgrade pip \
+#  && pip uninstall -y torch torch_xla || true \
+#  && pip install --no-cache-dir -r requirements.txt \
+#  && pip install --no-cache-dir --upgrade tokenizers transformers faker
+   # Dockerfile.cpu 수정
+RUN pip install --upgrade pip \
+&& pip uninstall -y torch torch_xla || true \
+&& pip install -r requirements.txt \
+&& pip install --upgrade tokenizers transformers faker
+
 RUN rm -rf /root/.cache/huggingface
 
 # ──────────────────────────────────────────────────

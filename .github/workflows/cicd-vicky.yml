@@ -21,8 +21,8 @@ jobs:
     env:
       GCP_PROJECT_ID: ktb8team-458916 
       ARTIFACT_REGISTRY_LOCATION: "asia-east1"
-      ARTIFACT_REGISTRY_REPO: "ktb8team-docker-repo"
-      IMAGE_NAME: "dev/ai-vicky" # 기본 이미지 이름을 my-api-cpu로 설정, 필요시 수정
+      ARTIFACT_REGISTRY_REPO: "ktb8team"
+      IMAGE_NAME: "dev/ai-vicky"
       DOCKERFILE_PATH: "Dockerfile.cpu"
 
     steps:
@@ -51,7 +51,7 @@ jobs:
       # linux/amd64 플랫폼을 명시합니다.
       - name: Build Docker image
         run: |
-          docker build --platform linux/amd64 \
+          DOCKER_BUILDKIT=1 docker build --platform linux/amd64 \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -f ${{ env.DOCKERFILE_PATH }} .
 
@@ -64,3 +64,12 @@ jobs:
       - name: Output image URL
         run: |
           echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+      # 7. Docker 레이어 캐싱
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
