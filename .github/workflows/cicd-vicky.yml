@@ -1,10 +1,7 @@
 # cicd-vicky.yml
 
-# 비키는 추후 HF_AUTH_TOKEN_ANNA 를 비키껄로 바꿔주셔야 합니다. 재키에게 문의
-
-
 # GitHub Actions 워크플로우 이름
-name: Build and Push to Artifact Registry
+name: Build, Push and Deploy to Cloud Run with GPU
 
 # 워크플로우 트리거 조건 설정
 # main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
@@ -14,8 +11,8 @@ on:
       - feat/24-comment-Dockerfile
 
 jobs:
-  build-and-push:
-    name: Build and Push Docker image to Artifact Registry
+  build-push-deploy:
+    name: Build, Push and Deploy to Cloud Run
     runs-on: self-hosted
     # id-token 권한은 WIF를 사용하지 않으므로 제거해도 됩니다. (선택 사항)
     # permissions:
@@ -28,6 +25,8 @@ jobs:
       ARTIFACT_REGISTRY_REPO: "ktb8team"
       IMAGE_NAME: "dev/ai-vicky"
       DOCKERFILE_PATH: "Dockerfile.cpu"
+      CLOUD_RUN_SERVICE_NAME: "ai-vicky"
+      CLOUD_RUN_REGION: "asia-southeast1"
 
     steps:
       # 1. 코드 체크아웃
@@ -49,33 +48,29 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       # 3. Google Cloud SDK (gcloud CLI) 설정 (선택 사항, auth 단계에서 이미 gcloud가 설정될 수 있음)
-      # - name: Set up Cloud SDK
-      #   uses: 'google-github-actions/setup-gcloud@v2'
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
 
       # 4. Artifact Registry에 Docker 인증 설정
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
 
-      # 5. Docker BuildKit 활성화 + GPU 사용 + 캐시 최적화
+      # 5. Docker BuildKit 활성화 + GPU 사용
       - name: Build Docker image with GPU
         run: |
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
-            --build-arg HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
 
       # 6. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
         run: |
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-      # (선택 사항) 생성된 이미지 전체 주소 출력
-      - name: Output image URL
-        run: |
-          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
 
       # 7. Docker 레이어 캐싱
       - name: Cache Docker layers
@@ -86,7 +81,31 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # Discord로 빌드 성공 알림 보내기
+      # Cloud Run에 배포
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
+            --image ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.CLOUD_RUN_REGION }} \
+            --allow-unauthenticated \
+            --memory 32Gi \
+            --cpu 8 \
+            --port 8080 \
+            --max-instances 2 \
+            --gpu 1 \
+            --gpu-type nvidia-l4 \
+            --no-gpu-zonal-redundancy \
+            --timeout 3600 \
+            --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" \
+            --project ${{ env.GCP_PROJECT_ID }}
+
+      # 이미지 주소 출력
+      - name: Output image URL
+        run: |
+          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+      # Discord로 빌드 및 배포 성공 알림 보내기
       - name: Send Discord notification
         if: success()
         run: |
@@ -100,41 +119,50 @@ jobs:
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
           
+          # Cloud Run 서비스 URL 가져오기
+          SERVICE_URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE_NAME }} --region ${{ env.CLOUD_RUN_REGION }} --format='value(status.url)')
+          
           # Discord 웹훅 페이로드
           curl -H "Content-Type: application/json" -X POST -d '{
-            "username": "🤖 AI 빌드 봇",
+            "username": "🤖 VICKY 빌드 & 배포 봇",
             "avatar_url": "https://avatars.githubusercontent.com/u/583231",
+            "content": "🌟 **'"${COMMIT_AUTHOR}"'** 님이 새 빌드를 완료하고 Cloud Run에 배포했습니다! 🚀",
             "embeds": [{
-              "title": "✅ 🚀 AI 서비스 빌드 성공! 🎉 🎊",
+              "title": "✅ AI 서비스 빌드 & 배포 성공! 🎉 🎊",
               "color": 3066993,
-              "description": "🔥 Vicky의 Docker 이미지 빌드 및 푸시가 성공적으로 완료되었습니다! 🌟 짝짝짝~ 🙌",
+              "description": "🔥 **'"${COMMIT_AUTHOR}"'** 님이 푸시한 코드의 Docker 이미지 빌드 및 Cloud Run 배포가 성공적으로 완료되었습니다! 🙌",
               "fields": [
                 {
-                  "name": "🕒 빌드 시간 ⏰",
+                  "name": "👨‍💻 푸시한 사람 👑",
+                  "value": "```fix\n'"${COMMIT_AUTHOR}"'\n```",
+                  "inline": false
+                },
+                {
+                  "name": "📝 커밋 메시지 💬",
+                  "value": "📌 '"${COMMIT_MESSAGE}"' 📎",
+                  "inline": false
+                },
+                {
+                  "name": "🕒 배포 시간 ⏰",
                   "value": "🗓️ '"${CURRENT_TIME}"' 🕰️",
                   "inline": true
                 },
                 {
-                  "name": "👨‍💻 커밋 작성자 ✍️",
-                  "value": "🧙 '"${COMMIT_AUTHOR}"' 💪",
-                  "inline": true
-                },
-                {
-                  "name": "📝 커밋 메시지 💬",
-                  "value": "📌 '"${COMMIT_MESSAGE}"' 📎"
-                },
-                {
                   "name": "🖼️ 이미지 URL 📦",
-                  "value": "```'"${IMAGE_URL}"'```"
+                  "value": "```'"${IMAGE_URL}"'```",
+                  "inline": false
                 },
                 {
-                  "name": "🔗 GitHub Actions 🔄",
-                  "value": "📊 [워크플로우 실행 결과 보기](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) 📈"
+                  "name": "🌐 서비스 URL 🔗",
+                  "value": "['"${SERVICE_URL}"']('"${SERVICE_URL}"')",
+                  "inline": false
                 }
               ],
-              "footer": {
-                "text": "🏆 ktb8team AI 이미지 빌드 시스템 🛠️"
+              "thumbnail": {
+                "url": "https://robohash.org/'"${COMMIT_AUTHOR}"'?set=set3&size=128x128"
               },
-              "timestamp": "'"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"'"
+              "footer": {
+                "text": "🏆 ktb8team AI 이미지 빌드 & 배포 시스템 - '"${COMMIT_AUTHOR}"' 님의 작업 🛠️"
+              }
             }]
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
