@@ -58,7 +58,7 @@ class ClovaxModel:
             return  # 이미 인증됨 → 그냥 넘어감
 
         load_dotenv()
-        token = os.getenv("HF_AUTH_TOKEN_VICKY")
+        token = os.getenv("HF_AUTH_TOKEN")
         if not token:
             raise EnvironmentError("HF_AUTH_TOKEN is not set in .env file.")
         login(token=token)
