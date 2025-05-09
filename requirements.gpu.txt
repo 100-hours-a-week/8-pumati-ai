@@ -22,4 +22,4 @@ numpy<2
 sentencepiece # 모델 토크나이저
 langchain # LangChain (JsonOutputParser)
 
-faker #vicky껀데 설치 안하면 서버가 안돌아가서 임시
+# faker #vicky껀데 설치 안하면 서버가 안돌아가서 임시
