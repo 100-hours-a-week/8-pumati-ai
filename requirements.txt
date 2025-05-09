@@ -1,6 +1,13 @@
+#requirements.txt
+
 # ▶ Core AI 추론 관련
-torch==2.1.0+cu121
-transformers==4.38.2 #hf 모델 로드하고 추론 핵심 라이브러리
+# torch==2.1.0+cu121
+# CPU-only용 PyTorch
+torch==2.1.0
+#gpu용
+# torch @ https://download.pytorch.org/whl/cu121/torch-2.1.0%2Bcu121-cp310-cp310-linux_x86_64.whl #torch==2.1.0+cu121은 pip에서 직접 설치할 수 없으므로 @ URL 방식으로 명시.
+
+transformers==4.51.3 #hf 모델 로드하고 추론 핵심 라이브러리
 safetensors #HuggingFace 모델이 저장되는 .safetensors 파일 포맷을 빠르고 안전하게 로드하기 위한 라이브러리
 accelerate>=0.20.3 # HuggingFace 모델 가속 및 디바이스 관리
 huggingface-hub
@@ -14,3 +21,5 @@ python-dotenv # .env 환경변수 관리
 numpy<2
 sentencepiece # 모델 토크나이저
 langchain # LangChain (JsonOutputParser)
+
+faker #vicky껀데 설치 안하면 서버가 안돌아가서 임시
