@@ -73,7 +73,7 @@ EXPOSE 8080
 
 # 9. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
 ENTRYPOINT ["python3", "-m", "uvicorn"]
-CMD ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["app.main_cpu:app", "--host", "0.0.0.0", "--port", "8080"]
 
 # 토큰없다고 에러떠서 빈토큰 추가
-RUN echo "HF_AUTH_TOKEN=dummy_token" > /workspace/.env
+#RUN echo "HF_AUTH_TOKEN=dummy_token" > /workspace/.env
