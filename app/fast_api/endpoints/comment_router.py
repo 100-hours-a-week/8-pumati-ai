@@ -46,7 +46,7 @@ def generate_comment_payload(request_data: CommentRequest) -> dict:
 
 
 def send_comment_to_backend(project_id: str, payload: dict, post_url: str) -> None:
-    endpoint = f"{post_url}/api/projects/{project_id}/ai-comments"
+    endpoint = f"https://bd48-211-244-225-166.ngrok-free.app/api/projects/{project_id}/ai-comments"#f"{post_url}/api/projects/{project_id}/ai-comments"
     headers = {"Content-Type": "application/json"}
 
     try:
