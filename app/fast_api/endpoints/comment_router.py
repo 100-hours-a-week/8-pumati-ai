@@ -45,7 +45,7 @@ def generate_comment_payload(request_data: CommentRequest) -> dict:
     }
 
 
-def send_comment_to_backend(project_id: str, payload: dict, post_url: str) -> None:
+def send_comment_to_backend(project_id: str, payload: dict) -> None: #, post_url: str)
     endpoint = f"https://bd48-211-244-225-166.ngrok-free.app/api/projects/{project_id}/comments" #f"{post_url}/api/projects/{project_id}/ai-comments"
     logger.info(f"실제 endpoint: {endpoint}")
     headers = {"Content-Type": "application/json"}
@@ -64,8 +64,8 @@ def generate_and_send_comments(project_id: str, request_data: CommentRequest, po
     for _ in range(COMMENT_GENERATE_COUNT):
         try:
             payload = generate_comment_payload(request_data)
-            send_comment_to_backend(project_id, payload, post_url)
-
+            send_comment_to_backend(project_id, payload)#, post_url)
+#
         except Exception as e:
             logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True)
 
@@ -87,10 +87,9 @@ async def receive_generate_request(project_id: str, request_data: CommentRequest
     logger.info(f"댓글 생성 요청 수신 - project_id: {project_id}")
 
     post_url = f"http://{request.client.host}:{request.client.port}"
-    print(post_url) #삭제 필요
 
     # 비동기로 댓글 생성 및 전송 시작
-    background_tasks.add_task(generate_and_send_comments, project_id, request_data, post_url)
+    background_tasks.add_task(generate_and_send_comments, project_id, request_data) #, post_url)
 
     # 백엔드에 요청받는 즉시 응답.
     status = CommentStatus.PENDING

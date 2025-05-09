@@ -117,7 +117,6 @@ class ClovaxModel:
 
             try:
                 find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
-                print(find_comment) #삭제 필요
                 generated_comment_str = find_comment[0].strip()
                 generated_comment_dict = json.loads(generated_comment_str)
 
