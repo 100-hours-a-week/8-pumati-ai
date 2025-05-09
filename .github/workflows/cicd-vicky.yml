@@ -89,16 +89,29 @@ jobs:
             --platform managed \
             --region ${{ env.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --memory 32Gi \
-            --cpu 8 \
+            --memory 16Gi \
+            --cpu 4 \
             --port 8080 \
             --max-instances 2 \
-            --gpu 1 \
-            --gpu-type nvidia-l4 \
-            --no-gpu-zonal-redundancy \
-            --timeout 3600 \
+            --timeout 600 \
             --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" \
-            --project ${{ env.GCP_PROJECT_ID }}
+          #   --project ${{ env.GCP_PROJECT_ID }}
+        #run: |
+          # gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
+          #   --image ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          #   --platform managed \
+          #   --region ${{ env.CLOUD_RUN_REGION }} \
+          #   --allow-unauthenticated \
+          #   --memory 32Gi \
+          #   --cpu 8 \
+          #   --port 8080 \
+          #   --max-instances 2 \
+          #   --gpu 1 \
+          #   --gpu-type nvidia-l4 \
+          #   --no-gpu-zonal-redundancy \
+          #   --timeout 600 \
+          #   --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" \
+          #   --project ${{ env.GCP_PROJECT_ID }}
 
       # 이미지 주소 출력
       - name: Output image URL
