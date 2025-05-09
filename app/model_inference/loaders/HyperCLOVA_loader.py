@@ -12,13 +12,14 @@ if not hf_token:
     raise ValueError("HF_AUTH_TOKEN is not set in your .env file!")
 login(token=hf_token)
 
-model_id = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+model_id = "google/gemma-3-1b-it"
 
 # ─── 2. 토크나이저 로드 (언제나 공용) ────────────────────
 tokenizer = AutoTokenizer.from_pretrained(
     model_id,
     trust_remote_code=True,
     token=hf_token,
+    use_fast=False,
 )
 
 # ─── 3. 디바이스 감지 & Full-Precision 모델 로드 ───────────
