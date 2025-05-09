@@ -7,6 +7,5 @@ huggingface-hub
 python-dotenv
 Faker>=18.0.0
 requests
-langchain-core
 pydantic==1.10.13
 numpy<2

@@ -1,13 +1,14 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from dotenv import load_dotenv
 from faker import Faker
 import requests
 import os
 import logging
 import json
+from enum import Enum
 
-from app.model_inference.loaders.gemma_loader import gemma_model_instance
-from app.fast_api.schemas.comment_schemas import CommentRequest
+from model_inference.loaders.comment_loader import clovax_model_instance
+from fast_api.schemas.comment_schemas import CommentRequest
 
 # ------------------------------
 # 설정
@@ -17,8 +18,8 @@ comment_app = APIRouter()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-RECEIVER_API_BASE_URL = os.getenv("RECEIVER_API_URL", "https://abcd1234.ngrok.io")
-COMMENT_GENERATE_COUNT = 10
+#RECEIVER_API_BASE_URL = "http://0.0.0.0:9000" os.getenv("RECEIVER_API_URL", "https://abcd1234.ngrok.io")
+COMMENT_GENERATE_COUNT = 4
 
 
 @comment_app.get("/")
@@ -35,17 +36,17 @@ def generate_comment_payload(request_data: CommentRequest) -> dict:
 
     author_name = fake.first_name()
     author_nickname = fake_ko.name()
-    generated_comment = gemma_model_instance.generate_comment(request_data)
+    generated_comment = clovax_model_instance.generate_comment(request_data)
 
     return {
-        "content": json.dumps(generated_comment, ensure_ascii=False),
+        "content": json.dumps(generated_comment, ensure_ascii=False)[1:-1],
         "authorName": author_name,
         "authorNickname": author_nickname
     }
 
 
-def send_comment_to_backend(project_id: str, payload: dict) -> None:
-    endpoint = f"{RECEIVER_API_BASE_URL}/api/projects/{project_id}/ai-comments"
+def send_comment_to_backend(project_id: str, payload: dict, post_url: str) -> None:
+    endpoint = f"{post_url}/api/projects/{project_id}/ai-comments"
     headers = {"Content-Type": "application/json"}
 
     try:
@@ -58,11 +59,11 @@ def send_comment_to_backend(project_id: str, payload: dict) -> None:
         raise
 
 
-def generate_and_send_comments(project_id: str, request_data: CommentRequest) -> None:
+def generate_and_send_comments(project_id: str, request_data: CommentRequest, post_url: str) -> None:
     for _ in range(COMMENT_GENERATE_COUNT):
         try:
             payload = generate_comment_payload(request_data)
-            send_comment_to_backend(project_id, payload)
+            send_comment_to_backend(project_id, payload, post_url)
 
         except Exception as e:
             logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True)
@@ -71,14 +72,42 @@ def generate_and_send_comments(project_id: str, request_data: CommentRequest) ->
 # ------------------------------
 # API 엔드포인트
 # ------------------------------
-@comment_app.post("/api/generate-comment/{project_id}")
-async def receive_generate_request(project_id: str, request: CommentRequest, background_tasks: BackgroundTasks):
+
+
+class CommentStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@comment_app.post("/api/projects/{project_id}/comments")
+async def receive_generate_request(project_id: str, request_data: CommentRequest, background_tasks: BackgroundTasks, request: Request):
     logger.info(f"댓글 생성 요청 수신 - project_id: {project_id}")
 
-    # 비동기로 댓글 생성 및 전송 시작
-    background_tasks.add_task(generate_and_send_comments, project_id, request)
+    post_url = f"http://{request.client.host}:{request.client.port}"
+    print(post_url) #삭제 필요
 
-    return {
-        "status": "accepted",
-        "message": f"댓글 생성을 시작했습니다. project_id={project_id}"
+    # 비동기로 댓글 생성 및 전송 시작
+    background_tasks.add_task(generate_and_send_comments, project_id, request_data, post_url)
+
+    # 백엔드에 요청받는 즉시 응답.
+    status = CommentStatus.PENDING
+    response = {
+        "message": "requestGenerateCommentsSuccess",
+        "data": {
+            "status": status
+        }
     }
+
+    return response
+
+"""
+
+{
+      "message": "requestGenerateCommentsSuccess",
+      "data": {
+          "status": "pending"
+      }
+}
+"""

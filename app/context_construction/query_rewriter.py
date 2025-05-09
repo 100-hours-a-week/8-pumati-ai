@@ -1,25 +1,25 @@
 # app/context_construction/query_rewriter.py
 
-from app.fast_api.schemas.comment_schemas import CommentRequest
+from fast_api.schemas.comment_schemas import CommentRequest
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 # JSON 데이터 모델 정의
-class GemmaPrompt:
+class ClovaxPrompt:
     """
     프로젝트 정보를 기반으로 Gemma 프롬프트를 생성하는 클래스
     """
     def __init__(self, data: CommentRequest):
-
-        self.comment_type = self._escape(data.comment_type)
-        self.team_projectName = self._escape(data.team_projectName)
-        self.team_shortIntro = self._escape(data.team_shortIntro)
-        self.team_deployedUrl = self._escape(data.team_deployedUrl)
-        self.team_githubUrl = self._escape(data.team_githubUrl)
-        self.team_description = self._escape(data.team_description)
-        self.team_tags = self._escape(data.team_tags)
+        self.comment_type = self._escape(data.commentType)
+        self.title = self._escape(data.projectSummary.title)
+        self.introduction = self._escape(data.projectSummary.introduction)
+        self.detailedDescription = self._escape(data.projectSummary.detailedDescription)
+        self.deploymentUrl = self._escape(data.projectSummary.deploymentUrl)
+        self.githubUrl = self._escape(data.projectSummary.githubUrl)
+        self.tags = self._escape(data.projectSummary.tags)
+        #self.teamId = self._escape(data.projectSummary.teamId)
     # JSON 파일 로드 함수
 
     def _escape(self, text: str) -> str:
@@ -33,25 +33,25 @@ class GemmaPrompt:
         """
         프로젝트 정보를 기반으로 LLM 프롬프트 문자열 생성
         """
-        gemma_prompt = f"""
-        너는 3년차 긍정적인 개발자야.
-        아래 **프로젝트 정보**를 고려해서 '{self.comment_type}'유형의 댓글을 20자 이내의 다양한 관점에서 다양한 댓글을 작성해줘.
-        반드시 JSON 형식으로만 출력하고 프로젝트 정보등 다른 문장은 쓰지 마.
+        clovax_prompt = f"""
+        너는 긍정적인 20대 후반의 일반 사용자야.
+        아래 **프로젝트 정보**의 기술 스택, 서비스 특징, 태그 등을 고려해서 '{self.comment_type}'유형의 댓글을 30자 이내로 다양한 관점에서 다양한 댓글을 작성해줘.
+        반드시 content키를 가진 JSON 형식으로만 댓글을 출력하고 프로젝트 정보등 다른 문장은 쓰지 마. 
+        실제 사용자처럼 서비스 사용 후기 댓글을 작성해주고, 친근하게 작성해줘.
 
         **프로젝트 정보**
-        - projectName: {self.team_projectName}
-        - shortIntro: {self.team_shortIntro}
-        - deployedUrl: {self.team_deployedUrl}
-        - githubUrl: {self.team_githubUrl}
-        - description: {self.team_description}
-        - tags: {self.team_tags} 
+        - projectName: {self.title}
+        - shortIntro: {self.introduction}
+        - detailedInfo: {self.detailedDescription}
+        - deployedUrl: {self.deploymentUrl}
+        - githubUrl: {self.githubUrl}
+        - tags: {self.tags} 
 
         **출력 예시 (Json)**
         {{ "content": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
         {{ "content": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
-
-        return gemma_prompt.strip()
+        return clovax_prompt.strip()
 
 ##fortune
 

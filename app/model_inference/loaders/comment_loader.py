@@ -6,9 +6,8 @@ from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import torch
 from huggingface_hub import login
-from app.context_construction.query_rewriter import GemmaPrompt
-from app.fast_api.schemas.comment_schemas import CommentRequest
-from typing import Optional
+from context_construction.query_rewriter import ClovaxPrompt
+from fast_api.schemas.comment_schemas import CommentRequest
 
 # ----------------------------
 # 로깅 설정
@@ -21,12 +20,12 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "google/gemma-3-1b-it"
+MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"#"google/gemma-3-1b-it"
 FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 200
-TEMPERATURE = 0.9
-TOP_P = 0.95
+TEMPERATURE = 0.7
+TOP_P = 0.8
 REPETITION_PENALTY = 1.2
 MAX_RETRY = 10
 
@@ -35,7 +34,7 @@ MAX_RETRY = 10
 # GemmaModel 클래스
 # ----------------------------
 
-class GemmaModel:
+class ClovaxModel:
     """
     Gemma 모델을 사용해 댓글 생성을 담당하는 클래스
     """
@@ -54,7 +53,7 @@ class GemmaModel:
         .env 파일에서 HF_AUTH_TOKEN을 로드하고 로그인한다.
         인증 최적화를 위해 _is_authenticated가 False일 경우만 로그인한다.
         """
-        if GemmaModel._is_authenticated:
+        if ClovaxModel._is_authenticated:
             logger.info("Hugging Face 인증 이미 완료됨.")
             return  # 이미 인증됨 → 그냥 넘어감
 
@@ -64,17 +63,17 @@ class GemmaModel:
             raise EnvironmentError("HF_AUTH_TOKEN is not set in .env file.")
         login(token=token)
 
-        GemmaModel._is_authenticated = True  # 인증 완료 처리
+        ClovaxModel._is_authenticated = True  # 인증 완료 처리
         logger.info("Hugging Face 인증 완료.")
 
-    def load_gemma(self) -> None:
+    def load_clovax(self) -> None:
         """
         모델과 토크나이저를 로드하여 파이프라인을 초기화합니다.
         이미 초기화된 경우 아무 작업도 하지 않습니다.
         """
         if self.pipe is None: 
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name).to(self.device)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name) #.to(self.device)
             self.pipe = pipeline(
                 "text-generation", 
                 model=self.model, 
@@ -108,7 +107,7 @@ class GemmaModel:
 
 
     def generate_comment(self, request_data: CommentRequest) -> dict:
-        prompt_builder = GemmaPrompt(request_data)
+        prompt_builder = ClovaxPrompt(request_data)
         prompt: str = prompt_builder.generate_prompt()
 
         for attempt in range(1, MAX_RETRY + 1):
@@ -118,10 +117,11 @@ class GemmaModel:
 
             try:
                 find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
+                print(find_comment) #삭제 필요
                 generated_comment_str = find_comment[0].strip()
                 generated_comment_dict = json.loads(generated_comment_str)
 
-                # ✅ 유효성 검사 추가 (이게 핵심)
+                # 유효성 검사 추가
                 if self.validate_generated_comment(generated_comment_dict):
                     logger.info("JSON 파싱 + 유효성 검사 성공.")
                     generated_comment = generated_comment_dict.get("content", "").strip()
@@ -142,8 +142,8 @@ class GemmaModel:
     
 
 # 싱글턴 인스턴스 생성 (서버 시작 시 1회만 실행)
-gemma_model_instance = GemmaModel()
-gemma_model_instance.load_gemma()
+clovax_model_instance = ClovaxModel()
+clovax_model_instance.load_clovax()
 
 # ----------------------------
 # 테스트 코드
@@ -165,8 +165,6 @@ if __name__ == "__main__":
 
     start = time.time()
     logger.info("테스트 시작.")
-    gemma = GemmaModel(dummy_data)
-    gemma.load_gemma()
-    comment = gemma.model_inference()
+    comment = clovax_model_instance.generate_comment(dummy_data)
     logger.info("생성된 댓글: %s", comment)
     logger.info("실행 시간: %.2f초", time.time() - start)
