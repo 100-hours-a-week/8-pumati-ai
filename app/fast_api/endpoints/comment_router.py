@@ -60,7 +60,7 @@ def send_comment_to_backend(project_id: str, payload: dict) -> None: #, post_url
         raise
 
 
-def generate_and_send_comments(project_id: str, request_data: CommentRequest, post_url: str) -> None:
+def generate_and_send_comments(project_id: str, request_data: CommentRequest) -> None: #, post_url: str)
     for _ in range(COMMENT_GENERATE_COUNT):
         try:
             payload = generate_comment_payload(request_data)
