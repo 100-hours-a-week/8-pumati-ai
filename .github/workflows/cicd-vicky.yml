@@ -94,6 +94,7 @@ jobs:
             --port 8080 \
             --max-instances 2 \
             --timeout 600 \
+            --clear-gpu \
             --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" \
           #   --project ${{ env.GCP_PROJECT_ID }}
         #run: |
