@@ -8,6 +8,7 @@ import torch
 from huggingface_hub import login
 from context_construction.query_rewriter import ClovaxPrompt
 from fast_api.schemas.comment_schemas import CommentRequest
+from pathlib import Path
 
 # ----------------------------
 # 로깅 설정
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 
 MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"#"google/gemma-3-1b-it"
+MODEL_PATH = model_path = Path(__file__).parent.parent.parent / "models" / "hyperclovax"
 FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 200
@@ -31,12 +33,12 @@ MAX_RETRY = 10
 
 
 # ----------------------------
-# GemmaModel 클래스
+# ClovaxModel 클래스
 # ----------------------------
 
 class ClovaxModel:
     """
-    Gemma 모델을 사용해 댓글 생성을 담당하는 클래스
+    Clovax 모델을 사용해 댓글 생성을 담당하는 클래스
     """
     _is_authenticated = False
     def __init__(self):
@@ -72,7 +74,7 @@ class ClovaxModel:
         이미 초기화된 경우 아무 작업도 하지 않습니다.
         """
         if self.pipe is None: 
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=False)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True)
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name) #.to(self.device)
             self.pipe = pipeline(
                 "text-generation", 
@@ -84,7 +86,7 @@ class ClovaxModel:
                 do_sample=True,
                 repetition_penalty=REPETITION_PENALTY
             )
-            logger.info("Gemma 모델 로드 완료.")
+            logger.info("Clovax 모델 로드 완료.")
 
     # 댓글 생성
     def validate_generated_comment(self, generated_comment_dict: dict) -> bool:
@@ -158,7 +160,7 @@ if __name__ == "__main__":
         team_deployedUrl="https://resume.site",
         team_githubUrl="https://github.com/example",
         team_description="FastAPI + React 기반 프로젝트",
-        team_tags=["AI", "Gemma", "GCP", "UI 친근함"],
+        team_tags=["AI", "Clovax", "GCP", "UI 친근함"],
     )
     
 
