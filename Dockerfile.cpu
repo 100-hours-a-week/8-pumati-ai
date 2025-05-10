@@ -42,7 +42,7 @@ COPY requirements.cpu.txt requirements.txt
 RUN pip install --upgrade pip \
 && pip uninstall -y torch torch_xla || true \
 && pip install -r requirements.txt \
-&& pip install --upgrade tokenizers transformers faker
+#&& pip install --upgrade tokenizers transformers faker
 
 RUN rm -rf /root/.cache/huggingface
 
