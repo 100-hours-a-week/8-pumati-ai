@@ -8,7 +8,8 @@ name: Build and Push Anna AI Image
 on:
   push:
     branches:
-      - fix/5-jsonoutput
+      # 브랜치는 맞게 잘 바꿔서
+      - chore/26-환경-수정
 
 jobs:
   build-and-push:
@@ -70,6 +71,14 @@ jobs:
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
+      
+      # 실패 시 간단한 알림 추가 
+      - name: Send failure notification
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" -d '{
+            "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
@@ -81,3 +90,4 @@ jobs:
       - name: Output image URL
         run: |
           echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
