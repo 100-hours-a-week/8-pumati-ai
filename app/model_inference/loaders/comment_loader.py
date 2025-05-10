@@ -72,7 +72,7 @@ class ClovaxModel:
         이미 초기화된 경우 아무 작업도 하지 않습니다.
         """
         if self.pipe is None: 
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=False)
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name) #.to(self.device)
             self.pipe = pipeline(
                 "text-generation", 
