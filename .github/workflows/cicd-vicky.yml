@@ -95,7 +95,7 @@ jobs:
             --port 8080 \
             --max-instances 2 \
             --timeout 600 \
-            --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_VICKY }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_VICKY }},GCP_PROJECT_ID=ktb8team-458916,GCP_LOCATION=asia-east1,GCP_QUEUE_NAME=comment-queue"
+            --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_VICKY }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_VICKY }},GCP_PROJECT_ID=ktb8team-458916,ARTIFACT_REGISTRY_LOCATION=asia-east1,GCP_QUEUE_NAME=comment-queue"
           #   --project ${{ env.GCP_PROJECT_ID }}
         #run: |
           # gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
