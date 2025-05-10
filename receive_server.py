@@ -9,7 +9,7 @@ class CommentRequest(BaseModel):
     authorName: str
     authorNickname: str
 
-@app.post("/api/projects/{project_id}/ai-comments")
+@app.post("/api/projects/{project_id}/comments/ai")
 async def receive_comment(project_id: str, comment: CommentRequest):
     
     # 받은 댓글 출력

@@ -25,7 +25,7 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
 GCP_TARGET_URL = "https://ai-vicky-325953343194.asia-southeast1.run.app"  # 비동기 처리를 수행할 서버 url(AI서버)
-BE_URL = "https://bd48-211-244-225-166.ngrok-free.app"
+BE_URL = "https://f2d5-218-237-156-105.ngrok-free.app"
 
 
 @comment_app.get("/")
@@ -97,7 +97,7 @@ async def process_comment_task(request: Request):
                 "authorNickname": author_nickname
             }
 
-            endpoint = f"{BE_URL}/api/projects/{project_id}/comments"
+            endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
             response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             logger.info(f"댓글 전송 성공: {payload}")
