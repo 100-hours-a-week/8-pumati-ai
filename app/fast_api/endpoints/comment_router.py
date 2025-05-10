@@ -24,7 +24,7 @@ COMMENT_GENERATE_COUNT = 4
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
-GCP_TARGET_URL = "http://0.0.0.0:8080" #https://ai-vicky-325953343194.asia-southeast1.run.app"  # 비동기 처리를 수행할 서버 url(AI서버)
+GCP_TARGET_URL = "https://ai-vicky-325953343194.asia-southeast1.run.app"  # 비동기 처리를 수행할 서버 url(AI서버)
 BE_URL = "https://bd48-211-244-225-166.ngrok-free.app"
 
 
