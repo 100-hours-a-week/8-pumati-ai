@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"#"google/gemma-3-1b-it"
+MODEL_NAME = "/workspace/models/hyperclovax"#"naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"#"google/gemma-3-1b-it"
 MODEL_PATH = model_path = Path(__file__).parent.parent.parent / "models" / "hyperclovax"
 FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
 CPU_DEVICE = torch.device("cpu")

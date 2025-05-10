@@ -46,6 +46,12 @@ RUN pip install --upgrade pip \
 
 RUN rm -rf /root/.cache/huggingface
 
+# 5.5. 모델 사전 다운로드
+RUN python -c "\
+from transformers import AutoTokenizer, AutoModelForCausalLM; \
+AutoTokenizer.from_pretrained('naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct', cache_dir='/workspace/models/hyperclovax'); \
+AutoModelForCausalLM.from_pretrained('naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct', cache_dir='/workspace/models/hyperclovax')"
+
 # ──────────────────────────────────────────────────
 # 6. 애플리케이션 코드 복사
 # ──────────────────────────────────────────────────
