@@ -2,7 +2,7 @@
 # 1. 베이스 이미지
 #    GCP Deep Learning VM PyTorch2.1+CUDA12.1+Ubuntu22.04+Py3.10
 # ──────────────────────────────────────────────────
-FROM python:3.10
+FROM python:3.10-slim
 
 # ──────────────────────────────────────────────────
 # 2. 환경 변수
@@ -13,8 +13,6 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
     PYTHONPATH=/workspace/app
-
-
 
 # ──────────────────────────────────────────────────
 # 3. 작업 디렉토리

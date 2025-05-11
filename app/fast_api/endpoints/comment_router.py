@@ -8,6 +8,7 @@ from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
 from datetime import datetime, timezone
 import requests
+import random
 
 from model_inference.loaders.comment_loader import clovax_model_instance
 from fast_api.schemas.comment_schemas import CommentRequest
@@ -25,7 +26,7 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
 GCP_TARGET_URL = "https://ai-vicky-325953343194.asia-southeast1.run.app"  # 비동기 처리를 수행할 서버 url(AI서버)
-BE_URL = "https://ad97-218-237-156-105.ngrok-free.app"
+#BE_URL = "https://ad97-218-237-156-105.ngrok-free.app"
 
 
 @comment_app.get("/")
@@ -37,12 +38,13 @@ def root():
 # 댓글 생성 요청 → Cloud Tasks 큐에 등록
 # 백그라운드에서 댓글 생성 작업을 비동기로 처리하기 위함
 # ------------------------------
-def enqueue_comment_task(project_id: str, request_data: dict):
+def enqueue_comment_task(project_id: str, request_data: dict, post_url: str):
     client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
     parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
 
     task_payload = {
         "projectId": project_id,
+        "postUrl": post_url,
         "requestData": request_data
     } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
@@ -63,7 +65,7 @@ def enqueue_comment_task(project_id: str, request_data: dict):
     task["schedule_time"] = timestamp
 
     response = client.create_task(parent=parent, task=task)
-    logger.info(f"🎯 Task enqueued: {response.name}")
+    logger.info(f" Task enqueued: {response.name}")
 
 
 # ------------------------------
@@ -74,21 +76,30 @@ async def process_comment_task(request: Request):
     # Cloud Tasks가 보낸 JSON body를 파싱 -> project_id, request_data를 가져옴.
     body = await request.json()
     project_id = body.get("projectId")
+    post_url = body.get("postUrl")
     request_data = body.get("requestData")
 
     #####################값이 없을 경우, 400error 발생 -> 해당 내용 백엔드와 상의 필요.
     if not (project_id and request_data):
         raise HTTPException(status_code=400, detail="Invalid task payload")
 
-    logger.info(f"✅ Cloud Task 수신: project_id={project_id}")
+    logger.info(f" Cloud Task 수신: project_id={project_id}")
 
     #댓글을 4번 생성하기 위한 루프
     for _ in range(COMMENT_GENERATE_COUNT):
         try:
-            fake = Faker()
+            fake_en = Faker()
             fake_ko = Faker('ko_KR')
-            author_name = fake.first_name()
-            author_nickname = fake_ko.name()
+            # 성별 결정
+            gender = random.choice(["male", "female"])
+
+            if gender == "male":
+                author_name = fake_en.first_name_male()
+                author_nickname = fake_ko.name_male()
+            else:
+                author_name = fake_en.first_name_female()
+                author_nickname = fake_ko.name_female()
+
             generated_comment = clovax_model_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
 
             payload = {
@@ -97,7 +108,7 @@ async def process_comment_task(request: Request):
                 "authorNickname": author_nickname
             }
 
-            endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
+            endpoint = f"{post_url}/api/projects/{project_id}/comments/ai"
             response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             logger.info(f"댓글 전송 성공: {payload}")
@@ -115,7 +126,9 @@ async def receive_generate_request(project_id: str, request_data: CommentRequest
     logger.info(f"댓글 생성 요청 수신 - project_id: {project_id}")
     post_url = f"http://{request.client.host}:{request.client.port}"
 
-    enqueue_comment_task(project_id, request_data.model_dump())
+    logger.info(f"댓글 생성 요청 수신 - BE_url: {post_url}")
+
+    enqueue_comment_task(project_id, request_data.model_dump(), post_url)
 
     return {
         "message": "requestGenerateCommentsSuccess",

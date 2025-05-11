@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"#"google/gemma-3-1b-it"
+MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
 FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 200
@@ -31,12 +31,12 @@ MAX_RETRY = 10
 
 
 # ----------------------------
-# GemmaModel 클래스
+# ClovaxModel 클래스
 # ----------------------------
 
 class ClovaxModel:
     """
-    Gemma 모델을 사용해 댓글 생성을 담당하는 클래스
+    Clovax 모델을 사용해 댓글 생성을 담당하는 클래스
     """
     _is_authenticated = False
     def __init__(self):
@@ -84,7 +84,7 @@ class ClovaxModel:
                 do_sample=True,
                 repetition_penalty=REPETITION_PENALTY
             )
-            logger.info("Gemma 모델 로드 완료.")
+            logger.info("Clovax 모델 로드 완료.")
 
     # 댓글 생성
     def validate_generated_comment(self, generated_comment_dict: dict) -> bool:
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         team_deployedUrl="https://resume.site",
         team_githubUrl="https://github.com/example",
         team_description="FastAPI + React 기반 프로젝트",
-        team_tags=["AI", "Gemma", "GCP", "UI 친근함"],
+        team_tags=["AI", "Clovax", "GCP", "UI 친근함"],
     )
     
 
