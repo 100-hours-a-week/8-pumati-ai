@@ -90,8 +90,8 @@ jobs:
             --platform managed \
             --region ${{ env.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --memory 8Gi \
-            --cpu 2 \
+            --memory 16Gi \
+            --cpu 4 \
             --port 8080 \
             --max-instances 2 \
             --timeout 600 \
