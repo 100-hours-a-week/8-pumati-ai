@@ -10,7 +10,7 @@ FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
-    PYTHONPATH=/workspace/app
+    PYTHONPATH=/workspace
 
 
 # Python 3.10 설치
@@ -24,7 +24,7 @@ RUN apt-get update && \
     ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # 작업 폴더 설정
-WORKDIR /app
+WORKDIR /workspace
 
 # 시스템 패키지 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -48,4 +48,4 @@ COPY . /workspace/
 # 포트 노출 및 FastAPI 서버 실행
 EXPOSE 8080
 ENTRYPOINT ["python3", "-m", "uvicorn"]
-CMD ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["main:app", "--host", "0.0.0.0", "--port", "8080"]
