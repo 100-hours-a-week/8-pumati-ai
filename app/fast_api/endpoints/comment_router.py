@@ -25,7 +25,7 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
 GCP_TARGET_URL = "https://ai-vicky-325953343194.asia-southeast1.run.app"  # 비동기 처리를 수행할 서버 url(AI서버)
-BE_URL = "https://bd48-211-244-225-166.ngrok-free.app"
+BE_URL = "https://ad97-218-237-156-105.ngrok-free.app"
 
 
 @comment_app.get("/")
@@ -110,7 +110,7 @@ async def process_comment_task(request: Request):
 # ------------------------------
 # 최초 댓글 생성 요청 → Cloud Tasks로 전달
 # ------------------------------
-@comment_app.post("/api/projects/{project_id}/comments")
+@comment_app.post("/api/projects/{project_id}/comments/ai")
 async def receive_generate_request(project_id: str, request_data: CommentRequest, request: Request):
     logger.info(f"댓글 생성 요청 수신 - project_id: {project_id}")
     post_url = f"http://{request.client.host}:{request.client.port}"
