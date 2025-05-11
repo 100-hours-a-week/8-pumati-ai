@@ -35,6 +35,11 @@ jobs:
         id: commit_message
         run: echo "message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
 
+      # 환경 변수 파일 생성 (.env)
+      - name: Create .env file
+        run: |
+          echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" > .env
+
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
         run: |
@@ -73,6 +78,7 @@ jobs:
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
+            --build-arg HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }} \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \

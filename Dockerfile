@@ -6,6 +6,9 @@
 # gpu용
 FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 
+# 빌드 인자 정의 : 허깅페이스 토큰 추가
+ARG HF_AUTH_TOKEN
+ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN}
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
