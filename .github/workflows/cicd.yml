@@ -8,7 +8,7 @@ name: Build and Push Anna AI Image
 on:
   push:
     branches:
-      - fix/5-jsonoutput
+      - chore/26-환경-수정
 
 jobs:
   build-and-push:
