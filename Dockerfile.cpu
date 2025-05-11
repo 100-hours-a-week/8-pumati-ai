@@ -1,8 +1,8 @@
 # ──────────────────────────────────────────────────
-# 1. 베이스 이미지
+# 1. 베이스 이미지 (slim으로 변경)
 #    GCP Deep Learning VM PyTorch2.1+CUDA12.1+Ubuntu22.04+Py3.10
 # ──────────────────────────────────────────────────
-FROM python:3.10
+FROM python:3.10-slim
 
 # ──────────────────────────────────────────────────
 # 2. 환경 변수
@@ -41,13 +41,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade tokenizers transformers faker
 
 # ──────────────────────────────────────────────────
-# 6. 패치 스크립트 먼저 복사 (변경 가능성 낮음)
-# ──────────────────────────────────────────────────
-COPY scripts/patch_files.sh /workspace/scripts/
-RUN mkdir -p /workspace/app/model_inference/loaders /workspace/app/model_inference/
-
-# ──────────────────────────────────────────────────
-# 7. 애플리케이션 코드 복사 (자주 변경되는 부분이라 마지막에)
+# 6. 애플리케이션 코드 복사 (자주 변경되는 부분이라 마지막에)
 # ──────────────────────────────────────────────────
 COPY . /workspace/
 
@@ -56,7 +50,7 @@ RUN sed -i 's/login(token=hf_token)/try:\n    login(token=hf_token)\nexcept Exce
     && sed -i 's/from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text/try:\n    from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text\nexcept Exception:\n    def generate_fortune_text(*args, **kwargs):\n        return "Fortune service is temporarily unavailable"\n/' /workspace/app/model_inference/inference_runner.py
 
 # ──────────────────────────────────────────────────
-# 8. 디버그: 빌드 시점에 출력
+# 7. 디버그: 빌드 시점에 출력
 #    * find, ls, sys.path, fast_api 설치 여부 확인
 # ──────────────────────────────────────────────────
 RUN echo "===== /workspace/app 구조 =====" \
@@ -67,11 +61,11 @@ RUN echo "===== /workspace/app 구조 =====" \
  && ls -R /workspace/app/fast_api
 
 # ──────────────────────────────────────────────────
-# 9. 포트 노출 및 컨테이너 시작
+# 8. 포트 노출 및 컨테이너 시작
 # ──────────────────────────────────────────────────
 EXPOSE 8080
 
-# 10. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
+# 9. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
 ENTRYPOINT ["python3", "-m", "uvicorn"]
 CMD ["app.main_cpu:app", "--host", "0.0.0.0", "--port", "8080"]
 
