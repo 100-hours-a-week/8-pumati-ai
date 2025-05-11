@@ -8,6 +8,7 @@ name: Build, Push and Deploy to Cloud Run with CPU
 on:
   push:
     branches:
+      - main
 
 jobs:
   build-push-deploy:

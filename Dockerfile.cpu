@@ -12,9 +12,8 @@ FROM python:3.10
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
-    PYTHONPATH=/workspace/app
-
-
+    PYTHONPATH=/workspace/app \
+    PIP_NO_CACHE_DIR=1
 
 # ──────────────────────────────────────────────────
 # 3. 작업 디렉토리
@@ -22,32 +21,33 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /workspace
 
 # ──────────────────────────────────────────────────
-# 4. 시스템 패키지 설치
+# 4. 시스템 패키지 설치 (캐싱 활용)
 # ──────────────────────────────────────────────────
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential \
-      python3-dev \
-      git \
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # ──────────────────────────────────────────────────
-# 5. Python 의존성 설치
+# 5. Python 의존성 설치 (requirements 파일 변경시만 실행)
 # ──────────────────────────────────────────────────
 COPY requirements.cpu.txt requirements.txt
-# RUN pip install --no-cache-dir --upgrade pip \
-#  && pip uninstall -y torch torch_xla || true \
-#  && pip install --no-cache-dir -r requirements.txt \
-#  && pip install --no-cache-dir --upgrade tokenizers transformers faker
-   # Dockerfile.cpu 수정
-RUN pip install --upgrade pip \
-&& pip uninstall -y torch torch_xla || true \
-&& pip install -r requirements.txt \
-&& pip install --upgrade tokenizers transformers faker
-
-RUN rm -rf /root/.cache/huggingface
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip uninstall -y torch torch_xla || true && \
+    pip install -r requirements.txt && \
+    pip install --upgrade tokenizers transformers faker
 
 # ──────────────────────────────────────────────────
-# 6. 애플리케이션 코드 복사
+# 6. 패치 스크립트 먼저 복사 (변경 가능성 낮음)
+# ──────────────────────────────────────────────────
+COPY scripts/patch_files.sh /workspace/scripts/
+RUN mkdir -p /workspace/app/model_inference/loaders /workspace/app/model_inference/
+
+# ──────────────────────────────────────────────────
+# 7. 애플리케이션 코드 복사 (자주 변경되는 부분이라 마지막에)
 # ──────────────────────────────────────────────────
 COPY . /workspace/
 
@@ -56,7 +56,7 @@ RUN sed -i 's/login(token=hf_token)/try:\n    login(token=hf_token)\nexcept Exce
     && sed -i 's/from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text/try:\n    from app.model_inference.loaders.HyperCLOVA_loader import generate_fortune_text\nexcept Exception:\n    def generate_fortune_text(*args, **kwargs):\n        return "Fortune service is temporarily unavailable"\n/' /workspace/app/model_inference/inference_runner.py
 
 # ──────────────────────────────────────────────────
-# 7. 디버그: 빌드 시점에 출력
+# 8. 디버그: 빌드 시점에 출력
 #    * find, ls, sys.path, fast_api 설치 여부 확인
 # ──────────────────────────────────────────────────
 RUN echo "===== /workspace/app 구조 =====" \
@@ -67,11 +67,11 @@ RUN echo "===== /workspace/app 구조 =====" \
  && ls -R /workspace/app/fast_api
 
 # ──────────────────────────────────────────────────
-# 8. 포트 노출 및 컨테이너 시작
+# 9. 포트 노출 및 컨테이너 시작
 # ──────────────────────────────────────────────────
 EXPOSE 8080
 
-# 9. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
+# 10. ENTRYPOINT를 Python -m uvicorn으로 완전 고정
 ENTRYPOINT ["python3", "-m", "uvicorn"]
 CMD ["app.main_cpu:app", "--host", "0.0.0.0", "--port", "8080"]
 
