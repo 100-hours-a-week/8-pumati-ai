@@ -97,7 +97,7 @@ async def process_comment_task(request: Request):
                 "authorNickname": author_nickname
             }
 
-            endpoint = f"{BE_URL}/api/projects/{project_id}/comments"
+            endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
             response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             logger.info(f"댓글 전송 성공: {payload}")
@@ -110,7 +110,7 @@ async def process_comment_task(request: Request):
 # ------------------------------
 # 최초 댓글 생성 요청 → Cloud Tasks로 전달
 # ------------------------------
-@comment_app.post("/api/projects/{project_id}/comments/ai")
+@comment_app.post("/api/projects/{project_id}/comments")
 async def receive_generate_request(project_id: str, request_data: CommentRequest, request: Request):
     logger.info(f"댓글 생성 요청 수신 - project_id: {project_id}")
     post_url = f"http://{request.client.host}:{request.client.port}"
