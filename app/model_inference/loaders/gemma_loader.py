@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = "google/gemma-3-1b-it"
 FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
-#CPU_DEVICE = torch.device("cpu")
+# CPU_DEVICE = torch.device("cpu")
 GPU_DEVICE = torch.device("cuda")
 MAX_NEW_TOKENS = 200
 TEMPERATURE = 0.9
@@ -44,11 +44,11 @@ class GemmaModel:
     def __init__(self):
         self._authenticate_huggingface()
         self.model_name = MODEL_NAME
-        self.device = CPU_DEVICE
+        self.device = GPU_DEVICE
         self.tokenizer = None
         self.model = None
         self.pipe = None
-        logger.info("Device 설정: Device는 의도적으로 CPU로 고정됩니다.")
+        logger.info("Device 설정: Device는 의도적으로 GPU로 고정됩니다.")
     
     def _authenticate_huggingface(self) -> None:
         """
