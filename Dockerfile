@@ -43,7 +43,8 @@ RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt \
  && pip install --no-cache-dir --upgrade tokenizers transformers faker
 
-
+# .env 파일 생성 - HF_AUTH_TOKEN을 포함시킴
+RUN echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env
 
 # 소스 코드 복사
 COPY . /workspace/
