@@ -48,7 +48,7 @@ class GemmaModel:
         self.tokenizer = None
         self.model = None
         self.pipe = None
-        logger.info("Device 설정: Device는 의도적으로 GPU로 고정됩니다.")
+        logger.info("Device 설정: Device는 의도적으로 CPU로 고정됩니다.")
     
     def _authenticate_huggingface(self) -> None:
         """
