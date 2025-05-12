@@ -24,7 +24,7 @@ jobs:
       ARTIFACT_REGISTRY_LOCATION: "asia-east1"
       ARTIFACT_REGISTRY_REPO: "ktb8team"
       IMAGE_NAME: "dev/ai"
-      DOCKERFILE_PATH: "Dockerfile"
+      DOCKERFILE_PATH: "Dockerfile.gpu"
 
     steps:
       # 1. 코드 체크아웃
