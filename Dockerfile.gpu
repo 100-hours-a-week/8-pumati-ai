@@ -36,11 +36,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
     && rm -rf /var/lib/apt/lists/*
 
-# requirements.txt 복사 후 Python 의존성 설치
-COPY requirements.txt .
+# requirements.gpu.txt 복사 후 Python 의존성 설치
+COPY requirements.gpu.txt .
 RUN pip install --no-cache-dir --upgrade pip \
  && pip uninstall -y torch torchvision torch_xla || true \
- && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir -r requirements.gpu.txt \
  && pip install --no-cache-dir --upgrade tokenizers transformers faker
 
 # .env 파일 생성 - HF_AUTH_TOKEN을 포함시킴
