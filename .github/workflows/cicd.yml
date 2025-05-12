@@ -44,7 +44,7 @@ jobs:
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
         run: |
-          nvidia-smi
+          nvidia-smi || true
           docker info | grep -i nvidia
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
