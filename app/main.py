@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from app.fast_api.endpoints.fortune_router import router as fortune_router
-from app.fast_api.endpoints.comment_router import comment_app as comment_router
+# from app.fast_api.endpoints.comment_router import comment_app as comment_router
 import uvicorn
 
 #FastAPI 태그설정
 app = FastAPI()
 app.include_router(fortune_router, prefix="/api/llm", tags=["Fortune"])
-app.include_router(comment_router, tags=["Comment"])
+# app.include_router(comment_router, tags=["Comment"])
 
 # 추가: /healthz 엔드포인트, 헬스체크용
 @app.get("/healthz")
