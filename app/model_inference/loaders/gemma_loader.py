@@ -44,7 +44,7 @@ class GemmaModel:
     def __init__(self):
         self._authenticate_huggingface()
         self.model_name = MODEL_NAME
-        self.device = GPU_DEVICE
+        self.device = CPU_DEVICE
         self.tokenizer = None
         self.model = None
         self.pipe = None
