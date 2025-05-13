@@ -9,7 +9,7 @@ on:
   push:
     branches:
       # 브랜치는 맞게 잘 바꿔서.
-      - chore/26-환경-수정
+      - dev
 
 
 jobs:
