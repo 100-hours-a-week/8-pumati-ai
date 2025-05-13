@@ -1,10 +1,10 @@
-# cicd-vicky.yml
+# cicd-cpu-dev.yml
 
 # GitHub Actions 워크플로우 이름
-name: Build, Push and Deploy to Cloud Run with GPU
+name: Build, Push and Deploy to Cloud Run with CPU
 
 # 워크플로우 트리거 조건 설정
-# main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
+# 해당 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
 on:
   push:
     branches:
@@ -24,9 +24,9 @@ jobs:
       GCP_PROJECT_ID: ktb8team-458916 
       ARTIFACT_REGISTRY_LOCATION: "asia-east1"
       ARTIFACT_REGISTRY_REPO: "ktb8team"
-      IMAGE_NAME: "dev/ai-vicky"
+      IMAGE_NAME: "dev/ai-cpu"
       DOCKERFILE_PATH: "Dockerfile.cpu"
-      CLOUD_RUN_SERVICE_NAME: "ai-vicky"
+      CLOUD_RUN_SERVICE_NAME: "ai-cpu-dev"
       CLOUD_RUN_REGION: "asia-southeast1"
 
     steps:

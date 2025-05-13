@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────
-# 1. 베이스 이미지
+# 1. 베이스 이미지 (slim으로 변경)
 #    GCP Deep Learning VM PyTorch2.1+CUDA12.1+Ubuntu22.04+Py3.10
 # ──────────────────────────────────────────────────
 FROM python:3.10-slim
@@ -12,7 +12,8 @@ FROM python:3.10-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
-    PYTHONPATH=/workspace/app
+    PYTHONPATH=/workspace/app \
+    PIP_NO_CACHE_DIR=1
 
 # ──────────────────────────────────────────────────
 # 3. 작업 디렉토리
@@ -20,32 +21,27 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /workspace
 
 # ──────────────────────────────────────────────────
-# 4. 시스템 패키지 설치
+# 4. 시스템 패키지 설치 (캐싱 활용)
 # ──────────────────────────────────────────────────
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential \
-      python3-dev \
-      git \
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # ──────────────────────────────────────────────────
-# 5. Python 의존성 설치
+# 5. Python 의존성 설치 (requirements 파일 변경시만 실행)
 # ──────────────────────────────────────────────────
 COPY requirements.cpu.txt requirements.txt
-# RUN pip install --no-cache-dir --upgrade pip \
-#  && pip uninstall -y torch torch_xla || true \
-#  && pip install --no-cache-dir -r requirements.txt \
-#  && pip install --no-cache-dir --upgrade tokenizers transformers faker
-   # Dockerfile.cpu 수정
-RUN pip install --upgrade pip \
-&& pip uninstall -y torch torch_xla || true \
-&& pip install -r requirements.txt \
-&& pip install --upgrade tokenizers transformers faker
-
-RUN rm -rf /root/.cache/huggingface
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip uninstall -y torch torch_xla || true && \
+    pip install -r requirements.txt && \
+    pip install --upgrade tokenizers transformers faker
 
 # ──────────────────────────────────────────────────
-# 6. 애플리케이션 코드 복사
+# 6. 애플리케이션 코드 복사 (자주 변경되는 부분이라 마지막에)
 # ──────────────────────────────────────────────────
 COPY . /workspace/
 
