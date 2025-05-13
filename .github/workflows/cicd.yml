@@ -34,7 +34,13 @@ jobs:
       # 커밋 메시지 추출
       - name: Get commit message
         id: commit_message
-        run: echo "message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+        run: |
+          {
+            echo 'message<<EOF'
+            git log -1 --pretty=%B
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+        
 
       # 환경 변수 파일 생성 (.env)
       - name: Create .env file
