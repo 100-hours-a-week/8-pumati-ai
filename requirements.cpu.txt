@@ -1,9 +1,10 @@
 torch==2.1.0
-transformers==4.39.3 #transformers==4.38.2
+transformers==4.51.1 #transformers==4.38.2
+sentence-transformers==2.6.1
 safetensors
 fastapi
 uvicorn==0.29.0
-huggingface-hub
+huggingface-hub==0.31.1
 python-dotenv
 Faker>=18.0.0
 requests

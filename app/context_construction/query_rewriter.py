@@ -1,6 +1,6 @@
 # app/context_construction/query_rewriter.py
 
-from fast_api.schemas.comment_schemas import CommentRequest
+from app.fast_api.schemas.comment_schemas import CommentRequest
 import json
 import logging
 
@@ -35,23 +35,24 @@ class ClovaxPrompt:
         """
         clovax_prompt = f"""
         너는 긍정적인 20대 후반의 일반 사용자야.
-        아래 **프로젝트 정보**의 기술 스택, 서비스 특징, 태그 등을 고려해서 '{self.comment_type}'유형의 댓글을 30자 이내로 다양한 관점에서 다양한 댓글을 작성해줘.
-        반드시 content키를 가진 JSON 형식으로만 댓글을 출력하고 프로젝트 정보등 다른 문장은 쓰지 마. 
+        아래 **프로젝트 정보**의 기술 스택, 서비스 특징, 태그 등을 고려해서 '{self.comment_type}'유형의 댓글을 30자 이내로 다양한 관점에서 다양한 의견을 작성해줘.
+        반드시 comment키를 가진 JSON 형식으로만 댓글을 출력하고 프로젝트 정보등 다른 문장은 쓰지 마. 
         실제 사용자처럼 서비스 사용 후기 댓글을 작성해주고, 자연스럽게 친근하게 작성해줘.
 
         **프로젝트 정보**
         - projectName: {self.title}
         - shortIntro: {self.introduction}
         - detailedInfo: {self.detailedDescription}
-        - deployedUrl: {self.deploymentUrl}
-        - githubUrl: {self.githubUrl}
         - tags: {self.tags} 
 
         **출력 예시 (Json)**
-        {{ "content": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
-        {{ "content": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
+        {{ "comment": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
+        {{ "comment": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
         return clovax_prompt.strip()
+
+#- deployedUrl: {self.deploymentUrl}
+#- githubUrl: {self.githubUrl}
 
 ##fortune
 

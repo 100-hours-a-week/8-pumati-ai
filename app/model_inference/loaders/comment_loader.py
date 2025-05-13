@@ -4,10 +4,11 @@ import json
 import logging
 from dotenv import load_dotenv
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from sentence_transformers import SentenceTransformer, util
 import torch
 from huggingface_hub import login
-from context_construction.query_rewriter import ClovaxPrompt
-from fast_api.schemas.comment_schemas import CommentRequest
+from app.context_construction.query_rewriter import ClovaxPrompt
+from app.fast_api.schemas.comment_schemas import CommentRequest
 
 # ----------------------------
 # 로깅 설정
@@ -20,14 +21,15 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
-FALLBACK_COMMENT = '{\n"content": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
-CPU_DEVICE = torch.device("cpu")
-MAX_NEW_TOKENS = 200
+MODEL_NAME = "google/gemma-3-4b-it" #"naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
+FALLBACK_COMMENT = '{\n"comment": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
+EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"
+CPU_DEVICE = torch.device("mps")
+MAX_NEW_TOKENS = 80
 TEMPERATURE = 0.7
 TOP_P = 0.8
-REPETITION_PENALTY = 1.2
-MAX_RETRY = 10
+REPETITION_PENALTY = 1.1
+MAX_RETRY = 30
 
 
 # ----------------------------
@@ -46,7 +48,9 @@ class ClovaxModel:
         self.tokenizer = None
         self.model = None
         self.pipe = None
-        logger.info("Device 설정: Device는 의도적으로 CPU로 고정됩니다.")
+        logger.info(f"Device 설정: {self.device} Device는 의도적으로 CPU로 고정됩니다.")
+        self.embed_model = None
+        
     
     def _authenticate_huggingface(self) -> None:
         """
@@ -66,6 +70,7 @@ class ClovaxModel:
         ClovaxModel._is_authenticated = True  # 인증 완료 처리
         logger.info("Hugging Face 인증 완료.")
 
+
     def load_clovax(self) -> None:
         """
         모델과 토크나이저를 로드하여 파이프라인을 초기화합니다.
@@ -73,34 +78,41 @@ class ClovaxModel:
         """
         if self.pipe is None: 
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name) #.to(self.device)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name).to(self.device)
             self.pipe = pipeline(
                 "text-generation", 
                 model=self.model, 
                 tokenizer=self.tokenizer, 
-                device=-1, 
+                #device=-1, 
                 temperature=TEMPERATURE, 
                 top_p=TOP_P, 
                 do_sample=True,
                 repetition_penalty=REPETITION_PENALTY
             )
+            self.embed_model = SentenceTransformer(EMBEDDING_MODEL_NAME, device = self.device)
             logger.info("Clovax 모델 로드 완료.")
+            logger.info("임베딩 기반 검열 모델 로드 완료.")
+
 
     # 댓글 생성
     def validate_generated_comment(self, generated_comment_dict: dict) -> bool:
         """
         생성된 댓글 JSON이 유효한지 검사.
-        필수 필드(content)가 없거나 값이 비어있으면 False
+        필수 필드(comment)가 없거나 값이 비어있으면 False
         """
-        if "content" not in generated_comment_dict:
+        if "comment" not in generated_comment_dict:
             return False
 
-        content = generated_comment_dict["content"]
+        comment = generated_comment_dict["comment"]
 
-        if not isinstance(content, str) or not content.strip():
+        if not isinstance(comment, str) or not comment.strip():
             return False
         
-        if len(content.split()) <= 2:
+        for word in ['추가', '혁신적', '코딩', '코드', '면']:
+            if word in comment:
+                return False
+        
+        if len(comment.split()) <= 2:
             return False
 
         return True
@@ -109,6 +121,14 @@ class ClovaxModel:
     def generate_comment(self, request_data: CommentRequest) -> dict:
         prompt_builder = ClovaxPrompt(request_data)
         prompt: str = prompt_builder.generate_prompt()
+
+        # 💡 검열 기준 텍스트 생성 (요약, 설명, 태그 등 조합)
+        context_text = " ".join([
+            request_data.projectSummary.title,
+            request_data.projectSummary.introduction,
+            request_data.projectSummary.detailedDescription,
+            " ".join(request_data.projectSummary.tags)
+        ])
 
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
@@ -119,14 +139,21 @@ class ClovaxModel:
                 find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
                 generated_comment_str = find_comment[0].strip()
                 generated_comment_dict = json.loads(generated_comment_str)
+                print(generated_comment_dict)
 
                 # 유효성 검사 추가
                 if self.validate_generated_comment(generated_comment_dict):
-                    logger.info("JSON 파싱 + 유효성 검사 성공.")
-                    generated_comment = generated_comment_dict.get("content", "").strip()
-                    return generated_comment
+                    #logger.info("JSON 파싱 + 유효성 검사 성공.")
+                    generated_comment = generated_comment_dict.get("comment", "").strip()
+
+                    if self.is_semantically_relevant(generated_comment, context_text):
+                        logger.info("JSON 파싱 + 의미 필터링 통과.")
+                        return generated_comment
+
+                    else:
+                        logger.info("의미 검열에 의해 댓글 재 생성 필요.")
                 else:
-                    raise ValueError("생성된 JSON에 content가 없거나 비어 있음")
+                    raise ValueError("생성된 JSON에 comment가 없거나 비어 있음. 형식에 벗어남.")
 
             except (IndexError, json.JSONDecodeError, ValueError) as e:
                 logger.warning(f"댓글 생성 실패 (시도 {attempt}회): {e}")
@@ -138,8 +165,19 @@ class ClovaxModel:
                     return json.loads(FALLBACK_COMMENT)
 
 
-    
+    def is_semantically_relevant(self, comments: str, context: str, threshold: float = 0.85) -> bool:
+        """
+        검열함수 생성. 생성된 댓글이 프로젝트 정보와 의미적으로 관련 있는지 유사도로 판단
+        """
+        comment_emb = self.embed_model.encode("query: " + comments, convert_to_tensor=True, show_progress_bar=False)
+        context_emb = self.embed_model.encode("passage: " + context, convert_to_tensor=True, show_progress_bar=False)
+        similarity = util.cos_sim(comment_emb, context_emb).item()
 
+        logger.info(f"의미 유사도: {similarity:.4f}")
+        return similarity >= threshold
+
+
+    
 # 싱글턴 인스턴스 생성 (서버 시작 시 1회만 실행)
 clovax_model_instance = ClovaxModel()
 clovax_model_instance.load_clovax()
@@ -150,20 +188,34 @@ clovax_model_instance.load_clovax()
 
 if __name__ == "__main__":
     import time
+    import sys
+    import os
+    from app.fast_api.schemas.comment_schemas import ProjectSummary
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
+
 
     dummy_data = CommentRequest(
-        comment_type="칭찬",
-        team_projectName="품앗이 서비스",
-        team_shortIntro="서로의 프로젝트 웹페이지를 방문하여 트래픽을 늘려줌",
-        team_deployedUrl="https://resume.site",
-        team_githubUrl="https://github.com/example",
-        team_description="FastAPI + React 기반 프로젝트",
-        team_tags=["AI", "Clovax", "GCP", "UI 친근함"],
+        commentType="칭찬",
+        projectSummary=ProjectSummary(
+            title="품앗이 서비스",
+            introduction="서로의 프로젝트 웹페이지를 방문하여 트래픽을 늘려줌",
+            detailedDescription="트래픽을 원하는 부트캠프 수강생을 위해 22개의 팀프로젝트를 한번에 모아볼 수 있는 플랫폼을 구축함.",
+            deploymentUrl="https://resume.site",
+            githubUrl="https://github.com/example",
+            tags=["React", "품앗이 랭킹 기능", "트래픽 상승", "ai-운세 기능", "출석 기능"],
+            teamId=8
+        )
     )
     
 
     start = time.time()
     logger.info("테스트 시작.")
-    comment = clovax_model_instance.generate_comment(dummy_data)
-    logger.info("생성된 댓글: %s", comment)
-    logger.info("실행 시간: %.2f초", time.time() - start)
+    correct = []
+    for _ in range(4):
+        comment = clovax_model_instance.generate_comment(dummy_data)
+        correct.append(comment)
+        logger.info("생성된 댓글: %s", comment)
+        logger.info("실행 시간: %.2f초", time.time() - start)
+
+    print(correct)
