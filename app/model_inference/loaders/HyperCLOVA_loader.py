@@ -78,13 +78,11 @@ def generate_fortune_text(prompt: str) -> str:
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
-            max_new_tokens=45,
-            do_sample=False,               # ← 샘플링 모드로 전환
-            top_p=None,
+            max_new_tokens=40,
+            do_sample=True,               # ← 샘플링 모드로 전환
+            top_p=0.7,
             top_k=None,
-            temperature=None,
-            # temperature=0.7,              # ← 창의성 조절 (0~1)
-            # top_p=0.7,                    # ← nucleus 샘플링 비율
+            temperature=0.7,
             eos_token_id=tokenizer.eos_token_id,
         )[0]
 
