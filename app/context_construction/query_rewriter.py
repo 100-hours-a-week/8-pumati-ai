@@ -1,5 +1,3 @@
-# app/context_construction/query_rewriter.py
-
 from app.fast_api.schemas.comment_schemas import CommentRequest
 import json
 import logging
@@ -34,10 +32,10 @@ class ClovaxPrompt:
         프로젝트 정보를 기반으로 LLM 프롬프트 문자열 생성
         """
         clovax_prompt = f"""
-        너는 긍정적인 20대 후반의 일반 사용자야.
-        아래 **프로젝트 정보**의 기술 스택, 서비스 특징, 태그 등을 고려해서 '{self.comment_type}'유형의 댓글을 30자 이내로 다양한 관점에서 다양한 의견을 작성해줘.
-        반드시 comment키를 가진 JSON 형식으로만 댓글을 출력하고 프로젝트 정보등 다른 문장은 쓰지 마. 
-        실제 사용자처럼 서비스 사용 후기 댓글을 작성해주고, 자연스럽게 친근하게 작성해줘.
+        너는 서비스 사용 후기 작성자야.
+        아래 **프로젝트 정보**를 보고'{self.comment_type}'유형의 의견을 다양하게 작성해줘. 
+        comment키를 가진 JSON 형식으로만 댓글을 출력해줘.
+        추측은 절대 하지 말고 반드시 **프로젝트 정보에 명확히 나온 사실**만 기반으로 댓글을 작성해줘. 
 
         **프로젝트 정보**
         - projectName: {self.title}
@@ -51,8 +49,6 @@ class ClovaxPrompt:
         """
         return clovax_prompt.strip()
 
-#- deployedUrl: {self.deploymentUrl}
-#- githubUrl: {self.githubUrl}
 
 ##fortune
 

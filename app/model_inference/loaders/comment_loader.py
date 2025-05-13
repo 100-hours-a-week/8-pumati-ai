@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "google/gemma-3-4b-it" #"naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
+MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
 FALLBACK_COMMENT = '{\n"comment": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
 EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"
-CPU_DEVICE = torch.device("mps")
+CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 80
-TEMPERATURE = 0.7
+TEMPERATURE = 0.8
 TOP_P = 0.8
 REPETITION_PENALTY = 1.1
-MAX_RETRY = 30
+MAX_RETRY = 50
 
 
 # ----------------------------
@@ -48,7 +48,7 @@ class ClovaxModel:
         self.tokenizer = None
         self.model = None
         self.pipe = None
-        logger.info(f"Device 설정: {self.device} Device는 의도적으로 CPU로 고정됩니다.")
+        logger.info(f"Device 설정: Device는 의도적으로 CPU로 고정됩니다.")
         self.embed_model = None
         
     
@@ -83,7 +83,7 @@ class ClovaxModel:
                 "text-generation", 
                 model=self.model, 
                 tokenizer=self.tokenizer, 
-                #device=-1, 
+                device=-1, 
                 temperature=TEMPERATURE, 
                 top_p=TOP_P, 
                 do_sample=True,
@@ -108,7 +108,7 @@ class ClovaxModel:
         if not isinstance(comment, str) or not comment.strip():
             return False
         
-        for word in ['추가', '혁신적', '코딩', '코드', '면']:
+        for word in ['추가', '혁신적', '코딩', '코드']:
             if word in comment:
                 return False
         
@@ -123,11 +123,11 @@ class ClovaxModel:
         prompt: str = prompt_builder.generate_prompt()
 
         # 💡 검열 기준 텍스트 생성 (요약, 설명, 태그 등 조합)
-        context_text = " ".join([
-            request_data.projectSummary.title,
+        context_text = " ".join(["서비스 이름은",
+            request_data.projectSummary.title, "이다.",
             request_data.projectSummary.introduction,
-            request_data.projectSummary.detailedDescription,
-            " ".join(request_data.projectSummary.tags)
+            request_data.projectSummary.detailedDescription, "이 프로젝트의 핵심적인 특징은",
+            ",".join(request_data.projectSummary.tags), "이다"
         ])
 
         for attempt in range(1, MAX_RETRY + 1):
@@ -200,10 +200,10 @@ if __name__ == "__main__":
         projectSummary=ProjectSummary(
             title="품앗이 서비스",
             introduction="서로의 프로젝트 웹페이지를 방문하여 트래픽을 늘려줌",
-            detailedDescription="트래픽을 원하는 부트캠프 수강생을 위해 22개의 팀프로젝트를 한번에 모아볼 수 있는 플랫폼을 구축함.",
+            detailedDescription="트래픽을 원하는 부트캠프 수강생을 위해 22개의 팀프로젝트를 한번에 모아, 서로의 서비스를 접근하기 편한 플랫폼을 구축함.",
             deploymentUrl="https://resume.site",
             githubUrl="https://github.com/example",
-            tags=["React", "품앗이 랭킹 기능", "트래픽 상승", "ai-운세 기능", "출석 기능"],
+            tags=["React", "clovax", "FastAPI"],
             teamId=8
         )
     )
