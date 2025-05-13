@@ -78,7 +78,7 @@ def generate_fortune_text(prompt: str) -> str:
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
-            max_new_tokens=40,
+            max_new_tokens=45,
             do_sample=True,               # ← 샘플링 모드로 전환
             top_p=0.7,
             top_k=None,
