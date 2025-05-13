@@ -8,8 +8,7 @@ name: Build, Push and Deploy to Cloud Run with CPU
 on:
   push:
     branches:
-      - feat/24-comment-Dockerfile
-      - vicky-dev
+      - cpu-dev
 
 jobs:
   build-push-deploy:
@@ -90,8 +89,8 @@ jobs:
             --platform managed \
             --region ${{ env.CLOUD_RUN_REGION }} \
             --allow-unauthenticated \
-            --memory 16Gi \
-            --cpu 4 \
+            --memory 12Gi \
+            --cpu 3 \
             --port 8080 \
             --max-instances 2 \
             --timeout 600 \
