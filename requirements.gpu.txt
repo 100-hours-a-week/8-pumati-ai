@@ -11,6 +11,7 @@ transformers==4.51.3 #hf 모델 로드하고 추론 핵심 라이브러리
 safetensors #HuggingFace 모델이 저장되는 .safetensors 파일 포맷을 빠르고 안전하게 로드하기 위한 라이브러리
 accelerate>=0.20.3 # HuggingFace 모델 가속 및 디바이스 관리
 huggingface-hub
+optimum==1.24.0 # Hugging Face 가속화 bettertransformer 적용
 
 # ▶ FastAPI 서버 및 실행
 fastapi # API 서버 프레임워크
