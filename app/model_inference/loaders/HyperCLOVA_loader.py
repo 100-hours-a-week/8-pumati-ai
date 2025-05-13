@@ -12,13 +12,14 @@ if not hf_token:
     raise ValueError("HF_AUTH_TOKEN is not set in your .env file!")
 login(token=hf_token)
 
-model_id = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+model_id = "google/gemma-3-1b-it"
 
 # ─── 2. 토크나이저 로드 (언제나 공용) ────────────────────
 tokenizer = AutoTokenizer.from_pretrained(
     model_id,
     trust_remote_code=True,
     token=hf_token,
+    use_fast=False,
 )
 
 # ─── 3. 디바이스 감지 & Full-Precision 모델 로드 ───────────
@@ -42,6 +43,10 @@ if torch.cuda.is_available():
     )
     device = torch.device("cuda")
 
+    # ✅ 속도 최적화 추가
+    from optimum.bettertransformer import BetterTransformer
+    # model = BetterTransformer.transform(model)
+    model = torch.compile(model)
 # elif torch.backends.mps.is_available():
 #     # macOS MPS: FP32
 #     model = AutoModelForCausalLM.from_pretrained(
@@ -73,10 +78,11 @@ def generate_fortune_text(prompt: str) -> str:
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
-            max_new_tokens=120,
+            max_new_tokens=45,
             do_sample=True,               # ← 샘플링 모드로 전환
-            temperature=0.95,              # ← 창의성 조절 (0~1)
-            top_p=0.95,                    # ← nucleus 샘플링 비율
+            top_p=0.7,
+            top_k=None,
+            temperature=0.7,
             eos_token_id=tokenizer.eos_token_id,
         )[0]
 
