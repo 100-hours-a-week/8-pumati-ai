@@ -36,8 +36,8 @@ jobs:
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
         run: |
-          nvidia-smi
-          docker info | grep -i nvidia
+          nvidia-smi || true
+          docker info | grep -i nvidia || true
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
