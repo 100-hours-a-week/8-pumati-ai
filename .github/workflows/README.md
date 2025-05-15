@@ -20,3 +20,6 @@ gcloud projects add-iam-policy-binding ktb8team-458916 \
     --member="serviceAccount:github-actions-pusher@ktb8team-458916.iam.gserviceaccount.com" \
     --role="roles/artifactregistry.writer"
 // ... 기존 코드 ...
+
+# 커밋 메시지에 [cpu]가 포함된 경우에만 실행
+ - cpu 에서 작동하는 기능은 커밋 시 메세지 안의 어디든 [cpu] 키워드가 포함되어야 함
