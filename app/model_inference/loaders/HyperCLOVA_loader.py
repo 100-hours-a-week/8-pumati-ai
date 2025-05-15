@@ -1,95 +1,141 @@
 # app/model_inference/loaders/HyperCLOVA_loader.py
 
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch, platform, os, re
-from huggingface_hub import login
+import os
+import re
+import json
+import logging
+import platform
 from dotenv import load_dotenv
+from transformers import AutoTokenizer, AutoModelForCausalLM  # ✅ AutoTokenizer로 복원
+from huggingface_hub import login
+import torch
+import warnings
 
-# ─── 1. 환경 변수 & HuggingFace 인증 ───────────────────
-load_dotenv()
-hf_token = os.getenv("HF_AUTH_TOKEN")
-if not hf_token:
-    raise ValueError("HF_AUTH_TOKEN is not set in your .env file!")
-login(token=hf_token)
+# ----------------------------
+# 로깅 설정
+# ----------------------------
 
-model_id = "google/gemma-3-1b-it"
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", category=UserWarning)  # PyTorch 워닝 무시 설정
 
-# ─── 2. 토크나이저 로드 (언제나 공용) ────────────────────
-tokenizer = AutoTokenizer.from_pretrained(
-    model_id,
-    trust_remote_code=True,
-    token=hf_token,
-    use_fast=False,
-)
+# ----------------------------
+# 상수 정의
+# ----------------------------
 
-# ─── 3. 디바이스 감지 & Full-Precision 모델 로드 ───────────
-device = (
-    torch.device("cuda")
-    if torch.cuda.is_available()
-    # else torch.device("mps")
-    # if torch.backends.mps.is_available()
-    else torch.device("cpu")
-)
+MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+MAX_NEW_TOKENS = 45
+TEMPERATURE = 0.7
+TOP_P = 0.7
 
-# 디바이스 및 정밀도 분기
-if torch.cuda.is_available():
-    # CUDA GPU: FP16 + auto device map
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        trust_remote_code=True,
-        token=hf_token,
-        torch_dtype=torch.float16,
-        device_map="auto",
-    )
-    device = torch.device("cuda")
+# ----------------------------
+# ClovaxFortuneModel 클래스
+# ----------------------------
 
-    # ✅ 속도 최적화 추가
-    from optimum.bettertransformer import BetterTransformer
-    # model = BetterTransformer.transform(model)
-    model = torch.compile(model)
-# elif torch.backends.mps.is_available():
-#     # macOS MPS: FP32
-#     model = AutoModelForCausalLM.from_pretrained(
-#         model_id,
-#         trust_remote_code=True,
-#         use_auth_token=hf_token,
-#         torch_dtype=torch.float32,
-#     ).to("mps")
-#     device = torch.device("mps")
+class ClovaxFortuneModel:
+    """
+    HyperCLOVA 모델을 이용한 운세 생성기
+    """
+    _is_authenticated = False
 
-else:
-    # CPU: FP32
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        trust_remote_code=True,
-        token=hf_token,
-        torch_dtype=torch.float32,
-    ).to("cpu")
-    device = torch.device("cpu")
+    def __init__(self):
+        self._authenticate_huggingface()
+        self.model_name = MODEL_NAME
+        self.device = self._get_device()
+        self.tokenizer = None
+        self.model = None
+        logger.info(f"✅ 디바이스 설정 완료: {self.device}")
 
-print(f"✅ Loaded full-precision model on {platform.system()} → {device}")
+    def _authenticate_huggingface(self) -> None:
+        if ClovaxFortuneModel._is_authenticated:
+            logger.info("Hugging Face 인증 이미 완료됨.")
+            return
 
-# ─── 4. 운세 생성 함수 ─────────────────────────────────
+        load_dotenv()
+        token = os.getenv("HF_AUTH_TOKEN")
+        if not token:
+            raise EnvironmentError("HF_AUTH_TOKEN is not set in .env file.")
+        login(token=token)
+        ClovaxFortuneModel._is_authenticated = True
+        logger.info("Hugging Face 인증 완료.")
+
+    def _get_device(self):
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            return torch.device("mps")
+        else:
+            return torch.device("cpu")
+
+    def load_model(self):
+        hf_token = os.getenv("HF_AUTH_TOKEN")
+        self.tokenizer = AutoTokenizer.from_pretrained( 
+            self.model_name,
+            trust_remote_code=True,
+            token=hf_token
+        )
+
+        if self.device.type == "cuda":
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                trust_remote_code=True,
+                token=hf_token,
+                torch_dtype=torch.float16,
+                device_map="auto"
+            )
+            try:
+                from optimum.bettertransformer import BetterTransformer
+                # self.model = BetterTransformer.transform(self.model)
+                self.model = torch.compile(self.model)
+            except ImportError:
+                logger.warning("optimum 설치되지 않음. BetterTransformer 생략.")
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                trust_remote_code=True,
+                token=hf_token,
+                torch_dtype=torch.float32
+            ).to(self.device)
+
+        logger.info("모델 및 토크나이저 로드 완료.")
+
+    def generate_fortune(self, prompt: str) -> str:
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+
+        with torch.inference_mode():
+            output_ids = self.model.generate(
+                **inputs,
+                max_new_tokens=MAX_NEW_TOKENS,
+                do_sample=True,
+                top_p=TOP_P,
+                temperature=TEMPERATURE,
+                eos_token_id=self.tokenizer.eos_token_id,
+            )[0]
+
+        gen_ids = output_ids[inputs["input_ids"].shape[-1]:]
+        raw = self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+
+        match = re.search(r"\{[\s\S]*?\}", raw)
+        return match.group() if match else raw
+
+
+# ----------------------------
+# 외부 모듈용 래퍼 함수 (FastAPI 등에서 import)
+# ----------------------------
+
+model_instance = ClovaxFortuneModel()
+model_instance.load_model()
+
 def generate_fortune_text(prompt: str) -> str:
-    # 토큰화 → 바로 디바이스에 올리기
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    return model_instance.generate_fortune(prompt)
 
-    # 생성
-    with torch.no_grad():
-        output_ids = model.generate(
-            **inputs,
-            max_new_tokens=45,
-            do_sample=True,               # ← 샘플링 모드로 전환
-            top_p=0.7,
-            top_k=None,
-            temperature=0.7,
-            eos_token_id=tokenizer.eos_token_id,
-        )[0]
 
-    # 프롬프트 길이 이후 토큰만 추출
-    gen_ids = output_ids[ inputs["input_ids"].shape[-1] : ]
-    raw = tokenizer.decode(gen_ids, skip_special_tokens=True)
+# ----------------------------
+# 테스트 코드
+# ----------------------------
 
-    # JSON 블록만 찾아 반환
-    match = re.search(r"\{[\s\S]*?\}", raw)
-    return match.group() if match else raw
+if __name__ == "__main__":
+    prompt = "다음 사용자에게 오늘의 운세를 알려주세요: 홍길동님은 백엔드 개발자이며 긍정적인 마인드를 가지고 있습니다. {\"comment\":"
+    print("--- 운세 시작 ---")
+    result = generate_fortune_text(prompt)
+    print(result)
