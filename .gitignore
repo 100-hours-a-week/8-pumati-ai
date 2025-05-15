@@ -18,3 +18,6 @@ __pycache__/
 # 모델
 *.pt
 *.safetensors
+
+# 크로마 디비
+chroma_db/
