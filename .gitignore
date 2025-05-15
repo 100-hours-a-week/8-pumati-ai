@@ -10,3 +10,11 @@ __pycache__/
 
 # 기타
 .DS_Store
+
+# Python 가상환경
+venv/
+__pycache__/
+
+# 모델
+*.pt
+*.safetensors
