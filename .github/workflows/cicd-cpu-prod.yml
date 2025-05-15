@@ -12,6 +12,8 @@ on:
 
 jobs:
   build-push-deploy:
+    # 커밋 메시지에 [cpu]가 포함된 경우에만 실행
+    if: ${{ contains(github.event.head_commit.message, '[cpu]') }}
     name: Build, Push and Deploy to Cloud Run
     runs-on: self-hosted
     # id-token 권한은 WIF를 사용하지 않으므로 제거해도 됩니다. (선택 사항)

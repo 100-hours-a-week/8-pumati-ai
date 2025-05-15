@@ -1,7 +1,7 @@
 # cicd-cpu-dev.yml
 
 # GitHub Actions 워크플로우 이름
-name: Build, Push and Deploy to Cloud Run with CPU
+name: Build, Push and Deploy to Cloud Run with CPU - Development
 
 # 워크플로우 트리거 조건 설정
 # 해당 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
@@ -12,6 +12,8 @@ on:
 
 jobs:
   build-push-deploy:
+    # 커밋 메시지에 [cpu]가 포함된 경우에만 실행
+    if: ${{ contains(github.event.head_commit.message, '[cpu]') }}
     name: Build, Push and Deploy to Cloud Run
     runs-on: self-hosted
     # id-token 권한은 WIF를 사용하지 않으므로 제거해도 됩니다. (선택 사항)
