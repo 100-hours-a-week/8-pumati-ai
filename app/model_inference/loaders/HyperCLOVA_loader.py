@@ -139,3 +139,4 @@ if __name__ == "__main__":
     print("--- 운세 시작 ---")
     result = generate_fortune_text(prompt)
     print(result)
+
