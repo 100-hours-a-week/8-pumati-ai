@@ -1,6 +1,7 @@
 from fast_api.schemas.comment_schemas import CommentRequest
 import json
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ class ClovaxPrompt:
         self.comment_type = self._escape(data.commentType)
         self.title = self._escape(data.projectSummary.title)
         self.introduction = self._escape(data.projectSummary.introduction)
-        self.detailedDescription = self._escape(data.projectSummary.detailedDescription)
+        self.detailedDescription = self._escape(self._clean(data.projectSummary.detailedDescription))
         self.deploymentUrl = self._escape(data.projectSummary.deploymentUrl)
         self.githubUrl = self._escape(data.projectSummary.githubUrl)
         self.tags = self._escape(data.projectSummary.tags)
@@ -26,6 +27,26 @@ class ClovaxPrompt:
         (따옴표를 포함한 특수 문자를 안전하게 변환합니다.)
         """
         return json.dumps(text, ensure_ascii=False)[1:-1]  # 양쪽 따옴표 제거
+    
+    def _clean(self, text: str) -> str:
+        try:
+            text = re.sub(r"[#\-]", " ", text)       # 특수문자 제거
+            text = re.sub(r"\n+", "\n ", text)        # 줄바꿈을 마침표+공백으로
+            text = re.sub(r"\s+", " ", text)         # 연속된 공백을 하나로
+            return text.strip() # 앞뒤 공백 제거
+        
+        except:
+            return text                      
+
+    # def summary_prompt(self) -> str:
+    #     """
+    #     detailed description을 요약하기 위한 llm
+    #     """
+    #     summary_prompt = f"""
+    #     **아래 상세 설명을 보고 한국말로 50자 이내로 요약해줘. 출력은 JSON형태로, JSON의 키는 summary로 해줘**
+
+    #     상세설명: {self.detailedDescription}"""
+    #     return summary_prompt.strip()
     
     def generate_prompt(self) -> str:
         """
@@ -41,13 +62,15 @@ class ClovaxPrompt:
         - projectName: {self.title}
         - shortIntro: {self.introduction}
         - detailedInfo: {self.detailedDescription}
-        - tags: {self.tags} 
 
         **출력 예시 (Json)**
         {{ "comment": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
         {{ "comment": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
         return clovax_prompt.strip()
+    
+    
+    
 
 
 ##fortune

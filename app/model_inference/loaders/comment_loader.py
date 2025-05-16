@@ -26,10 +26,12 @@ FALLBACK_COMMENT = '{\n"comment": "개발자 입장에서 정말 필요한 서�
 EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 80
+MAX_NEW_TOKENS_SUMMARY = 50
 TEMPERATURE = 0.8
 TOP_P = 0.8
 REPETITION_PENALTY = 1.1
 MAX_RETRY = 50
+
 
 
 # ----------------------------
@@ -124,11 +126,13 @@ class ClovaxModel:
 
         # 💡 검열 기준 텍스트 생성 (요약, 설명, 태그 등 조합)
         context_text = " ".join(["서비스 이름은",
-            request_data.projectSummary.title, "이다.",
-            request_data.projectSummary.introduction,
-            request_data.projectSummary.detailedDescription, "이 프로젝트의 핵심적인 특징은",
-            ",".join(request_data.projectSummary.tags), "이다"
+            prompt_builder.title, "이다. 프로젝트 슬로건은",
+            prompt_builder.introduction, "이다.",
+            prompt_builder.detailedDescription #, "이 프로젝트의 핵심적인 특징은"
+            #",".join(ClovaxPrompt.projectSummary.tags), "이다"
         ])
+
+        print(context_text)
 
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
@@ -175,6 +179,49 @@ class ClovaxModel:
 
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
+    
+    # def summary_detailed(self, request_data: CommentRequest) -> dict:
+    #     prompt_builder = ClovaxPrompt(request_data)
+    #     prompt: str = prompt_builder.summary_prompt()
+
+    #     for attempt in range(1, MAX_RETRY + 1):
+    #         logger.info(f"요약 시도 {attempt}회")
+    #         try:
+    #             outputs = self.pipe(prompt, max_new_tokens=MAX_NEW_TOKENS_SUMMARY)[0]["generated_text"]
+    #             output_text = outputs[len(prompt):].strip()
+    #             print(output_text)
+
+    #             # 혹시 JSON 형식으로 감싸져서 올 경우 추출
+    #             summary_candidates = re.findall(r'{.*?}', output_text, re.DOTALL)
+    #             if summary_candidates:
+    #                 try:
+    #                     summary_dict = json.loads(summary_candidates[0].strip())
+    #                     summary_text = summary_dict.get("summary", "") or summary_dict.get("comment", "")
+    #                 except json.JSONDecodeError:
+    #                     summary_text = summary_candidates[0].strip()
+    #             else:
+    #                 summary_text = output_text  # 그냥 일반 문자열로 반환된 경우
+
+    #             summary_text = summary_text.strip()
+
+    #             # 길이 기준 검사 (요약 실패했는지 확인)
+    #             if not summary_text or len(summary_text) < 5:
+    #                 raise ValueError("요약된 텍스트가 너무 짧거나 비어 있음.")
+
+    #             # 반영
+    #             request_data.projectSummary.detailedDescription = summary_text
+    #             logger.info(f"요약 성공: {summary_text}")
+    #             return {"summary": summary_text}
+
+    #         except Exception as e:
+    #             logger.warning(f"요약 실패 (시도 {attempt}회): {e}")
+
+    #             if attempt >= MAX_RETRY:
+    #                 logger.warning("최대 재시도 도달 → 원본 그대로 유지.")
+    #                 return {"summary": request_data.projectSummary.detailedDescription}
+
+
+
 
 
     
@@ -188,29 +235,25 @@ clovax_model_instance.load_clovax()
 
 if __name__ == "__main__":
     import time
-    import sys
-    import os
-    from app.fast_api.schemas.comment_schemas import ProjectSummary
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
-
-
+    from fast_api.schemas.comment_schemas import ProjectSummary
 
     dummy_data = CommentRequest(
         commentType="칭찬",
         projectSummary=ProjectSummary(
-            title="품앗이 서비스",
-            introduction="서로의 프로젝트 웹페이지를 방문하여 트래픽을 늘려줌",
-            detailedDescription="트래픽을 원하는 부트캠프 수강생을 위해 22개의 팀프로젝트를 한번에 모아, 서로의 서비스를 접근하기 편한 플랫폼을 구축함.",
-            deploymentUrl="https://resume.site",
-            githubUrl="https://github.com/example",
-            tags=["React", "clovax", "FastAPI"],
-            teamId=8
+            title= "모아",
+            introduction= "JUST SWIPE! 카테부 사람들과 익명으로 재밌고 빠르게 소통해요",
+            detailedDescription= "### 모아(Moa) - 모두의 아젠다\n\n- 스와이프로 투표, AI가 지켜주는 투표 공간\n- 누구나 쉽게 만들고 투표하는, AI 로 더 쾌적한 투표 공간\n\n### 서비스 소개\n\n“에어컨을 켜자!”부터\n\n“이번 주 야근 하시는 분?”까지\n\n모아는 일상 속 모든 선택을 간편한 스와이프 한번으로 모아주는 투표 플랫폼입니다.\n\n- 스와이프로 빠른 투표 참여\n- AI 가 비속어, 스팸 자동 검열\n- 그룹 단위 투표 생성과 참여\n- 결과는 그룹별, 참여, 생성별로 한눈에\n\n복잡한 UI, 거친 표현, 공개된 게시판은 이제 그만,\n\n모아에서는 모든 투표가 부드럽고 안전하게 흐릅니다.\n\n---\n\n### 모아는 이런 분께!\n\n- 모임이나 동아리에서 빠르게 의견을 모을 때\n- 커뮤니티에서 건강한 의견 수렴 문화를 만들고 싶을 때\n- 팀 프로젝트 중 합리적 의사 결정을 내리고 싶을 때\n\n모든 아젠다를 위한,\n\n모두의 선택을 위한 공간, 모아",
+            deploymentUrl= "https://moagenda.com/",
+            githubUrl= "https://github.com/100-hours-a-week/4-bull4zo-wiki/wiki",
+            tags= ["카테부","투표","스와이프","소통","커뮤니티"],
+            teamId= 6
         )
     )
     
 
     start = time.time()
     logger.info("테스트 시작.")
+    # clovax_model_instance.summary_detailed(dummy_data)
     correct = []
     for _ in range(4):
         comment = clovax_model_instance.generate_comment(dummy_data)

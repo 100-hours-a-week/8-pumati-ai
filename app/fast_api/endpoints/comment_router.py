@@ -25,8 +25,8 @@ COMMENT_GENERATE_COUNT = 4
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
-GCP_TARGET_URL = "https://ai-vicky-325953343194.asia-southeast1.run.app"  # 비동기 처리를 수행할 서버 url(AI서버)
-#BE_URL = "https://ad97-218-237-156-105.ngrok-free.app"
+GCP_TARGET_URL = os.getenv("AI_SERVER_URL")  # 비동기 처리를 수행할 서버 url(AI서버)
+BE_URL = os.getenv("BE_SERVER_URL")
 
 
 @comment_app.get("/")
@@ -38,13 +38,12 @@ def root():
 # 댓글 생성 요청 → Cloud Tasks 큐에 등록
 # 백그라운드에서 댓글 생성 작업을 비동기로 처리하기 위함
 # ------------------------------
-def enqueue_comment_task(project_id: str, request_data: dict, post_url: str):
+def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
     client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
     parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
 
     task_payload = {
         "projectId": project_id,
-        "postUrl": post_url,
         "requestData": request_data
     } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
@@ -72,11 +71,10 @@ def enqueue_comment_task(project_id: str, request_data: dict, post_url: str):
 # 외부에서 호출되는 Cloud Tasks 수신 처리 엔드포인트
 # ------------------------------
 @comment_app.post("/api/tasks/process-comment")
-async def process_comment_task(request: Request):
+async def process_comment_task(request: Request) -> dict:
     # Cloud Tasks가 보낸 JSON body를 파싱 -> project_id, request_data를 가져옴.
     body = await request.json()
     project_id = body.get("projectId")
-    post_url = body.get("postUrl")
     request_data = body.get("requestData")
 
     #####################값이 없을 경우, 400error 발생 -> 해당 내용 백엔드와 상의 필요.
@@ -108,7 +106,7 @@ async def process_comment_task(request: Request):
                 "authorNickname": author_nickname
             }
 
-            endpoint = f"{post_url}/api/projects/{project_id}/comments/ai"
+            endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
             response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             logger.info(f"댓글 전송 성공: {payload}")
@@ -124,11 +122,11 @@ async def process_comment_task(request: Request):
 @comment_app.post("/api/projects/{project_id}/comments")
 async def receive_generate_request(project_id: str, request_data: CommentRequest, request: Request):
     logger.info(f"댓글 생성 요청 수신 - project_id: {project_id}")
-    post_url = f"http://{request.client.host}:{request.client.port}"
+    #post_url = f"http://{request.client.host}:{request.client.port}"
 
-    logger.info(f"댓글 생성 요청 수신 - BE_url: {post_url}")
+    #logger.info(f"댓글 생성 요청 수신 - BE_url: {post_url}")
 
-    enqueue_comment_task(project_id, request_data.model_dump(), post_url)
+    enqueue_comment_task(project_id, request_data.model_dump())#, post_url)
 
     return {
         "message": "requestGenerateCommentsSuccess",

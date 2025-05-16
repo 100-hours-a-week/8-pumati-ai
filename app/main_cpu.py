@@ -25,4 +25,4 @@ if __name__ == "__main__":
     import sys
     import os
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    uvicorn.run("main_cpu:app", host="0.0.0.0", port=8080, reload=False)
+    uvicorn.run("app.main_cpu:app", host="0.0.0.0", port=8080, reload=False)
