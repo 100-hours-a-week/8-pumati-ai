@@ -14,7 +14,7 @@ from app.context_construction.query_rewriter import build_fortune_prompt
 from app.model_inference.loaders.hyperclova_loader import generate_fortune_text
 from langchain_core.output_parsers import JsonOutputParser
 
-# 1. JSONOutputParser 초기화
+# JSONOutputParser 초기화
 parser = JsonOutputParser()
 
 MAX_RETRY = 3
