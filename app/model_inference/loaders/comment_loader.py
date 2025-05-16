@@ -7,8 +7,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from sentence_transformers import SentenceTransformer, util
 import torch
 from huggingface_hub import login
-from app.context_construction.query_rewriter import ClovaxPrompt
-from app.fast_api.schemas.comment_schemas import CommentRequest
+from context_construction.query_rewriter import ClovaxPrompt
+from fast_api.schemas.comment_schemas import CommentRequest
 
 # ----------------------------
 # 로깅 설정

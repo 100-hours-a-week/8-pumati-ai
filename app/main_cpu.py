@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fast_api.endpoints.comment_router import comment_app as comment_router
 import uvicorn
 
+
 #FastAPI 태그설정
 app = FastAPI()
 
@@ -21,4 +22,7 @@ app.add_middleware(
 app.include_router(comment_router, tags=["Comment"])
 
 if __name__ == "__main__":
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     uvicorn.run("main_cpu:app", host="0.0.0.0", port=8080, reload=False)

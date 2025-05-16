@@ -1,4 +1,4 @@
-from app.fast_api.schemas.comment_schemas import CommentRequest
+from fast_api.schemas.comment_schemas import CommentRequest
 import json
 import logging
 
