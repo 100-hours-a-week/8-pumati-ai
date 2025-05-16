@@ -6,7 +6,7 @@ import os
 import logging
 import json
 
-from app.model_inference.loaders.gemma_loader import gemma_model_instance
+from app.archive.comment_gemma_loader import gemma_model_instance
 from app.fast_api.schemas.comment_schemas import CommentRequest
 
 # ------------------------------
