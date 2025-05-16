@@ -1,5 +1,13 @@
 # app/model_inference/inference_runner.py
 
+# -------------------
+# 이 모듈은 운세 모델 실행 파이프라인을 담당합니다.
+# 1. 입력값(name, course, date) 기반으로 프롬프트 생성
+# 2. HyperCLOVA 모델 호출
+# 3. 결과 JSON 파싱 및 정제
+# 4. 실패 시 fallback 응답 반환
+# -------------------
+
 import re
 from time import sleep
 from app.context_construction.query_rewriter import build_fortune_prompt
