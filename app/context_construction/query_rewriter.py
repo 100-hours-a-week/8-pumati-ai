@@ -67,7 +67,7 @@ class ClovaxPrompt:
         {{ "comment": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
         {{ "comment": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
-        return clovax_prompt.strip()
+        return clovax_prompt.strip() #
     
     
     
