@@ -6,7 +6,7 @@ import json
 import logging
 import platform
 from dotenv import load_dotenv
-from transformers import AutoTokenizer, AutoModelForCausalLM  # ✅ AutoTokenizer로 복원
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from huggingface_hub import login
 import torch
 import warnings
