@@ -94,7 +94,7 @@ async def process_comment_task(request: Request) -> dict:
         logger.error(f"[ERROR] request.json() 실패: {e}", exc_info=True)
         #raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    #####################값이 없을 경우, 400error 발생 -> 해당 내용 백엔드와 상의 필요.
+    #값이 없을 경우, 400error 발생 -> 해당 내용 백엔드와 상의 필요.
     if not (project_id and request_data):
         raise HTTPException(status_code=400, detail="Invalid task payload")
 
