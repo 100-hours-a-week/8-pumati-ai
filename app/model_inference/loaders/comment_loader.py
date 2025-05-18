@@ -139,7 +139,6 @@ class ClovaxModel:
             #",".join(ClovaxPrompt.projectSummary.tags), "이다"
         ])
 
-        #print(context_text)
 
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
