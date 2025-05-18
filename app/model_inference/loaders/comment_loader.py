@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "google/gemma-3-1b-it"#""naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
+#gemma로 모델 변경
+MODEL_NAME = "google/gemma-3-1b-it"#""naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it" 
 FALLBACK_COMMENT = '{\n"comment": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
 EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"#"sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CPU_DEVICE = torch.device("cpu")
