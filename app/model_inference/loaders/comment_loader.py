@@ -29,7 +29,7 @@ EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"#"sentence-transformers/p
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 80
 MAX_NEW_TOKENS_SUMMARY = 50
-TEMPERATURE = 0.9
+TEMPERATURE = 0.85
 TOP_P = 0.8
 REPETITION_PENALTY = 1.2
 MAX_RETRY = 50
@@ -186,49 +186,6 @@ class ClovaxModel:
 
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
-    
-    # def summary_detailed(self, request_data: CommentRequest) -> dict:
-    #     prompt_builder = ClovaxPrompt(request_data)
-    #     prompt: str = prompt_builder.summary_prompt()
-
-    #     for attempt in range(1, MAX_RETRY + 1):
-    #         logger.info(f"요약 시도 {attempt}회")
-    #         try:
-    #             outputs = self.pipe(prompt, max_new_tokens=MAX_NEW_TOKENS_SUMMARY)[0]["generated_text"]
-    #             output_text = outputs[len(prompt):].strip()
-    #             print(output_text)
-
-    #             # 혹시 JSON 형식으로 감싸져서 올 경우 추출
-    #             summary_candidates = re.findall(r'{.*?}', output_text, re.DOTALL)
-    #             if summary_candidates:
-    #                 try:
-    #                     summary_dict = json.loads(summary_candidates[0].strip())
-    #                     summary_text = summary_dict.get("summary", "") or summary_dict.get("comment", "")
-    #                 except json.JSONDecodeError:
-    #                     summary_text = summary_candidates[0].strip()
-    #             else:
-    #                 summary_text = output_text  # 그냥 일반 문자열로 반환된 경우
-
-    #             summary_text = summary_text.strip()
-
-    #             # 길이 기준 검사 (요약 실패했는지 확인)
-    #             if not summary_text or len(summary_text) < 5:
-    #                 raise ValueError("요약된 텍스트가 너무 짧거나 비어 있음.")
-
-    #             # 반영
-    #             request_data.projectSummary.detailedDescription = summary_text
-    #             logger.info(f"요약 성공: {summary_text}")
-    #             return {"summary": summary_text}
-
-    #         except Exception as e:
-    #             logger.warning(f"요약 실패 (시도 {attempt}회): {e}")
-
-    #             if attempt >= MAX_RETRY:
-    #                 logger.warning("최대 재시도 도달 → 원본 그대로 유지.")
-    #                 return {"summary": request_data.projectSummary.detailedDescription}
-
-
-
 
 
     
