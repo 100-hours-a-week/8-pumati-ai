@@ -27,6 +27,7 @@ GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
 GCP_TARGET_URL = os.getenv("AI_SERVER_URL")  # 비동기 처리를 수행할 서버 url(AI서버)
 BE_URL = os.getenv("BE_SERVER_URL")
+GCP_SERVICE_ACCOUNT_EMAIL = os.getenv("GCP_SERVICE_EMAIL")
 
 
 @comment_app.get("/")
@@ -57,6 +58,9 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
                 "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
                 "headers": {"Content-Type": "application/json"}, 
                 "body": json.dumps(task_payload).encode(),
+                "oidc_token": {
+                    "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
+                }
             }
         }
     except Exception as e:
