@@ -23,16 +23,16 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 
 #gemma로 모델 변경
-MODEL_NAME = "google/gemma-3-1b-it"#""naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it" 
-FALLBACK_COMMENT = '{\n"comment": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
-EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"#"sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+MODEL_NAME ="google/gemma-3-1b-it" #"naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-1.1-2b-it"
+FALLBACK_COMMENT = "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌"
+EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"#"intfloat/multilingual-e5-small"
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 80
 MAX_NEW_TOKENS_SUMMARY = 50
-TEMPERATURE = 0.85
-TOP_P = 0.8
+TEMPERATURE = 0.9
+TOP_P = 0.9
 REPETITION_PENALTY = 1.2
-MAX_RETRY = 50
+MAX_RETRY = 60
 
 
 
@@ -112,7 +112,7 @@ class ClovaxModel:
         if not isinstance(comment, str) or not comment.strip():
             return False
         
-        for word in ['추가', '혁신적', '코딩', '코드', '맞춤']:
+        for word in ['추가', '코딩', '코드', '맞춤', '카테그램', '카테브', '앱', '어플리케이션', '설치', '알림']:
             if word in comment:
                 return False
         
@@ -126,13 +126,6 @@ class ClovaxModel:
         prompt_builder = ClovaxPrompt(request_data)
         prompt: str = prompt_builder.generate_prompt()
 
-
-        summary = summarize(prompt_builder.detailedDescription, ratio=0.7)
-        summary = summarize(summary, ratio=0.7)
-        request_data.projectSummary.detailedDescription = summary
-        print(summary)
-
-        # 💡 검열 기준 텍스트 생성 (요약, 설명, 태그 등 조합)
         context_text = " ".join(["서비스 이름은",
             prompt_builder.title, "이다. 프로젝트 슬로건은",
             prompt_builder.introduction, "이다.",
@@ -140,6 +133,12 @@ class ClovaxModel:
             #",".join(ClovaxPrompt.projectSummary.tags), "이다"
         ])
 
+        summary = summarize(prompt_builder.detailedDescription, ratio=0.7)
+        summary = summarize(summary, ratio=0.7)
+        request_data.projectSummary.detailedDescription = summary
+        #print(summary)
+
+        # 💡 검열 기준 텍스트 생성 (요약, 설명, 태그 등 조합)
 
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
@@ -157,12 +156,17 @@ class ClovaxModel:
                     #logger.info("JSON 파싱 + 유효성 검사 성공.")
                     generated_comment = generated_comment_dict.get("comment", "").strip()
 
+                    positive_words = ["디자인", "UI", "UX", "좋아요", "인터페이스"] + prompt_builder.tags
+                    for word in positive_words:
+                        if word in generated_comment:
+                            return generated_comment
+
                     if self.is_semantically_relevant(generated_comment, context_text):
                         logger.info("JSON 파싱 + 의미 필터링 통과.")
                         return generated_comment
 
                     else:
-                        logger.info("의미 검열에 의해 댓글 재 생성 필요.")
+                        raise ValueError("의미 검열에 의해 댓글 재 생성 필요.")
                 else:
                     raise ValueError("생성된 JSON에 comment가 없거나 비어 있음. 형식에 벗어남.")
 
@@ -173,10 +177,10 @@ class ClovaxModel:
                     continue
                 else:
                     logger.warning("최대 재시도 도달 → fallback 사용.")
-                    return json.loads(FALLBACK_COMMENT)
+                    return FALLBACK_COMMENT
 
 
-    def is_semantically_relevant(self, comments: str, context: str, threshold: float = 0.86) -> bool:
+    def is_semantically_relevant(self, comments: str, context: str, threshold: float = 0.69) -> bool:
         """
         검열함수 생성. 생성된 댓글이 프로젝트 정보와 의미적으로 관련 있는지 유사도로 판단
         """
@@ -210,14 +214,13 @@ if __name__ == "__main__":
             deploymentUrl= "https://moagenda.com/",
             githubUrl= "https://github.com/100-hours-a-week/4-bull4zo-wiki/wiki",
             tags= ["카테부","투표","스와이프","소통","커뮤니티"],
-            teamId= 6
+            teamId= 4
         )
     )
     
 
     start = time.time()
     logger.info("테스트 시작.")
-    # clovax_model_instance.summary_detailed(dummy_data)
     correct = []
     for _ in range(4):
         comment = clovax_model_instance.generate_comment(dummy_data)

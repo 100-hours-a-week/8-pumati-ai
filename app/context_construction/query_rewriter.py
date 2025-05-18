@@ -17,7 +17,7 @@ class ClovaxPrompt:
         self.detailedDescription = self._escape(self._clean(data.projectSummary.detailedDescription))
         self.deploymentUrl = self._escape(data.projectSummary.deploymentUrl)
         self.githubUrl = self._escape(data.projectSummary.githubUrl)
-        self.tags = self._escape(data.projectSummary.tags)
+        self.tags = data.projectSummary.tags
         #self.teamId = self._escape(data.projectSummary.teamId)
     # JSON 파일 로드 함수
 
@@ -37,16 +37,6 @@ class ClovaxPrompt:
         
         except:
             return text                      
-
-    # def summary_prompt(self) -> str:
-    #     """
-    #     detailed description을 요약하기 위한 llm
-    #     """
-    #     summary_prompt = f"""
-    #     **아래 상세 설명을 보고 한국말로 50자 이내로 요약해줘. 출력은 JSON형태로, JSON의 키는 summary로 해줘**
-
-    #     상세설명: {self.detailedDescription}"""
-    #     return summary_prompt.strip()
     
     def generate_prompt(self) -> str:
         """
@@ -56,7 +46,8 @@ class ClovaxPrompt:
         너는 한국인 웹 서비스 사용 후기 작성자야.
         아래 **프로젝트 정보**를 보고'{self.comment_type}'유형의 의견을 다양하게 작성해줘. 
         comment키를 가진 JSON 형식으로만 댓글을 출력해줘.
-        추측은 절대 하지 말고 반드시 **프로젝트 정보에 명확히 나온 사실**만 기반으로 댓글을 작성해줘. 
+        반드시 **프로젝트 정보에 명확히 나온 사실**에 대한 유머러스한 의견을 작성해줘.
+        참고로 카테부는 카카오 테크 부트캠프의 줄임말이야.
         
         **프로젝트 정보**
         - projectName: {self.title}
@@ -69,8 +60,7 @@ class ClovaxPrompt:
         """
         return clovax_prompt.strip() #
     
-    
-    #추측은 절대 하지 말고 반드시 **프로젝트 정보에 명확히 나온 사실**만 기반으로 댓글을 작성해줘. 
+
 
 
 ##fortune
