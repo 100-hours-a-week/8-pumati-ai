@@ -39,7 +39,8 @@ def root():
 # 백그라운드에서 댓글 생성 작업을 비동기로 처리하기 위함
 # ------------------------------
 def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
-    logger.info("댓글 생성 요청을 큐에 보냈습니다.")
+    logger.info("댓글 생성 요청을 큐에 보냅니다. AI_server:", {GCP_TARGET_URL})
+    logger.info("댓글 생성 요청을 큐에 보냅니다. BE_server:", {GCP_TARGET_URL})
     try:
         client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
         parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
@@ -77,6 +78,7 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
 # ------------------------------
 @comment_app.post("/api/tasks/process-comment")
 async def process_comment_task(request: Request) -> dict:
+    logger.info("큐에 등록되었습니다.")
     # Cloud Tasks가 보낸 JSON body를 파싱 -> project_id, request_data를 가져옴.
     try:
         body = await request.json()
