@@ -9,6 +9,7 @@ import torch
 from huggingface_hub import login
 from context_construction.query_rewriter import ClovaxPrompt
 from fast_api.schemas.comment_schemas import CommentRequest
+from summa.summarizer import summarize
 
 # ----------------------------
 # 로깅 설정
@@ -21,15 +22,15 @@ logger = logging.getLogger(__name__)
 # 상수 정의
 # ----------------------------
 
-MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
+MODEL_NAME = "google/gemma-3-1b-it"#""naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" #"google/gemma-3-1b-it"
 FALLBACK_COMMENT = '{\n"comment": "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌" \n}'
-EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"
+EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-small"#"sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CPU_DEVICE = torch.device("cpu")
 MAX_NEW_TOKENS = 80
 MAX_NEW_TOKENS_SUMMARY = 50
-TEMPERATURE = 0.8
+TEMPERATURE = 0.9
 TOP_P = 0.8
-REPETITION_PENALTY = 1.1
+REPETITION_PENALTY = 1.2
 MAX_RETRY = 50
 
 
@@ -110,7 +111,7 @@ class ClovaxModel:
         if not isinstance(comment, str) or not comment.strip():
             return False
         
-        for word in ['추가', '혁신적', '코딩', '코드']:
+        for word in ['추가', '혁신적', '코딩', '코드', '맞춤']:
             if word in comment:
                 return False
         
@@ -124,6 +125,12 @@ class ClovaxModel:
         prompt_builder = ClovaxPrompt(request_data)
         prompt: str = prompt_builder.generate_prompt()
 
+
+        summary = summarize(prompt_builder.detailedDescription, ratio=0.7)
+        summary = summarize(summary, ratio=0.7)
+        request_data.projectSummary.detailedDescription = summary
+        print(summary)
+
         # 💡 검열 기준 텍스트 생성 (요약, 설명, 태그 등 조합)
         context_text = " ".join(["서비스 이름은",
             prompt_builder.title, "이다. 프로젝트 슬로건은",
@@ -132,7 +139,7 @@ class ClovaxModel:
             #",".join(ClovaxPrompt.projectSummary.tags), "이다"
         ])
 
-        print(context_text)
+        #print(context_text)
 
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
@@ -169,7 +176,7 @@ class ClovaxModel:
                     return json.loads(FALLBACK_COMMENT)
 
 
-    def is_semantically_relevant(self, comments: str, context: str, threshold: float = 0.85) -> bool:
+    def is_semantically_relevant(self, comments: str, context: str, threshold: float = 0.86) -> bool:
         """
         검열함수 생성. 생성된 댓글이 프로젝트 정보와 의미적으로 관련 있는지 유사도로 판단
         """
