@@ -1,7 +1,7 @@
 torch==2.1.0
 transformers==4.51.1 #transformers==4.38.2
 sentence-transformers==2.6.1
-safetensors
+summa==1.2.0#safetensors
 fastapi
 uvicorn==0.29.0
 huggingface-hub==0.31.1
