@@ -39,8 +39,8 @@ def root():
 # 백그라운드에서 댓글 생성 작업을 비동기로 처리하기 위함
 # ------------------------------
 def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
-    logger.info("댓글 생성 요청을 큐에 보냅니다. AI_server:", GCP_TARGET_URL)
-    logger.info("댓글 생성 요청을 큐에 보냅니다. BE_server:", BE_URL)
+    logger.info(f"댓글 생성 요청을 큐에 보냅니다. AI_server: {GCP_TARGET_URL}")
+    logger.info(f"댓글 생성 요청을 큐에 보냅니다. BE_server: {BE_URL}")
     try:
         client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
         parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
@@ -121,7 +121,7 @@ async def process_comment_task(request: Request) -> dict:
             endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
             response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
-            logger.info(f"댓글 전송 성공: {payload}")
+            logger.info(f"댓글 전송 성공: {endpoint}, {payload}")
         except Exception as e:
             logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
 
