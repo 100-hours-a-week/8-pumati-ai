@@ -45,6 +45,7 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
     try:
         client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
         parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
+        logger.info(f"현재 위치는 {GCP_LOCATION}입니다.")
 
         task_payload = {
             "projectId": project_id,
