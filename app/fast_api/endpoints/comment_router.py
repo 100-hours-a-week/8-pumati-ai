@@ -39,23 +39,28 @@ def root():
 # 백그라운드에서 댓글 생성 작업을 비동기로 처리하기 위함
 # ------------------------------
 def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
-    client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
-    parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
+    logger.info("댓글 생성 요청을 큐에 보냈습니다.")
+    try:
+        client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
+        parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
 
-    task_payload = {
-        "projectId": project_id,
-        "requestData": request_data
-    } #댓글 생성에 필요한 정보를 JSON으로 준비함.
+        task_payload = {
+            "projectId": project_id,
+            "requestData": request_data
+        } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
-    #Cloud Tasks에 등록할 하나의 작업 정보임.
-    task = {
-        "http_request": {
-            "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
-            "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
-            "headers": {"Content-Type": "application/json"}, 
-            "body": json.dumps(task_payload).encode(),
+        #Cloud Tasks에 등록할 하나의 작업 정보임.
+        task = {
+            "http_request": {
+                "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
+                "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
+                "headers": {"Content-Type": "application/json"}, 
+                "body": json.dumps(task_payload).encode(),
+            }
         }
-    }
+    except Exception as e:
+        logger.error(f"[ERROR] payload 생성 실패: {e}", exc_info=True)
+        #raise HTTPException(status_code=400, detail="Invalid JSON")
 
     # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
     now = datetime.now(timezone.utc)
@@ -73,9 +78,14 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
 @comment_app.post("/api/tasks/process-comment")
 async def process_comment_task(request: Request) -> dict:
     # Cloud Tasks가 보낸 JSON body를 파싱 -> project_id, request_data를 가져옴.
-    body = await request.json()
-    project_id = body.get("projectId")
-    request_data = body.get("requestData")
+    try:
+        body = await request.json()
+        project_id = body.get("projectId")
+        request_data = body.get("requestData")
+
+    except Exception as e:
+        logger.error(f"[ERROR] request.json() 실패: {e}", exc_info=True)
+        #raise HTTPException(status_code=400, detail="Invalid JSON")
 
     #####################값이 없을 경우, 400error 발생 -> 해당 내용 백엔드와 상의 필요.
     if not (project_id and request_data):
