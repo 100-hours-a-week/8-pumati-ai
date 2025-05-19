@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 from app.fast_api.schemas.fortune_schema import FortuneRequest, FortuneResponse
-from app.model_inference.inference_runner import run_fortune_model
+from app.model_inference.fortune_inference_runner import run_fortune_model
 import time
 
 router = APIRouter()

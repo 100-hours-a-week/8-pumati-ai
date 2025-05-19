@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Hugging Face 인증 여부를 저장하는 내부 플래그
 _is_authenticated = False
 
 def authenticate_huggingface():
