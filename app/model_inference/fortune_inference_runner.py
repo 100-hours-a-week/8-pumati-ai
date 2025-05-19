@@ -1,4 +1,4 @@
-# app/model_inference/inference_runner.py
+# app/model_inference/fortune_inference_runner.py
 
 # -------------------
 # 이 모듈은 운세 모델 실행 파이프라인을 담당합니다.
