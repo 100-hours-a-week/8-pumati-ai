@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import requests
 import random
 
-from model_inference.loaders.comment_loader import clovax_model_instance
+from model_inference.comment_generator import comment_generator_instance
 from fast_api.schemas.comment_schemas import CommentRequest
 
 # ------------------------------
@@ -64,20 +64,22 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
                 }
             }
         }
+
+        # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
+
+        now = datetime.now(timezone.utc)
+        timestamp = timestamp_pb2.Timestamp()
+        timestamp.FromDatetime(now)
+        task["schedule_time"] = timestamp
+
+        response = client.create_task(parent=parent, task=task)
+        logger.info(f" Task enqueued: {response.name}")
+
     except Exception as e:
         logger.error(f"[ERROR] payload 생성 실패: {e}", exc_info=True)
         #raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
-    now = datetime.now(timezone.utc)
-    timestamp = timestamp_pb2.Timestamp()
-    timestamp.FromDatetime(now)
-    task["schedule_time"] = timestamp
-
-    response = client.create_task(parent=parent, task=task)
-    logger.info(f" Task enqueued: {response.name}")
-
-
+    
 # ------------------------------
 # 외부에서 호출되는 Cloud Tasks 수신 처리 엔드포인트
 # ------------------------------
@@ -115,10 +117,10 @@ async def process_comment_task(request: Request) -> dict:
                 author_name = fake_en.first_name_female()
                 author_nickname = fake_ko.name_female()
 
-            generated_comment = clovax_model_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
+            generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
 
             payload = {
-                "content": json.dumps(generated_comment, ensure_ascii=False)[1:-1],
+                "content": generated_comment,
                 "authorName": author_name,
                 "authorNickname": author_nickname
             }

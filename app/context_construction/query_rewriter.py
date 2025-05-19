@@ -6,9 +6,9 @@ import re
 logger = logging.getLogger(__name__)
 
 # JSON 데이터 모델 정의
-class ClovaxPrompt:
+class GemmaPrompt:
     """
-    프로젝트 정보를 기반으로 Clovax 프롬프트를 생성하는 클래스
+    프로젝트 정보를 기반으로 Gemma 프롬프트를 생성하는 클래스
     """
     def __init__(self, data: CommentRequest):
         self.comment_type = self._escape(data.commentType)
@@ -42,7 +42,7 @@ class ClovaxPrompt:
         """
         프로젝트 정보를 기반으로 LLM 프롬프트 문자열 생성
         """
-        clovax_prompt = f"""
+        gemma_prompt = f"""
         너는 한국인 웹 서비스 사용 후기 작성자야.
         아래 **프로젝트 정보**를 보고'{self.comment_type}'유형의 의견을 다양하게 작성해줘. 
         comment키를 가진 JSON 형식으로만 댓글을 출력해줘.
@@ -58,9 +58,8 @@ class ClovaxPrompt:
         {{ "comment": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
         {{ "comment": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
         """
-        return clovax_prompt.strip() #
+        return gemma_prompt.strip()
     
-
 
 
 ##fortune
