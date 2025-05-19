@@ -128,14 +128,3 @@ model_instance.load_model()
 
 def generate_fortune_text(prompt: str) -> str:
     return model_instance.generate_fortune(prompt)
-
-
-# ----------------------------
-# 테스트 코드
-# ----------------------------
-
-if __name__ == "__main__":
-    prompt = "다음 사용자에게 오늘의 운세를 알려주세요: 홍길동님은 백엔드 개발자이며 긍정적인 마인드를 가지고 있습니다. {\"comment\":"
-    print("--- 운세 시작 ---")
-    result = generate_fortune_text(prompt)
-    print(result)
