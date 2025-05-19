@@ -1,4 +1,6 @@
 # app/fast_api/schemas/fortune_schema.py
+# 요청 및 응답 데이터 형식을 정의
+
 from pydantic import BaseModel
 from typing import Literal, Dict
 
