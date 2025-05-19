@@ -1,5 +1,9 @@
 
 # gemma 모델 로드
+
+# Deprecated: 현재 HyperCLOVA로 대체됨
+# 보존 목적 - Gemma 기반 운세 모델 로더
+
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch, platform, os, re
 from huggingface_hub import login
