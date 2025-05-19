@@ -111,7 +111,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = "google/gemma-3-1b-it"
 EMBEDDING_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-TEMPERATURE = 0.9
+TEMPERATURE = 0.85
 TOP_P = 0.9
 REPETITION_PENALTY = 1.2
 
@@ -124,6 +124,8 @@ class GemmaModel:
         self.device = torch.device("cpu")
         self.pipe = None
         self.embed_model = None
+        self.model = None
+        self.tokenizer = None
         self._load_model()
 
     def _authenticate_huggingface(self):
@@ -137,18 +139,8 @@ class GemmaModel:
         GemmaModel._is_authenticated = True
 
     def _load_model(self):
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        model = AutoModelForCausalLM.from_pretrained(self.model_name).to(self.device)
-        self.pipe = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=-1,
-            temperature=TEMPERATURE,
-            top_p=TOP_P,
-            do_sample=True,
-            repetition_penalty=REPETITION_PENALTY
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_name).to(self.device)
         self.embed_model = SentenceTransformer(EMBEDDING_MODEL_NAME, device=self.device)
         logger.info("Gemma 모델 및 임베딩 모델 로드 완료")
 

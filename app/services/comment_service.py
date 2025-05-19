@@ -4,6 +4,8 @@ from context_construction.prompt.comment_prompt import GemmaPrompt
 from sentence_transformers import util
 from model_inference.loaders.comment_loader import comment_creator
 from fast_api.schemas.comment_schemas import CommentRequest
+from transformers import TextStreamer
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,8 @@ MAX_RETRY = 40
 class GenerateComment:
     def __init__(self):
         self.pipe = comment_creator.pipe
+        self.model = comment_creator.model
+        self.tokenizer = comment_creator.tokenizer
         self.embed_model = comment_creator.embed_model
 
     def validate_generated_comment(self, generated_comment_dict: dict) -> bool:
@@ -28,8 +32,8 @@ class GenerateComment:
         return True
 
     def is_semantically_relevant(self, comment: str, context: str, threshold: float = 0.69) -> bool:
-        comment_emb = self.embed_model.encode(comment, convert_to_tensor=True)
-        context_emb = self.embed_model.encode(context, convert_to_tensor=True)
+        comment_emb = self.embed_model.encode(comment, convert_to_tensor=True, show_progress_bar=False)
+        context_emb = self.embed_model.encode(context, convert_to_tensor=True, show_progress_bar=False)
         similarity = util.cos_sim(comment_emb, context_emb).item()
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
@@ -48,10 +52,21 @@ class GenerateComment:
         summary = summarize(summary, ratio=0.7) or summary
         prompt_builder.detailedDescription = summary
 
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
-            outputs = self.pipe(prompt, max_new_tokens=MAX_NEW_TOKENS)[0]["generated_text"]
-            output_text = outputs[len(prompt):].strip()
+            with torch.inference_mode():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=MAX_NEW_TOKENS,
+                    temperature=0.7,
+                    top_p=0.9,
+                    repetition_penalty=1.1,
+                    do_sample=True
+                )
+            output_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+            output_text = output_text[len(prompt):].strip()
 
             try:
                 find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
@@ -59,7 +74,7 @@ class GenerateComment:
 
                 if self.validate_generated_comment(generated_comment_dict):
                     comment = generated_comment_dict.get("comment", "").strip()
-                    if any(word in comment for word in (prompt_builder.tags + ["디자인", "UI", "UX", "좋아요", "인터페이스"])):
+                    if any(word in comment for word in (["디자인", "UI", "UX", "좋아요", "인터페이스"])): #prompt_builder.tags + 
                         return comment
                     if self.is_semantically_relevant(comment, context_text):
                         return comment
