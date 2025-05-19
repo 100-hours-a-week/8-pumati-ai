@@ -1,6 +1,6 @@
 import json, re, logging
 from summa.summarizer import summarize
-from context_construction.prompt.comment_prompt import GemmaPrompt
+from context_construction.prompts.comment_prompt import GemmaPrompt
 from sentence_transformers import util
 from model_inference.loaders.comment_loader import comment_creator
 from fast_api.schemas.comment_schemas import CommentRequest
