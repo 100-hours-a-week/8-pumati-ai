@@ -103,7 +103,7 @@ async def process_comment_task(request: Request) -> dict:
 
     #댓글을 4번 생성하기 위한 루프
     for i in range(COMMENT_GENERATE_COUNT):
-        logger.info(f"{i}번째 댓글 생성")
+        logger.info(f"{i + 1}번째 댓글 생성")
         try:
             fake_en = Faker()
             fake_ko = Faker('ko_KR')
