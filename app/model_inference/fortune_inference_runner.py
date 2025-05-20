@@ -31,6 +31,12 @@ def run_fortune_model(name: str, course: str, date: str) -> dict:
     사용자 입력(name, course, date)을 받아 운세 모델을 호출하고,
     결과를 JSON으로 파싱해 반환합니다. 실패 시 fallback 메시지를 사용합니다.
     """
+
+    # Null-safe 처리
+    if course is None or str(course).lower() == "null":
+        course = "외부인"
+
+    
     for attempt in range(1, MAX_RETRY + 1):
         # 프롬프트에 난수 기반 노이즈 추가 (모델 응답 다양성 확보)
         noise = f"<!-- retry_seed={random.randint(0,9999)} -->"
