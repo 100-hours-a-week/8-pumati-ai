@@ -23,7 +23,7 @@ jobs:
     # 환경 변수 설정
     env:
       GCP_PROJECT_ID: ktb8team-458916 
-      ARTIFACT_REGISTRY_LOCATION: "asia-southeast1"
+      ARTIFACT_REGISTRY_LOCATION: "asia-east1"
       ARTIFACT_REGISTRY_REPO: "ktb8team"
       IMAGE_NAME: "dev/ai-cpu"
       DOCKERFILE_PATH: "Dockerfile.cpu"
