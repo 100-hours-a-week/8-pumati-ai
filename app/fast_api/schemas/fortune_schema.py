@@ -3,12 +3,13 @@
 
 from pydantic import BaseModel
 from typing import Literal, Dict
+from typing import Optional
 
 from pydantic import BaseModel
 
 class FortuneRequest(BaseModel):
     name: str
-    course: str
+    course: Optional[str] = None
     date: str
 
 class FortuneResponse(BaseModel):
