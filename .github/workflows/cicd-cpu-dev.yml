@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - cpu-dev
+      - dev
 
 jobs:
   build-push-deploy:
