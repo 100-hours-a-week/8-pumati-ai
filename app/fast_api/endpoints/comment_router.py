@@ -6,8 +6,8 @@ import os
 import logging
 import json
 from google.cloud import tasks_v2
-from google.protobuf import timestamp_pb2
-from datetime import datetime, timezone
+# from google.protobuf import timestamp_pb2
+# from datetime import datetime, timezone
 import requests
 import random
 
@@ -66,6 +66,19 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
                 }
             }
         }
+
+        # http_request = HttpRequest(
+        #     http_method=HttpMethod.POST,
+        #     url=f"{GCP_TARGET_URL}/api/tasks/process-comment",
+        #     headers={"Content-Type": "application/json"},
+        #     body=json.dumps(task_payload).encode(),
+        #     oidc_token=OidcToken(service_account_email=GCP_SERVICE_ACCOUNT_EMAIL)
+        # )
+
+        # task = Task(
+        #     http_request=http_request,
+        #     retry_config=RetryConfig(max_attempts=1)
+        # )
 
         # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
         # now = datetime.now(timezone.utc)
