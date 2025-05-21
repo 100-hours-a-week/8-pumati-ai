@@ -64,6 +64,9 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
                 "oidc_token": {
                     "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
                 }
+            },
+            "retry_config": {
+                "max_attempts": 1  # 재시도 하지 않도록 설정
             }
         }
 
