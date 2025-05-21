@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+from google.cloud.tasks_v2 import CloudTasksClient, HttpMethod
+from google.cloud.tasks_v2.types import Task, HttpRequest, RetryConfig
 from dotenv import load_dotenv
 from faker import Faker
 import os
@@ -55,20 +57,33 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
         } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
         #Cloud Tasks에 등록할 하나의 작업 정보임.
-        task = {
-            "http_request": {
-                "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
-                "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
-                "headers": {"Content-Type": "application/json"}, 
-                "body": json.dumps(task_payload).encode(),
-                "oidc_token": {
-                    "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
-                }
-            },
-            "retry_config": {
-                "max_attempts": 1  # 재시도 하지 않도록 설정
-            }
-        }
+        # task = {
+        #     "http_request": {
+        #         "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
+        #         "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
+        #         "headers": {"Content-Type": "application/json"}, 
+        #         "body": json.dumps(task_payload).encode(),
+        #         "oidc_token": {
+        #             "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
+        #         }
+        #     },
+        #     "retry_config": RetryConfig(max_attempts=1)
+        # }
+        
+        http_request = HttpRequest(
+        http_method=HttpMethod.POST,
+        url=f"{GCP_TARGET_URL}/api/tasks/process-comment",
+        headers={"Content-Type": "application/json"},
+        body=json.dumps(task_payload).encode(),
+        oidc_token=HttpRequest.OidcToken(
+            service_account_email=GCP_SERVICE_ACCOUNT_EMAIL
+            )
+        )
+
+        task = Task(
+            http_request=http_request,
+            retry_config=RetryConfig(max_attempts=1)
+        )
 
         # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
         # now = datetime.now(timezone.utc)
