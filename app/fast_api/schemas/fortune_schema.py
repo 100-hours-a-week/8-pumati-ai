@@ -8,7 +8,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 class FortuneRequest(BaseModel):
-    name: str
+    nickname: str
     course: Optional[str] = None
     date: str
 

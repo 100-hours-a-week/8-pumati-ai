@@ -19,7 +19,7 @@ async def create_fortune(request: FortuneRequest):
 
     # 2) 모델 호출 (name 추가)
     result: dict = run_fortune_model(
-        request.name,    # ← 새로 추가된 name
+        request.nickname,
         request.course,
         request.date
     )
