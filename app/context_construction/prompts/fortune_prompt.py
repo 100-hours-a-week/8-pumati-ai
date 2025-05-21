@@ -1,6 +1,6 @@
 # app/context_construction/prompts/fortune_prompt.py
 
-def build_fortune_prompt(name: str, course: str, date: str) -> str:
+def build_fortune_prompt(nickname: str, course: str, date: str) -> str:
     return f"""
 너는 개발자용 운세 생성 전문 AI야.
 아래 **사용자 정보**을 고려해서, 20자 이내로 다양한 관점에서 긍정적이거나 재치있는 개발자용 운세 문구를 작성해줘.
@@ -10,7 +10,7 @@ def build_fortune_prompt(name: str, course: str, date: str) -> str:
 ** 사용자 정보 **
 question: {course}
 Date: {date}
-name: {name}
+nickname: {nickname}
 
 **출력 예시 (Json)**
 {{
