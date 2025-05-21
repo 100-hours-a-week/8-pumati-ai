@@ -2,7 +2,7 @@
 
 # -------------------
 # 이 모듈은 운세 모델 실행 파이프라인을 담당합니다.
-# 1. 입력값(name, course, date) 기반으로 프롬프트 생성
+# 1. 입력값(nickname, course, date) 기반으로 프롬프트 생성
 # 2. HyperCLOVA 모델 호출
 # 3. 결과 JSON 파싱 및 정제
 # 4. 실패 시 fallback 응답 반환
@@ -26,9 +26,9 @@ FALLBACKS = [
     {"overall": "배움과 성장이 조화를 이루는 날입니다. 기존 코드를 리뷰하며 개선 아이디어를 떠올려보세요. 더 나은 구조가 보일지도 몰라요."}
 ]
 
-def run_fortune_model(name: str, course: str, date: str) -> dict:
+def run_fortune_model(nickname: str, course: str, date: str) -> dict:
     """
-    사용자 입력(name, course, date)을 받아 운세 모델을 호출하고,
+    사용자 입력(nickname, course, date)을 받아 운세 모델을 호출하고,
     결과를 JSON으로 파싱해 반환합니다. 실패 시 fallback 메시지를 사용합니다.
     """
 
@@ -40,7 +40,7 @@ def run_fortune_model(name: str, course: str, date: str) -> dict:
     for attempt in range(1, MAX_RETRY + 1):
         # 프롬프트에 난수 기반 노이즈 추가 (모델 응답 다양성 확보)
         noise = f"<!-- retry_seed={random.randint(0,9999)} -->"
-        prompt = build_fortune_prompt(name, course, date) + f"\n{noise}"
+        prompt = build_fortune_prompt(nickname, course, date) + f"\n{noise}"
 
         raw = fortune_service.generate_fortune(prompt)
 
