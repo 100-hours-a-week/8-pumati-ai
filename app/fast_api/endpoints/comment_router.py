@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from faker import Faker
 import os
@@ -67,10 +68,10 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
         }
 
         # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
-        now = datetime.now(timezone.utc)
-        timestamp = timestamp_pb2.Timestamp()
-        timestamp.FromDatetime(now)
-        task["schedule_time"] = timestamp
+        # now = datetime.now(timezone.utc)
+        # timestamp = timestamp_pb2.Timestamp()
+        # timestamp.FromDatetime(now)
+        # task["schedule_time"] = timestamp
 
         response = client.create_task(parent=parent, task=task)
         logger.info(f" Task enqueued: {response.name}")
@@ -133,7 +134,7 @@ async def process_comment_task(request: Request) -> dict:
         except Exception as e:
             logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
 
-    return {"status": "success"}
+    return JSONResponse(status_code=200, content={"status": "ok"})
 
 
 # ------------------------------
