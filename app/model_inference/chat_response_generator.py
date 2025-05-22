@@ -51,6 +51,7 @@ from app.services.team_chat_service import TeamChatService
 import chromadb
 from transformers import AutoTokenizer, AutoModel
 import torch
+from app.context_construction.prompts.chat_prompt import build_chat_prompt
 
 # 0. 모델 준비
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -84,7 +85,7 @@ def embed_with_transformers(text: str) -> list:
     return embedding.squeeze().cpu().numpy().tolist()
 
 
-def generate_team_response(question: str, project_id: int, top_k: int = 3) -> str:
+def generate_team_response(question: str, project_id: int, top_k: int = 20) -> str:
     # 2. 질문 임베딩
     embedding = embed_with_transformers(question)
 
@@ -106,7 +107,7 @@ def generate_team_response(question: str, project_id: int, top_k: int = 3) -> st
         print(f"[{i+1}] {d[:100]}...")
 
     # 5. 프롬프트 구성
-    prompt = f"""다음은 팀의 최근 GitHub 활동 내용입니다:\n\n{context}\n\n사용자 질문: "{question}"\n\n위 활동 내용을 바탕으로 친절하고 자연스럽게 답변해 주세요."""
+    prompt = build_chat_prompt(question, docs)
 
     # 6. 모델 추론
     return run_team_chat_model(prompt)
