@@ -38,7 +38,7 @@ class GenerateComment:
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
     
-    def detail_summary(detail_Description: str, ratio_summ: float = 0.6) -> str:
+    def detail_summary(self, detail_Description: str, ratio_summ: float = 0.6) -> str:
         summary = summarize(detail_Description, ratio=ratio_summ) or detail_Description
         summary = summarize(summary, ratio=ratio_summ) or summary
         return summary
