@@ -1,2 +1,5 @@
 # crawling
 chromadb==0.4.24
+
+
+sentence-transformers==2.6.1

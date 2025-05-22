@@ -1,17 +1,25 @@
 # app/github_crawling/vector_store.py
 
 import chromadb
+from datetime import datetime
 
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection(name="github_docs")
 
-def store_document(text: str, metadata: dict, embedding: list):
+def is_id_exists(doc_id: str) -> bool:
+    existing = collection.get(ids=[doc_id], include=["documents"])
+    return bool(existing["ids"])
+
+
+def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
     collection.add(
-        documents=[text], # 실제 요약 텍스트
-        metadatas=[metadata], # 커밋/PR/README의 출처 정보
-        embeddings=[embedding], # 임베딩 벡터 (list of float)
-        ids=[f"{metadata['repo']}_{metadata['date']}"] # 고유 ID (예: 8-pumati-ai_2025-05-01T08:34)
+        documents=[text],
+        metadatas=[metadata],
+        embeddings=[embedding],
+        ids=[doc_id]
     )
+
+
 
 def show_vector_summary():
     client = chromadb.PersistentClient(path="./chroma_db")

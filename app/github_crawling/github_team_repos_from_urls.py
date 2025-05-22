@@ -17,12 +17,19 @@ HEADERS = {
 
 # 주어진 팀 URL 리스트
 TEAM_URLS = [
-    # "https://github.com/orgs/100-hours-a-week/teams/6",
     "https://github.com/orgs/100-hours-a-week/teams/8",
     # "https://github.com/orgs/100-hours-a-week/teams/20",
     # "https://github.com/orgs/100-hours-a-week/teams/7-1",
     # "https://github.com/orgs/100-hours-a-week/teams/13-cafeboo"
 ]
+
+# 예시: slug → id 매핑 (실제 환경에서는 DB나 config로 관리할 것)
+TEAM_META = {
+    "8": 1,
+    "7-1": 2,
+    "13-cafeboo": 3,
+    # 필요에 따라 추가
+}
 
 def extract_team_slugs_from_urls(urls):
     slugs = []
@@ -47,16 +54,17 @@ def get_all_repos_from_team_urls():
     for slug in team_slugs:
         try:
             repos = get_team_repos(ORG_NAME, slug)
+            team_id = TEAM_META.get(slug, 0)
             for repo in repos:
-                all_repos.append(repo["full_name"])  # owner/repo 형태
+                all_repos.append((repo["full_name"], team_id, slug))  # (repo, team_id, team_number)
         except Exception as e:
             print(f"⚠️ 팀 {slug} 에러: {e}")
-    
+
     # 확인용
     print("\n✅ 전체 REPOS 리스트")
     print("REPOS = [")
-    for repo in all_repos:
-        print(f'    "{repo}",')
+    for r in all_repos:
+        print(f'    "{r[0]}",')
     print("]")
 
     return all_repos

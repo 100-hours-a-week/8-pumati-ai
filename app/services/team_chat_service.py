@@ -6,8 +6,8 @@ import warnings
 
 MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 MAX_NEW_TOKENS = 150
-TEMPERATURE = 0.7
-TOP_P = 0.9
+TEMPERATURE = 0.3
+TOP_P = 0.7
 
 warnings.filterwarnings("ignore", category=UserWarning, module="transformers.pytorch_utils")
 
