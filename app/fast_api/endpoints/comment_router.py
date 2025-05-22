@@ -23,7 +23,7 @@ comment_app = APIRouter()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-COMMENT_GENERATE_COUNT = 4
+COMMENT_GENERATE_COUNT = 3
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
