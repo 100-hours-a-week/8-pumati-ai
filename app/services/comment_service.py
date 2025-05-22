@@ -9,9 +9,9 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_COMMENT = "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌"
+FALLBACK_COMMENT = "좋아요! 추천합니다! 🙌"
 MAX_NEW_TOKENS = 80
-MAX_RETRY = 12
+MAX_RETRY = 8
 
 class GenerateComment:
     def __init__(self):

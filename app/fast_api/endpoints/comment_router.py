@@ -126,11 +126,11 @@ async def process_comment_task(request: Request) -> dict:
             gender = random.choice(["male", "female"])
 
             if gender == "male":
-                author_name = fake_en.first_name_male()
-                author_nickname = fake_ko.name_male()
+                author_name = fake_ko.name_male()
+                author_nickname = fake_en.first_name_male()
             else:
-                author_name = fake_en.first_name_female()
-                author_nickname = fake_ko.name_female()
+                author_name = fake_ko.name_female() 
+                author_nickname = fake_en.first_name_female()
 
             generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
 
