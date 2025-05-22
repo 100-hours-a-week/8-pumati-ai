@@ -63,7 +63,7 @@ model.eval()
 # 1. 기타 서비스 준비
 team_chat_service = TeamChatService()
 FALLBACK_CHAT = "팀 활동 내용을 바탕으로 답변을 생성하지 못했어요. 다시 시도해 주세요."
-client = chromadb.PersistentClient(path="./chroma_db")
+client = chromadb.PersistentClient(path="./chroma_db_no_llm")
 collection = client.get_or_create_collection(name="github_docs")
 
 def run_team_chat_model(prompt: str) -> str:
@@ -84,15 +84,15 @@ def embed_with_transformers(text: str) -> list:
     return embedding.squeeze().cpu().numpy().tolist()
 
 
-def generate_team_response(question: str, team_id: int, top_k: int = 3) -> str:
+def generate_team_response(question: str, project_id: int, top_k: int = 3) -> str:
     # 2. 질문 임베딩
     embedding = embed_with_transformers(question)
 
-    # 3. Chroma에서 team_id 기준 유사 문서 검색
+    # 3. Chroma에서 project_id 기준 유사 문서 검색
     result = collection.query(
         query_embeddings=[embedding],
         n_results=top_k,
-        where={"team_id": team_id},
+        where={"project_id": project_id},
         include=["documents", "distances", "metadatas"]
     )
     
