@@ -37,6 +37,11 @@ class GenerateComment:
         similarity = util.cos_sim(comment_emb, context_emb).item()
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
+    
+    def detail_summary(detail_Description: str, ratio_summ: float = 0.6) -> str:
+        summary = summarize(detail_Description, ratio=ratio_summ) or detail_Description
+        summary = summarize(summary, ratio=ratio_summ) or summary
+        return summary
 
     def generate_comment(self, request_data: CommentRequest) -> str:
         prompt_builder = GemmaPrompt(request_data)
@@ -48,14 +53,13 @@ class GenerateComment:
             "이다.", prompt_builder.detailedDescription
         ])
 
-        if len(prompt_builder.detailedDescription) < 500:
-            summary = summarize(prompt_builder.detailedDescription, ratio=0.7) or prompt_builder.detailedDescription
-            summary = summarize(summary, ratio=0.7) or summary
-            prompt_builder.detailedDescription = summary
+        if len(prompt_builder.detailedDescription) < 180:
+            pass
+
+        elif len(prompt_builder.detailedDescription) < 500:
+            prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.7)
         else:
-            summary = summarize(prompt_builder.detailedDescription, ratio=0.6) or prompt_builder.detailedDescription
-            summary = summarize(summary, ratio=0.6) or summary
-            prompt_builder.detailedDescription = summary
+            prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.6)
             #print(summary)
 
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
