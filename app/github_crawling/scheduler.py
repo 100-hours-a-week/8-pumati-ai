@@ -5,8 +5,9 @@ from github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issu
 from parser import parse_commit_item, parse_pr_item, parse_readme
 from text_splitter import split_text
 from embedding import get_embedding
-from vector_store import store_document, is_id_exists
-from llm_summary import generate_summary
+# from vector_store import store_document, is_id_exists
+# from llm_summary import generate_summary
+from vector_store_no_llm import store_document, is_id_exists
 from issue_connect_pr_check import fetch_pr_from_issue
 from collections import defaultdict
 import hashlib
@@ -16,39 +17,32 @@ REPOS = get_all_repos_from_team_urls()
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection(name="github_docs")
 
-def save_vector_entry(raw: str, doc_id: str, repo: str, team_id: int, team_number: str):
+def save_vector_entry(raw: str, doc_id: str, repo: str, project_id: int, team_id: str):
     if is_id_exists(doc_id):
-        print(f"⚠️ 이미 저장된 ID: {doc_id} → 요약 및 저장 생략")
+        print(f"⚠️ 이미 저장된 ID: {doc_id} → 저장 생략")
         return
 
     try:
-        print(f"🌀 요약 시작: {repo} / {doc_id}")
-        summary = generate_summary(raw)  # ← LLM 추론
-    except Exception as e:
-        print(f"❌ 요약 실패: {repo} / {doc_id} / {e}")
-        return
-
-    try:
-        embedding = get_embedding(summary)
-        store_document(summary, {
+        embedding = get_embedding(raw)
+        store_document(raw, {
             "repo": repo,
-            "date": doc_id.split("_")[-1],  # doc_id에서 날짜 추출
-            "raw": raw,
-            "team_id": team_id,
-            "team_number": team_number
+            "date": doc_id.split("_")[-1],
+            "project_id": project_id,
+            "team_id": team_id
         }, embedding, doc_id=doc_id)
         print(f"📥 저장 완료: {doc_id}")
     except Exception as e:
         print(f"❌ 저장 실패: {repo} / {doc_id} / {e}")
+
 
 def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 def main():
     for repo_entry in REPOS:
-        repo, team_id, team_number = repo_entry
+        repo, project_id, team_id = repo_entry
 
-        print(f"\n🚀 Start crawling: {repo} (Team ID: {team_id}, Number: {team_number})")
+        print(f"\n🚀 Start crawling: {repo} (Team ID: {project_id}, Number: {team_id})")
 
         entries_by_day = defaultdict(list)
 
@@ -71,7 +65,7 @@ def main():
         for day, raw_list in entries_by_day.items():
             combined = "\n\n".join(f"- {entry}" for entry in raw_list)
             doc_id = f"{repo}_{day}"
-            save_vector_entry(combined, doc_id, repo, team_id, team_number)
+            save_vector_entry(combined, doc_id, repo, project_id, team_id)
 
         content = fetch_readme(repo)
         if content:
@@ -82,7 +76,7 @@ def main():
             if existing["ids"]:
                 print(f"⚠️ README 내용 변경 없음 → 요약 생략")
             else:
-                save_vector_entry(raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(raw, doc_id, repo, project_id, team_id)
 
         contents = fetch_contents(repo)
         if contents:
@@ -93,7 +87,7 @@ def main():
             if existing["ids"]:
                 print(f"⚠️ CONTENTS 변경 없음 → 요약 생략")
             else:
-                save_vector_entry(summary_raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(summary_raw, doc_id, repo, project_id, team_id)
 
         contributors = fetch_contributors(repo)
         if contributors:
@@ -104,7 +98,7 @@ def main():
             if existing["ids"]:
                 print(f"⚠️ CONTRIBUTORS 변경 없음 → 요약 생략")
             else:
-                save_vector_entry(summary_raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(summary_raw, doc_id, repo, project_id, team_id)
 
         stats = fetch_commit_stats(repo)
         if stats:
@@ -118,7 +112,7 @@ def main():
             if existing["ids"]:
                 print(f"⚠️ STATS 변경 없음 → 요약 생략")
             else:
-                save_vector_entry(summary_raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(summary_raw, doc_id, repo, project_id, team_id)
 
         workflows = fetch_workflows(repo)
         for wf in workflows:
@@ -129,7 +123,7 @@ def main():
                 print(f"⚠️ Workflow {wf['name']} 이미 있음 → 생략")
             else:
                 raw = f"Workflow: {wf['name']} / Status: {wf['status']} / Conclusion: {wf['conclusion']}"
-                save_vector_entry(raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(raw, doc_id, repo, project_id, team_id)
 
 if __name__ == "__main__":
     main()

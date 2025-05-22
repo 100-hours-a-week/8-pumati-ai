@@ -4,7 +4,7 @@ from chromadb import PersistentClient
 client = PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection(name="github_docs")
 
-results = collection.get(include=["documents", "metadatas"], limit=100)
+results = collection.get(include=["documents", "metadatas", "embeddings"], limit=100)
 
 print("\n📦 총 벡터 수:", collection.count())
 
@@ -21,7 +21,7 @@ from collections import defaultdict
 
 team_count = defaultdict(int)
 for meta in results["metadatas"]:
-    key = f"{meta.get('team_number', 'unknown')} (ID: {meta.get('team_id', '-')})"
+    key = f"{meta.get('team_number', 'unknown')} (ProjectID: {meta.get('project_id', '-')})"
     team_count[key] += 1
 
 for team, count in sorted(team_count.items(), key=lambda x: x[0]):
