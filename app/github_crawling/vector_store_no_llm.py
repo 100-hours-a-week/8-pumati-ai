@@ -2,7 +2,7 @@
 
 import chromadb
 
-client = chromadb.PersistentClient(path="./chroma_db_no_llm")
+client = chromadb.PersistentClient(path="./chroma_db_no_llm_e5_base")
 collection = client.get_or_create_collection(name="github_docs")
 
 def is_id_exists(doc_id: str) -> bool:
