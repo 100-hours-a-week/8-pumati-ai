@@ -1,7 +1,7 @@
 # app/github_crawling/scheduler.py
 
 from app.github_crawling.github_team_repos_from_urls import get_all_repos_from_team_urls
-from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues, fetch_commit_stats, fetch_contents, fetch_contributors, fetch_workflows
+from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues, fetch_commit_stats, fetch_contents, fetch_contributors
 from app.github_crawling.parser import parse_commit_item, parse_pr_item, parse_readme
 from app.github_crawling.text_splitter import split_text
 from app.github_crawling.embedding import get_embedding
@@ -18,7 +18,7 @@ REPOS = get_all_repos_from_team_urls()
 client = chromadb.PersistentClient(path="./chroma_db_e5_base")
 collection = client.get_or_create_collection(name="github_docs")
 
-def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, team_id: int, team_number: str):
+def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, team_id: int):
     chunks = split_text(raw)
     for idx, chunk in enumerate(chunks):
         chunk_id = f"{doc_id_prefix}_chunk{idx}"
@@ -32,8 +32,8 @@ def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, team_id: int, tea
                 metadata={
                     "repo": repo,
                     "date": doc_id_prefix.split("_")[-1],
-                    "team_id": team_id,
-                    "team_number": team_number
+                    "project_id": project_id,
+                    "team_id": team_id
                 },
                 embedding=embedding,
                 doc_id=chunk_id
@@ -48,8 +48,8 @@ def hash_text(text: str) -> str:
 
 def main():
     for repo_entry in REPOS:
-        repo, team_id, team_number = repo_entry
-        print(f"\n🚀 Start crawling: {repo} (Team ID: {team_id}, Number: {team_number})")
+        repo, project_id, team_id = repo_entry
+        print(f"\n🚀 Start crawling: {repo} (Team ID: {project_id}, Number: {team_id})")
 
         entries_by_day = defaultdict(list)
 
@@ -72,7 +72,7 @@ def main():
         for day, raw_list in entries_by_day.items():
             combined = "\n\n".join(f"- {entry}" for entry in raw_list)
             doc_id_prefix = f"{repo}_{day}"
-            save_vector_entry(combined, doc_id_prefix, repo, team_id, team_number)
+            save_vector_entry(combined, doc_id_prefix, repo, project_id, team_id)
 
         def save_aux(doc_type, raw):
             content_hash = hash_text(raw)
@@ -80,7 +80,7 @@ def main():
             if is_id_exists(doc_id_prefix + "_chunk0"):
                 print(f"⚠️ {doc_type} 변경 없음 → 생략")
             else:
-                save_vector_entry(raw, doc_id_prefix, repo, team_id, team_number)
+                save_vector_entry(raw, doc_id_prefix, repo, project_id, team_id)
 
         if (content := fetch_readme(repo)):
             save_aux("README", parse_readme(content))
@@ -96,15 +96,6 @@ def main():
         if (stats := fetch_commit_stats(repo)):
             raw = "\n".join(f"{s['author']['login']}: {sum(w.get('c', 0) for w in s['weeks'])} commits" for s in stats if "author" in s)
             save_aux("STATS", raw)
-
-        for wf in fetch_workflows(repo):
-            wf_id = wf.get("id") or hash_text(wf["name"] + wf.get("created_at", ""))
-            doc_id_prefix = f"{repo}_WORKFLOW_{wf_id}"
-            if is_id_exists(doc_id_prefix + "_chunk0"):
-                print(f"⚠️ Workflow {wf['name']} 이미 있음 → 생략")
-            else:
-                raw = f"Workflow: {wf['name']} / Status: {wf['status']} / Conclusion: {wf['conclusion']}"
-                save_vector_entry(raw, doc_id_prefix, repo, team_id, team_number)
 
 if __name__ == "__main__":
     main()

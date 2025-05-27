@@ -64,7 +64,7 @@ def get_all_repos_from_team_urls():
             repos = get_team_repos(ORG_NAME, slug)
             team_id = TEAM_META.get(slug, 0)
             for repo in repos:
-                all_repos.append((repo["full_name"], team_id, slug))  # (repo, team_id, team_number)
+                all_repos.append((repo["full_name"], team_id, slug)) 
         except Exception as e:
             print(f"⚠️ 팀 {slug} 에러: {e}")
 
