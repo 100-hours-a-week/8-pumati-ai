@@ -84,17 +84,3 @@ def fetch_commit_stats(repo: str):
     res = requests.get(url, headers=HEADERS)
     if res.status_code != 200: return []
     return res.json()
-
-def fetch_workflows(repo: str):
-    url = f"https://api.github.com/repos/{repo}/actions/runs"
-    res = requests.get(url, headers=HEADERS)
-    if res.status_code != 200: return []
-    return [
-        {
-            "name": run["name"],
-            "status": run["status"],
-            "conclusion": run["conclusion"],
-            "created_at": run["created_at"]
-        }
-        for run in res.json().get("workflow_runs", [])
-    ]
