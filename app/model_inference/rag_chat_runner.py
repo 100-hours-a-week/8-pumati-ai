@@ -18,14 +18,14 @@ from app.context_construction.prompts import (
 from dotenv import load_dotenv
 load_dotenv()
 
-# 🔹 질문 유형별 프롬프트 매핑
+# 질문 유형별 프롬프트 매핑
 prompt_map = {
     "summary": chat_prompt_summary,
     "timeline": chat_prompt_timeline,
     "owner": chat_prompt_owner,
 }
 
-# 🔹 임베딩 모델 및 벡터스토어 로딩
+# 임베딩 모델 및 벡터스토어 로딩
 embedding_model = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 vectorstore = Chroma(
     collection_name="github_docs",
@@ -33,23 +33,24 @@ vectorstore = Chroma(
     embedding_function=embedding_model,
 )
 
-# 🔹 LLM (HyperCLOVA)
+# LLM (HyperCLOVA)
 llm = HyperClovaLangChainLLM()
 
-# 🔹 실행 함수
+# 실행 함수
 @traceable
 def run_rag(question: str, project_id: int) -> str:
     # 1. 문서 검색기 구성
     retriever = vectorstore.as_retriever(search_kwargs={"k": 10, "filter": {"project_id": project_id}})
 
-    # 2. 프롬프트 선택 및 생성
+    # 2. 질문 유형에 따라 프롬프트 선택 및 조합
     q_type = classify_question_type(question)
     prompt_builder = prompt_map[q_type].build_prompt
+    full_prompt_template = prompt_builder(context="{context}", question="{input}")  # {input}은 question에 매핑됨
 
-    # 3. LangChain Template (문서 context는 LangChain이 자동 전달)
+    # 3. PromptTemplate 구성
     dynamic_prompt = PromptTemplate(
         input_variables=["context", "input"],
-        template=prompt_builder(context="{context}", question="{input}")
+        template=full_prompt_template
     )
 
     # 4. 최신 방식으로 체인 구성
