@@ -1,45 +1,47 @@
 # app/github_crawling/scheduler.py
 
 from app.github_crawling.github_team_repos_from_urls import get_all_repos_from_team_urls
-from github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues, fetch_commit_stats, fetch_contents, fetch_contributors, fetch_workflows
-from parser import parse_commit_item, parse_pr_item, parse_readme
-from text_splitter import split_text
-from embedding import get_embedding
-from vector_store import store_document, is_id_exists
-from llm_summary import generate_summary
-from issue_connect_pr_check import fetch_pr_from_issue
+from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues, fetch_commit_stats, fetch_contents, fetch_contributors, fetch_workflows
+from app.github_crawling.parser import parse_commit_item, parse_pr_item, parse_readme
+from app.github_crawling.text_splitter import split_text
+from app.github_crawling.embedding import get_embedding
+from app.github_crawling.vector_store import store_document, is_id_exists
+from app.github_crawling.issue_connect_pr_check import fetch_pr_from_issue
 from collections import defaultdict
 import hashlib
 import chromadb
 
+from dotenv import load_dotenv
+load_dotenv()
+
 REPOS = get_all_repos_from_team_urls()
-client = chromadb.PersistentClient(path="./chroma_db")
+client = chromadb.PersistentClient(path="./chroma_db_e5_base")
 collection = client.get_or_create_collection(name="github_docs")
 
-def save_vector_entry(raw: str, doc_id: str, repo: str, team_id: int, team_number: str):
-    if is_id_exists(doc_id):
-        print(f"⚠️ 이미 저장된 ID: {doc_id} → 요약 및 저장 생략")
-        return
+def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, team_id: int, team_number: str):
+    chunks = split_text(raw)
+    for idx, chunk in enumerate(chunks):
+        chunk_id = f"{doc_id_prefix}_chunk{idx}"
+        if is_id_exists(chunk_id):
+            print(f"⚠️ 이미 저장된 ID: {chunk_id} → 생략")
+            continue
+        try:
+            embedding = get_embedding(chunk)
+            store_document(
+                text=chunk,
+                metadata={
+                    "repo": repo,
+                    "date": doc_id_prefix.split("_")[-1],
+                    "team_id": team_id,
+                    "team_number": team_number
+                },
+                embedding=embedding,
+                doc_id=chunk_id
+            )
+            print(f"📥 저장 완료: {chunk_id}")
+        except Exception as e:
+            print(f"❌ 저장 실패: {repo} / {chunk_id} / {e}")
 
-    try:
-        print(f"🌀 요약 시작: {repo} / {doc_id}")
-        summary = generate_summary(raw)  # ← LLM 추론
-    except Exception as e:
-        print(f"❌ 요약 실패: {repo} / {doc_id} / {e}")
-        return
-
-    try:
-        embedding = get_embedding(summary)
-        store_document(summary, {
-            "repo": repo,
-            "date": doc_id.split("_")[-1],  # doc_id에서 날짜 추출
-            "raw": raw,
-            "team_id": team_id,
-            "team_number": team_number
-        }, embedding, doc_id=doc_id)
-        print(f"📥 저장 완료: {doc_id}")
-    except Exception as e:
-        print(f"❌ 저장 실패: {repo} / {doc_id} / {e}")
 
 def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -47,7 +49,6 @@ def hash_text(text: str) -> str:
 def main():
     for repo_entry in REPOS:
         repo, team_id, team_number = repo_entry
-
         print(f"\n🚀 Start crawling: {repo} (Team ID: {team_id}, Number: {team_number})")
 
         entries_by_day = defaultdict(list)
@@ -70,66 +71,40 @@ def main():
 
         for day, raw_list in entries_by_day.items():
             combined = "\n\n".join(f"- {entry}" for entry in raw_list)
-            doc_id = f"{repo}_{day}"
-            save_vector_entry(combined, doc_id, repo, team_id, team_number)
+            doc_id_prefix = f"{repo}_{day}"
+            save_vector_entry(combined, doc_id_prefix, repo, team_id, team_number)
 
-        content = fetch_readme(repo)
-        if content:
-            raw = parse_readme(content)
+        def save_aux(doc_type, raw):
             content_hash = hash_text(raw)
-            doc_id = f"{repo}_README_{content_hash}"
-            existing = collection.get(ids=[doc_id], include=["documents"])
-            if existing["ids"]:
-                print(f"⚠️ README 내용 변경 없음 → 요약 생략")
+            doc_id_prefix = f"{repo}_{doc_type}_{content_hash}"
+            if is_id_exists(doc_id_prefix + "_chunk0"):
+                print(f"⚠️ {doc_type} 변경 없음 → 생략")
             else:
-                save_vector_entry(raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(raw, doc_id_prefix, repo, team_id, team_number)
 
-        contents = fetch_contents(repo)
-        if contents:
-            summary_raw = "\n".join(f"{c['type'].upper()}: {c['path']}" for c in contents)
-            content_hash = hash_text(summary_raw)
-            doc_id = f"{repo}_CONTENTS_{content_hash}"
-            existing = collection.get(ids=[doc_id], include=["documents"])
-            if existing["ids"]:
-                print(f"⚠️ CONTENTS 변경 없음 → 요약 생략")
-            else:
-                save_vector_entry(summary_raw, doc_id, repo, team_id, team_number)
+        if (content := fetch_readme(repo)):
+            save_aux("README", parse_readme(content))
 
-        contributors = fetch_contributors(repo)
-        if contributors:
-            summary_raw = "\n".join(f"{c['login']}: {c['contributions']} commits" for c in contributors)
-            content_hash = hash_text(summary_raw)
-            doc_id = f"{repo}_CONTRIBUTOR_{content_hash}"
-            existing = collection.get(ids=[doc_id], include=["documents"])
-            if existing["ids"]:
-                print(f"⚠️ CONTRIBUTORS 변경 없음 → 요약 생략")
-            else:
-                save_vector_entry(summary_raw, doc_id, repo, team_id, team_number)
+        if (contents := fetch_contents(repo)):
+            raw = "\n".join(f"{c['type'].upper()}: {c['path']}" for c in contents)
+            save_aux("CONTENTS", raw)
 
-        stats = fetch_commit_stats(repo)
-        if stats:
-            summary_raw = "\n".join(
-                f"{s['author']['login']}: {sum(w.get('c', 0) for w in s['weeks'])} commits"
-                for s in stats if "author" in s
-            )
-            content_hash = hash_text(summary_raw)
-            doc_id = f"{repo}_STATS_{content_hash}"
-            existing = collection.get(ids=[doc_id], include=["documents"])
-            if existing["ids"]:
-                print(f"⚠️ STATS 변경 없음 → 요약 생략")
-            else:
-                save_vector_entry(summary_raw, doc_id, repo, team_id, team_number)
+        if (contributors := fetch_contributors(repo)):
+            raw = "\n".join(f"{c['login']}: {c['contributions']} commits" for c in contributors)
+            save_aux("CONTRIBUTOR", raw)
 
-        workflows = fetch_workflows(repo)
-        for wf in workflows:
+        if (stats := fetch_commit_stats(repo)):
+            raw = "\n".join(f"{s['author']['login']}: {sum(w.get('c', 0) for w in s['weeks'])} commits" for s in stats if "author" in s)
+            save_aux("STATS", raw)
+
+        for wf in fetch_workflows(repo):
             wf_id = wf.get("id") or hash_text(wf["name"] + wf.get("created_at", ""))
-            doc_id = f"{repo}_WORKFLOW_{wf_id}"
-            existing = collection.get(ids=[doc_id], include=["documents"])
-            if existing["ids"]:
+            doc_id_prefix = f"{repo}_WORKFLOW_{wf_id}"
+            if is_id_exists(doc_id_prefix + "_chunk0"):
                 print(f"⚠️ Workflow {wf['name']} 이미 있음 → 생략")
             else:
                 raw = f"Workflow: {wf['name']} / Status: {wf['status']} / Conclusion: {wf['conclusion']}"
-                save_vector_entry(raw, doc_id, repo, team_id, team_number)
+                save_vector_entry(raw, doc_id_prefix, repo, team_id, team_number)
 
 if __name__ == "__main__":
     main()
