@@ -41,12 +41,20 @@ def extract_team_slugs_from_urls(urls):
 
 def get_team_repos(org, team_slug):
     url = f"https://api.github.com/orgs/{org}/teams/{team_slug}/repos"
-    res = requests.get(url, headers=HEADERS)
-    if res.status_code == 404:
-        print(f"❌ [Team: {team_slug}] Not found or no access.")
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=15)  # timeout 추가
+        if res.status_code == 404:
+            print(f"❌ [Team: {team_slug}] Not found or no access.")
+            return []
+        res.raise_for_status()
+        return res.json()
+    except requests.exceptions.Timeout:
+        print(f"⏱️ [Team: {team_slug}] 요청 시간이 초과되었습니다.")
         return []
-    res.raise_for_status()
-    return res.json()
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ [Team: {team_slug}] 요청 중 오류 발생: {e}")
+        return []
+
 
 def get_all_repos_from_team_urls():
     team_slugs = extract_team_slugs_from_urls(TEAM_URLS)
