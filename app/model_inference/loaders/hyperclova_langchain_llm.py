@@ -9,7 +9,6 @@ class HyperClovaLangChainLLM(LLM):
     """LangChain LLM wrapper for HyperCLOVA"""
 
     model_name: str = "HyperClovaLangChain"
-    temperature: float = 0.3
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         service = TeamChatService()

@@ -6,8 +6,9 @@ import warnings
 
 MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 MAX_NEW_TOKENS = 150
-TEMPERATURE = 0.3
+TEMPERATURE = 0.2
 TOP_P = 0.7
+TOP_K = 1
 
 warnings.filterwarnings("ignore", category=UserWarning, module="transformers.pytorch_utils")
 
@@ -25,6 +26,7 @@ class TeamChatService:
                 max_new_tokens=MAX_NEW_TOKENS,
                 do_sample=True,
                 top_p=TOP_P,
+                top_k=TOP_K,
                 temperature=TEMPERATURE,
                 eos_token_id=self.tokenizer.eos_token_id,
             )
