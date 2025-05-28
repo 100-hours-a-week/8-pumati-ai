@@ -26,11 +26,16 @@ vectorstore = Chroma(
 # LLM (HyperCLOVA)
 llm = HyperClovaLangChainLLM()
 
+document_prompt = PromptTemplate(
+    input_variables=["page_content"],
+    template="- {page_content}"
+)
+
 # 실행 함수
 @traceable
 def run_rag(question: str, project_id: int) -> str:
     # 1. 문서 검색기 구성
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 10, "filter": {"project_id": project_id}})
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 40, "filter": {"project_id": project_id}})
 
     # 2. 프롬프트 선택 (하이브리드 방식)
     if is_structured_question(question):
@@ -40,11 +45,22 @@ def run_rag(question: str, project_id: int) -> str:
         prompt = general_prompt_template
 
     # 3. 체인 구성
-    combine_docs_chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
+    combine_docs_chain = create_stuff_documents_chain(
+        llm=llm,
+        prompt=prompt,
+        document_prompt=document_prompt,
+    )
     rag_chain = create_retrieval_chain(retriever=retriever, combine_docs_chain=combine_docs_chain)
-
+    
     # 4. 실행
-    return rag_chain.invoke({
-        "input": question, # for retriever
-        "question": question  # for prompt template
+    result = rag_chain.invoke({
+        "input": question,
+        "question": question
     })
+
+    # 5. answer 키에서 문자열만 추출
+    raw_answer = result.get("answer", "")
+    if "답변:" in raw_answer:
+        return raw_answer.split("답변:", 1)[1].strip()
+    return raw_answer.strip()
+
