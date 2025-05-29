@@ -11,6 +11,11 @@ __pycache__/
 # 기타
 .DS_Store
 
+#파인튜닝 데이터
+app/model_inference/fine_tuning_data/badges
+app/model_inference/fine_tuning_data/P_badges
+app/model_inference/fine_tuning_data/trash
+
 # Python 가상환경
 venv/
 __pycache__/

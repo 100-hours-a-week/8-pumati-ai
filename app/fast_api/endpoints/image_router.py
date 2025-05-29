@@ -9,7 +9,7 @@ class BadgeRequest(BaseModel):
     number: int
     filename: str = "badge.png"
 
-@router.post("/generate-badge")
+@router.post("/api/badges/image")
 def generate_badge(request: BadgeRequest):
     path = badge_service.generate_and_save_badge(request.number, request.filename)
     return {"status": "success", "file_path": path}
