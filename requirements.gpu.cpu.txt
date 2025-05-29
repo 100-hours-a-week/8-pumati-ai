@@ -1,5 +1,6 @@
 # crawling
 chromadb==0.4.24
+# 1.0.10 으로 바꿀까 고민중
 
 
 sentence-transformers==2.6.1
