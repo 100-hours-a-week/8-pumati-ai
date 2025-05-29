@@ -1,21 +1,20 @@
 # app/model_inference/rag_chat_runner.py
 
-from langchain_chroma import Chroma
+from app.model_inference.loaders.hyperclova_loader import HyperClovaLoader
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.prompts import PromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.retrieval import create_retrieval_chain
-from langsmith import traceable
-from app.context_construction.question_router import is_structured_question, classify_question_type
-from app.context_construction.prompts.chat_prompt import SIMPLE_PROMPT_TEMPLATE
-
-from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
-
-
+from langchain_chroma import Chroma
 from dotenv import load_dotenv
+import torch
+
 load_dotenv()
 
-# 임베딩 모델 및 벡터스토어 로딩
+MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+
+# 1. 모델 불러오기
+loader = HyperClovaLoader(MODEL_NAME)
+tokenizer, model, device = loader.load()
+
+# 2. 벡터 DB 준비
 embedding_model = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 vectorstore = Chroma(
     collection_name="github_docs",
@@ -23,38 +22,23 @@ vectorstore = Chroma(
     embedding_function=embedding_model,
 )
 
-# LLM (HyperCLOVA)
-llm = HyperClovaLangChainLLM()
-
-document_prompt = PromptTemplate(
-    input_variables=["page_content"],
-    template="- {page_content}"
-)
-
-# 실행 함수
-# @traceable
+# 3. 실행 함수
 def run_rag(question: str, project_id: int) -> str:
-    # 1. 문서 검색기 구성
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 20, "filter": {"project_id": project_id}})
+    # context 검색
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 10, "filter": {"project_id": project_id}})
+    docs = retriever.get_relevant_documents(question)
+    context = "\n".join([doc.page_content for doc in docs])
 
-    # 2. 프롬프트 선택 (하이브리드 방식)
-    prompt = SIMPLE_PROMPT_TEMPLATE
+    #  chat template 구성
+    chat = [
+        {"role": "tool_list", "content": ""},
+        {"role": "system", "content": "- 너는 GitHub 기반 문서 요약 전문가야.\n- 문서 내용을 바탕으로 핵심 정보를 간단히 정리해줘."},
+        {"role": "user", "content": f"질문: {question}\n문서 내용:\n{context}\n답변:"}
+    ]
 
-    # 3. 체인 구성
-    combine_docs_chain = create_stuff_documents_chain(
-        llm=llm,
-        prompt=prompt,
-        document_prompt=document_prompt,
-    )
-    rag_chain = create_retrieval_chain(retriever=retriever, combine_docs_chain=combine_docs_chain)
-    
-    # 4. 실행
-    result = rag_chain.invoke({
-        "input": question,
-        "question": question
-    })
+    # 토크나이즈 + 추론 + 디토크나이즈
+    inputs = tokenizer.apply_chat_template(chat, add_generation_prompt=True, return_dict=True, return_tensors="pt").to(device)
+    output_ids = model.generate(**inputs, max_length=1024, stop_strings=["<|endofturn|>", "<|stop|>"], tokenizer=tokenizer)
+    decoded = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0]
 
-    # 5. answer 키에서 문자열만 추출
-    raw_answer = result.get("answer", "")
-    return raw_answer.strip()
-
+    return decoded.strip()
