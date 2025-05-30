@@ -44,53 +44,36 @@ def root():
 def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
     logger.info(f"댓글 생성 요청을 큐에 보냅니다. AI_server: {GCP_TARGET_URL}")
     logger.info(f"댓글 생성 요청을 큐에 보냅니다. BE_server: {BE_URL}")
-    try:
-        client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
-        parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
-        logger.info(f"현재 위치는 {GCP_LOCATION}입니다.")
+    client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
+    parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
+    logger.info(f"현재 위치는 {GCP_LOCATION}입니다.")
 
-        task_payload = {
-            "projectId": project_id,
-            "requestData": request_data
-        } #댓글 생성에 필요한 정보를 JSON으로 준비함.
+    for i in range(COMMENT_GENERATE_COUNT):
+        logger.info(f"{i + 1}번째 댓글 생성")
+        try:
+            task_payload = {
+                "projectId": project_id,
+                "requestData": request_data
+            } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
-        #Cloud Tasks에 등록할 하나의 작업 정보임.
-        task = {
-            "http_request": {
-                "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
-                "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
-                "headers": {"Content-Type": "application/json"}, 
-                "body": json.dumps(task_payload).encode(),
-                "oidc_token": {
-                    "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
+            #Cloud Tasks에 등록할 하나의 작업 정보임.
+            task = {
+                "http_request": {
+                    "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
+                    "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
+                    "headers": {"Content-Type": "application/json"}, 
+                    "body": json.dumps(task_payload).encode(),
+                    "oidc_token": {
+                        "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
+                    }
                 }
             }
-        }
 
-        # http_request = HttpRequest(
-        #     http_method=HttpMethod.POST,
-        #     url=f"{GCP_TARGET_URL}/api/tasks/process-comment",
-        #     headers={"Content-Type": "application/json"},
-        #     body=json.dumps(task_payload).encode(),
-        #     oidc_token=OidcToken(service_account_email=GCP_SERVICE_ACCOUNT_EMAIL)
-        # )
+            response = client.create_task(parent=parent, task=task)
+            logger.info(f" Task enqueued: {response.name}")
 
-        # task = Task(
-        #     http_request=http_request,
-        #     retry_config=RetryConfig(max_attempts=1)
-        # )
-
-        # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
-        # now = datetime.now(timezone.utc)
-        # timestamp = timestamp_pb2.Timestamp()
-        # timestamp.FromDatetime(now)
-        # task["schedule_time"] = timestamp
-
-        response = client.create_task(parent=parent, task=task)
-        logger.info(f" Task enqueued: {response.name}")
-
-    except Exception as e:
-        logger.error(f"[ERROR] payload 생성 실패: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"[ERROR] payload 생성 실패: {e}", exc_info=True)
         #raise HTTPException(status_code=400, detail="Invalid JSON")
 
     
@@ -117,35 +100,36 @@ async def process_comment_task(request: Request) -> dict:
     logger.info(f" Cloud Task 수신: project_id={project_id}")
 
     #댓글을 4번 생성하기 위한 루프
-    for i in range(COMMENT_GENERATE_COUNT):
-        logger.info(f"{i + 1}번째 댓글 생성")
-        try:
-            fake_en = Faker()
-            fake_ko = Faker('ko_KR')
-            # 성별 결정
-            gender = random.choice(["male", "female"])
 
-            if gender == "male":
-                author_name = fake_ko.name_male()
-                author_nickname = fake_en.first_name_male()
-            else:
-                author_name = fake_ko.name_female() 
-                author_nickname = fake_en.first_name_female()
+    try:
+        fake_en = Faker()
+        fake_ko = Faker('ko_KR')
+        # 성별 결정
+        gender = random.choice(["male", "female"])
 
-            generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
+        if gender == "male":
+            author_name = fake_ko.name_male()
+            author_nickname = fake_en.first_name_male()
+        else:
+            author_name = fake_ko.name_female() 
+            author_nickname = fake_en.first_name_female()
 
-            payload = {
-                "content": generated_comment,
-                "authorName": author_name,
-                "authorNickname": author_nickname
-            }
+        generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
 
-            endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
-            response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
-            response.raise_for_status()
-            logger.info(f"댓글 전송 성공: {endpoint}, {payload}")
-        except Exception as e:
-            logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
+        payload = {
+            "content": generated_comment,
+            "authorName": author_name,
+            "authorNickname": author_nickname
+        }
+
+        endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
+        response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
+        response.raise_for_status()
+        logger.info(f"댓글 전송 성공: {endpoint}, {payload}")
+    except Exception as e:
+        logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
+        return JSONResponse(status_code=500, content={"status": "fail", "reason": str(e)})
+
 
     return JSONResponse(status_code=200, content={"status": "ok"})
 

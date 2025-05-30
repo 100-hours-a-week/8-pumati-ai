@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 FALLBACK_COMMENT = "좋아요! 추천합니다! 🙌"
 MAX_NEW_TOKENS = 80
-MAX_RETRY = 8
+MAX_RETRY = 24
 
 class GenerateComment:
     def __init__(self):
@@ -84,7 +84,7 @@ class GenerateComment:
 
                 if self.validate_generated_comment(generated_comment_dict):
                     comment = generated_comment_dict.get("comment", "").strip()
-                    if any(word in comment for word in (prompt_builder.tags +["디자인", "UI", "UX", "좋아요", "인터페이스"])):
+                    if any(word in comment for word in (["디자인", "UI", "UX", "좋아요", "인터페이스"])): #prompt_builder.tags +
                         logger.info(f"댓글 생성 성공: {comment}")
                         return comment
                     if self.is_semantically_relevant(comment, context_text):
