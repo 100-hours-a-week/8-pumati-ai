@@ -4,6 +4,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import subprocess
 
 load_dotenv()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -84,3 +85,30 @@ def fetch_commit_stats(repo: str):
     res = requests.get(url, headers=HEADERS)
     if res.status_code != 200: return []
     return res.json()
+
+def get_wiki_clone_path(repo: str) -> str:
+    """repo 이름 기반으로 고정된 wiki 경로 생성"""
+    owner, name = repo.split("/")
+    return os.path.join("./cached_wikis", f"{owner}_{name}")
+
+def fetch_wiki_md_files(repo: str) -> dict:
+    """
+    Wiki 저장소를 git clone해서 md 파일을 불러옴.
+    이미 있으면 clone하지 않음.
+    """
+    clone_path = get_wiki_clone_path(repo)
+
+    if not os.path.exists(clone_path):
+        print(f"📥 Cloning wiki for {repo}...")
+        os.makedirs("./cached_wikis", exist_ok=True)
+        wiki_git_url = f"https://github.com/{repo}.wiki.git"
+        subprocess.run(["git", "clone", wiki_git_url, clone_path], check=True)
+    else:
+        print(f"✅ Wiki already cloned for {repo} → 생략")
+
+    pages = {}
+    for fname in os.listdir(clone_path):
+        if fname.endswith(".md"):
+            with open(os.path.join(clone_path, fname), encoding="utf-8") as f:
+                pages[fname] = f.read()
+    return pages

@@ -10,12 +10,13 @@ from app.github_crawling.issue_connect_pr_check import fetch_pr_from_issue
 from collections import defaultdict
 import hashlib
 import chromadb
+from app.github_crawling.github_api import fetch_wiki_md_files
 
 from dotenv import load_dotenv
 load_dotenv()
 
 REPOS = get_all_repos_from_team_urls()
-client = chromadb.PersistentClient(path="./chroma_db_e5_base")
+client = chromadb.PersistentClient(path="./chroma_db_weight")
 collection = client.get_or_create_collection(name="github_docs")
 
 def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, team_id: int):
@@ -96,6 +97,21 @@ def main():
         if (stats := fetch_commit_stats(repo)):
             raw = "\n".join(f"{s['author']['login']}: {sum(w.get('c', 0) for w in s['weeks'])} commits" for s in stats if "author" in s)
             save_aux("STATS", raw)
+
+        try:
+            wiki_pages = fetch_wiki_md_files(repo)
+            for filename, content in wiki_pages.items():
+                doc_id_prefix = f"{repo}_wiki_{filename}"
+                save_vector_entry(
+                    raw=content,
+                    doc_id_prefix=doc_id_prefix,
+                    repo=repo,
+                    project_id=project_id,
+                    team_id=team_id
+                )
+        except Exception as e:
+            print(f"❌ Wiki 저장 실패: {repo} / {e}")
+
 
 if __name__ == "__main__":
     main()

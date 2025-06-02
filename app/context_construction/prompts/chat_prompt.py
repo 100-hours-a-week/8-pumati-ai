@@ -19,6 +19,7 @@ MIDDLE_PROMPTS = {
     "summary": "이 팀의 GitHub 활동을 기능 단위로 요약해줘. 기술 용어는 쉽게 풀어서 설명해.",
     "timeline": "이 팀의 GitHub 활동을 시간 순으로 정리해줘.",
     "owner": "각 팀원이 어떤 기능에 주로 기여했는지 알려줘.",
+    "project": "wiki vision 부분을 주로 참고해서 알려줘.",
 }
 
 # 멀티프롬프트 템플릿 생성 함수
