@@ -17,6 +17,9 @@ from typing import List, Optional, Callable, Any
 from pydantic import Field
 
 
+from app.github_crawling.gemini import GeminiLangChainLLM
+
+
 class WeightedChromaRetriever(BaseRetriever):
     chroma_collection: Any = Field(exclude=True)
     embedding_fn: Callable[[str], List[float]] = Field(exclude=True)
@@ -41,7 +44,19 @@ class WeightedChromaRetriever(BaseRetriever):
             weight = float(metadata.get("weight", 1.0))
             score = 1.0 - distance
             adjusted_score = score * weight
-            docs.append((adjusted_score, Document(page_content=doc_text, metadata=metadata)))
+
+            docs.append((
+                adjusted_score,
+                Document(
+                    page_content=doc_text,
+                    metadata={
+                        **metadata,
+                        "cosine_score": 1.0 - distance,
+                        "adjusted_score": adjusted_score,
+                        "raw_distance": distance
+                    }
+                )
+            ))
 
         docs.sort(key=lambda x: x[0], reverse=True)
         return [doc for _, doc in docs[:self.top_k]]
@@ -50,7 +65,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 임베딩 모델 및 벡터스토어 로딩
-embedding_model = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
+embedding_model = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-large")
 vectorstore = Chroma(
     collection_name="github_docs",
     persist_directory="./chroma_db_weight",
@@ -58,7 +73,8 @@ vectorstore = Chroma(
 )
 
 # LLM (HyperCLOVA)
-llm = HyperClovaLangChainLLM()
+# llm = HyperClovaLangChainLLM()
+llm = GeminiLangChainLLM()
 
 document_prompt = PromptTemplate(
     input_variables=["page_content"],
@@ -73,6 +89,7 @@ def run_rag(question: str, project_id: int) -> str:
         chroma_collection=vectorstore._collection,  # Chroma 내부의 raw collection
         embedding_fn=embedding_model.embed_query,   # query embedding 함수
         top_k=40,
+        include=["documents", "distances", "metadatas"],
         project_id=project_id
     )
 
