@@ -10,7 +10,7 @@ import numpy as np
 # 사용할 임베딩 모델 지정
 # MODEL_NAME = "intfloat/multilingual-e5-small"
 # MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-MODEL_NAME = "intfloat/multilingual-e5-base"
+MODEL_NAME = "intfloat/multilingual-e5-large"
 
 # 토크나이저와 모델 로딩
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)

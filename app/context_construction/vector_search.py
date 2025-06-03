@@ -5,7 +5,7 @@ import chromadb
 from typing import List, Tuple
 
 # Sentence Transformer 모델 로딩 (한 번만 로드)
-model = SentenceTransformer("intfloat/multilingual-e5-small")
+model = SentenceTransformer("intfloat/multilingual-e5-large")
 
 # Chroma DB 연결
 client = chromadb.PersistentClient(path="./chroma_db")
