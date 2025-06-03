@@ -26,18 +26,26 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
     """
     # type으로 weight 추론
     doc_type = metadata.get("type", "other").lower()
+    filename = metadata.get("filename", "").lower()
 
     default_weights = {
         "commit": 0.1,
-        "pr": 1.0,
+        "pr": 1.2,
         "issue": 1.0,
-        "readme": 1.2,
+        "readme": 1.0,
         "contents": 0.8,
-        "contributor": 0.8,
-        "stats": 0.8,
+        "contributor": 0.5,
+        "stats": 0.5,
+        "wiki":0.7,
     }
+    weight = default_weights.get(doc_type, 1.0)
+    if "home" in filename or "vision" in filename:
+        weight += 0.5
+    metadata["weight"] = weight
 
-    metadata["weight"] = default_weights.get(doc_type, 1.0)
+    
+
+    # metadata["weight"] = default_weights.get(doc_type, 1.0)
 
     collection.add(
         documents=[text],
