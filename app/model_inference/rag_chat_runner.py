@@ -19,6 +19,17 @@ from pydantic import Field
 
 from app.github_crawling.gemini import GeminiLangChainLLM
 
+FILTERED_RESPONSE = """\
+💭 저는 팀 프로젝트 전용 AI, pu, mati의 mati예요! 
+팀 프로젝트와 관련된 질문에만 응답할 수 있어요.
+
+예:
+• "우리 팀에서 만든 기능이 뭐야?"
+• "프로젝트 진행 상황 알려줘"
+• "각 팀원이 어떤 역할을 맡았어?"
+
+이런 식으로 질문해 주시면 열심히 도와드릴게요! ☺️"""
+
 
 class WeightedChromaRetriever(BaseRetriever):
     chroma_collection: Any = Field(exclude=True)
@@ -37,7 +48,7 @@ class WeightedChromaRetriever(BaseRetriever):
             where=filter_by_project
         )
 
-        docs = []
+        scored_docs = []
         for doc_text, metadata, distance in zip(
             results["documents"][0], results["metadatas"][0], results["distances"][0]
         ):
@@ -45,21 +56,21 @@ class WeightedChromaRetriever(BaseRetriever):
             score = 1.0 - distance
             adjusted_score = score * weight
 
-            docs.append((
-                adjusted_score,
-                Document(
-                    page_content=doc_text,
-                    metadata={
-                        **metadata,
-                        "cosine_score": 1.0 - distance,
-                        "adjusted_score": adjusted_score,
-                        "raw_distance": distance
-                    }
-                )
-            ))
+            doc = Document(
+                page_content=doc_text,
+                metadata={
+                    **metadata,
+                    "cosine_score": score,
+                    "adjusted_score": adjusted_score,
+                    "raw_distance": distance
+                }
+            )
+            scored_docs.append((adjusted_score, doc))
 
-        docs.sort(key=lambda x: x[0], reverse=True)
-        return [doc for _, doc in docs[:self.top_k]]
+        # 점수 기준 정렬 후 Document만 반환
+        scored_docs.sort(key=lambda x: x[0], reverse=True)
+        return [doc for _, doc in scored_docs[:self.top_k]]
+
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -111,10 +122,21 @@ def run_rag(question: str, project_id: int) -> str:
     )
     rag_chain = create_retrieval_chain(retriever=retriever, combine_docs_chain=combine_docs_chain)
     
+    # 필터링1: 문서 검색
+    retrieved_docs = retriever._get_relevant_documents(question)
+    if not retrieved_docs:
+        return FILTERED_RESPONSE
+
+    # 필터링2: 가장 높은 adjusted_score 기준
+    top_score = retrieved_docs[0].metadata.get("adjusted_score", 0)
+    if top_score < 0.6:
+        return FILTERED_RESPONSE
+
     # 4. 실행
     result = rag_chain.invoke({
         "input": question,
-        "question": question
+        "question": question,
+        "context": retrieved_docs
     })
 
     # 5. answer 키에서 문자열만 추출
