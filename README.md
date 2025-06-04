@@ -54,13 +54,21 @@
 ### 3. 주요 이슈
  - 사용자 요구 사항: 최대한 빠른 응답 요구
 
+| **이슈** | **설명** | **해결 방법** | **결과** |
+| --- | --- | --- | --- |
+| JSON 형식 반환 실패 | 모델이 JSON 형식이 아닌 일반 문장, 마크다운, 스키마 설명 등을 반환함 | 정규표현식 `(\{[\s\S]*?\})`으로 마지막 JSON 블록만 추출 후 `json.loads()` 파싱. 예외 발생 시 `HTTPException`으로 안전 처리. `JsonOutputParser`로 구조 강제화 | 구조 일치 실패 문제 해결, fallback 로직으로 JSON 파싱 성공률 증가 |
+| 성능(속도) 관련 | 사용자가 최대한 빠른 응답을 요구했으나, 초기 GPU 환경에서도 응답 시간이 9초 이상 발생 | - `max_new_tokens` 축소<br>- 프롬프트 최소화<br>- sampling 파라미터 튜닝 (`temperature`, `top_p`)<br>- FP16 추론 적용 (`torch_dtype=torch.float16`)<br>- 프롬프트 제외 디코딩 (`gen_ids` 추출)<br>- `torch.inference_mode()`로 gradient 계산 제거<br>- 토크나이저/모델 캐시 재사용<br>- 랜덤 노이즈 삽입으로 응답 다양성 확보 | **평균 응답 시간 9초 → 1.3초**로 약 **85.6% 속도 개선** |
+
+
 <br>
 
 ### 4. 결과 및 회고
 
   a. 결과
-  
-  <img src="https://github.com/user-attachments/assets/5bab1198-9dad-4f34-8a2f-10c85de528c9" width="512">
+
+  | L4 GPU 기준 평균 추론 속도 1.2~1.3초 | 실제 화면 |
+  |-------------------|----------------|
+  |![image](https://github.com/user-attachments/assets/b59bb534-f29d-4015-918b-f7f5df4ab19d)| <img src="https://github.com/user-attachments/assets/5bab1198-9dad-4f34-8a2f-10c85de528c9" width="512"> |
 
   b. 회고
 
