@@ -39,11 +39,11 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
         "wiki":0.7,
     }
     weight = default_weights.get(doc_type, 1.0)
-    if "home" in filename or "vision" in filename:
-        weight += 0.5
+    if "Home" in filename or "Vision" in filename:
+        weight += 1.0
+    if "프로젝트" in text or "서비스" in text:
+        weight += 1.0
     metadata["weight"] = weight
-
-    
 
     # metadata["weight"] = default_weights.get(doc_type, 1.0)
 
