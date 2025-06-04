@@ -17,6 +17,8 @@ class BadgeModel:
 
     def __init__(self):
         self._authenticate_huggingface()
+        self.SDXL_pipe = None
+        self.refine_pipe = None
         
     def _authenticate_huggingface(self):
         if BadgeModel._is_authenticated:
@@ -29,30 +31,33 @@ class BadgeModel:
         BadgeModel._is_authenticated = True
 
     def load_diffusion_model(self):
-        # 1) controlnet 파이프라인 로드
-        controlnet_pipe = ControlNetModel.from_pretrained(
-            CONTROLNET_NAME,
-            torch_dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
-        ).to(DEVICE)
+        if self.SDXL_pipe is None:  # 한 번만 로드  
+            # 1) controlnet 파이프라인 로드
+            controlnet_pipe = ControlNetModel.from_pretrained(
+                CONTROLNET_NAME,
+                torch_dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
+            ).to(DEVICE)
 
-        # 2) SDXL파이프라인 로드
-        SDXL_pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0",
-            controlnet=controlnet_pipe,
-            torch_dtype=torch.float16
-        ).to(DEVICE)
+            # 2) SDXL파이프라인 로드
+            self.SDXL_pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
+                "stabilityai/stable-diffusion-xl-base-1.0",
+                controlnet=controlnet_pipe,
+                torch_dtype=torch.float16
+            ).to(DEVICE)
 
-        # 3) refine파이프라인 로드
-        refine_pipe = DiffusionPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-refiner-1.0",
-            text_encoder_2=SDXL_pipe.text_encoder_2,
-            vae=SDXL_pipe.vae,
-            torch_dtype=torch.float16,
-            use_safetensors=True,
-            variant="fp16"
-        ).to(DEVICE)
+            # 3) refine파이프라인 로드
+            self.refine_pipe = DiffusionPipeline.from_pretrained(
+                "stabilityai/stable-diffusion-xl-refiner-1.0",
+                text_encoder_2=self.SDXL_pipe.text_encoder_2,
+                vae=self.SDXL_pipe.vae,
+                torch_dtype=torch.float16,
+                use_safetensors=True,
+                variant="fp16"
+            ).to(DEVICE)
 
-        SDXL_pipe.safety_checker = lambda images, **kwargs: (images, [False] * len(images))
-        return SDXL_pipe, refine_pipe
+            self.SDXL_pipe.safety_checker = lambda images, **kwargs: (images, [False] * len(images))
+            return self.SDXL_pipe, self.refine_pipe
+        else:
+            return self.SDXL_pipe, self.refine_pipe
     
 badge_loader_instance = BadgeModel()

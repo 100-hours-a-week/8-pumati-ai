@@ -46,7 +46,7 @@ class BadgeService:
 
         return public_url 
 
-    def generate_and_save_badge(self, team_number: str, request_data: BadgeRequest):
+    def generate_and_save_badge(self, team_number: int, request_data: BadgeRequest):
         '''
         BadgeService의 메인 기능.
         '''

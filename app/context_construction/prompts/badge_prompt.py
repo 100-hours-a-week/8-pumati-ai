@@ -2,7 +2,7 @@ from fast_api.schemas.badge_schemas import BadgeRequest
 
 from deep_translator import GoogleTranslator
 
-class badgePrompt:
+class BadgePrompt:
     def __init__(self, data: BadgeRequest):
         self.data = data
 

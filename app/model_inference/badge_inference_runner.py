@@ -1,5 +1,5 @@
 from fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
-from context_construction.prompts.badge_prompt import badgePrompt #프롬프트(더미데이터 로드)
+from context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
 from model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
 
 import torch
@@ -9,14 +9,14 @@ def generate_image(team_number: int, request_data: BadgeRequest, negative_prompt
     generator = torch.Generator("cuda").manual_seed(seed)
 
     # 1) 프롬프트 로드
-    prompt_instance = badgePrompt(request_data)
+    prompt_instance = BadgePrompt(request_data)
     prompt = prompt_instance.build_badge_prompt(team_number)
 
     # 2) pipline로드
-    SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model(team_number=team_number)
+    SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model()
 
     #3) Controlnet 이미지 로드
-    controlnet_path= f"./model_inference/Canny_image/badge_{team_number}"
+    controlnet_path= f"./model_inference/Canny_image/badge_{team_number}.png"
     control_image = Image.open(controlnet_path).convert("RGB")
 
     # 4) 결과이미지 출력

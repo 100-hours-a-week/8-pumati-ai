@@ -30,21 +30,21 @@ async def enqueue_badge_task(data: dict) -> None:
     뱃지 task를 Cloud RUN에 등록하는 과정.
     추후 큐 새로 생성하여 등록하기.
     '''
-    logger.info(f"댓글 생성 요청을 큐에 보냅니다. AI_server: {GCP_TARGET_URL}")
-    logger.info(f"댓글 생성 요청을 큐에 보냅니다. BE_server: {BE_URL}")
+    logger.info(f"이미지 생성 요청을 큐에 보냅니다. AI_server: {GCP_TARGET_URL}")
+    logger.info(f"이미지 생성 요청을 큐에 보냅니다. BE_server: {BE_URL}")
     logger.info(f"현재 위치는 {GCP_LOCATION}입니다.")
 
     # 1) GCP Cloud Tasks 클라이언트 생성
     client = tasks_v2.CloudTasksClient() # Google Cloud Tasks 클라이언트 생성
     badge_parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
     try:
-        #댓글 생성에 필요한 정보(body)를 JSON으로 준비함.
+        #이미지 생성에 필요한 정보(body)를 JSON으로 준비함.
         task_payload = {
             "requestData": data
         } 
 
         ################################################
-        #Cloud Tasks에 전송할 하나의 작업 정보임. 추후 재 작성할것.
+        #Cloud Tasks에 전송할 하나의 작업 정보임. 추후 재 작성할것. -> 작성 완료됨.
         badge_task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
@@ -88,17 +88,17 @@ async def process_badge_task(task_request: Request) -> dict:
 
         #BE에 전달할 body
         payload = {
-            "contentType" : badge_URL
+            "badgeImageUrl" : badge_URL
         }
 
-        teamId = {request_data["teamId"]}
+        teamId = request_data["teamId"]
 
         endpoint = f"{BE_URL}/api/teams/{teamId}/badge-image-url"
         response = requests.patch(endpoint, json=payload, headers={"Content-Type": "application/json"})
         response.raise_for_status()
-        logger.info(f"댓글 전송 성공: {endpoint}, {payload}")
+        logger.info(f"이미지 전송 성공: {endpoint}, {payload}")
     except Exception as e:
-        logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
+        logger.error(f"이미지 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
 
     return responses.JSONResponse(status_code=200, content={"status": "ok"})
 
