@@ -31,4 +31,12 @@ def get_embedding(text: str) -> list:
         outputs = model(**inputs)
         embeddings = outputs.last_hidden_state[:, 0, :]  # CLS 토큰 기준
 
-    return embeddings.squeeze().cpu().numpy().tolist()
+    vec = embeddings.squeeze().cpu().numpy()
+
+    # ✅ norm이 0이 아닌 경우에만 normalize
+    norm = np.linalg.norm(vec)
+    if norm == 0:
+        raise ValueError("Embedding vector has zero norm!")
+    vec = vec / norm
+
+    return vec.tolist()

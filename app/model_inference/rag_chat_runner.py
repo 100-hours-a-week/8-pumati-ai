@@ -65,7 +65,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 임베딩 모델 및 벡터스토어 로딩
-embedding_model = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-large")
+embedding_model = HuggingFaceEmbeddings(
+    model_name="intfloat/multilingual-e5-large",
+    encode_kwargs={"normalize_embeddings": True}
+)
 vectorstore = Chroma(
     collection_name="github_docs",
     persist_directory="./chroma_db_weight",
