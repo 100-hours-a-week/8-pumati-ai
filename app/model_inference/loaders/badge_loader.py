@@ -1,15 +1,58 @@
-from diffusers import DiffusionPipeline
+import os, logging
+from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, StableDiffusionXLControlNetPipeline, DiffusionPipeline
+from dotenv import load_dotenv
+from huggingface_hub import login
 import torch
+from PIL import Image
 
+
+# "Controlnet -> SDXL -> REFINEMODEL" 구조로, 모델 3개 사용예정.
+CONTROLNET_NAME = "diffusers/controlnet-canny-sdxl-1.0"
 MODEL_NAME = "stabilityai/stable-diffusion-xl-base-1.0"
+REFINEMODEL_NAME = "stabilityai/stable-diffusion-xl-refiner-1.0"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def load_diffusion_model():
-    pipe = DiffusionPipeline.from_pretrained(
-        MODEL_NAME,
-        torch_dtype=torch.float16,
-        variant="fp16",
-        use_safetensors=True
-    )
-    pipe = pipe.to("cuda")
-    pipe.safety_checker = lambda images, **kwargs: (images, [False] * len(images))
-    return pipe
+class BadgeModel:
+    _is_authenticated = False
+
+    def __init__(self):
+        self._authenticate_huggingface()
+        
+    def _authenticate_huggingface(self):
+        if BadgeModel._is_authenticated:
+            return
+        load_dotenv()
+        token = os.getenv("HF_AUTH_TOKEN")
+        if not token:
+            raise EnvironmentError("HF_AUTH_TOKEN is not set in .env file.")
+        login(token=token)
+        BadgeModel._is_authenticated = True
+
+    def load_diffusion_model(self):
+        # 1) controlnet 파이프라인 로드
+        controlnet_pipe = ControlNetModel.from_pretrained(
+            CONTROLNET_NAME,
+            torch_dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
+        ).to(DEVICE)
+
+        # 2) SDXL파이프라인 로드
+        SDXL_pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            controlnet=controlnet_pipe,
+            torch_dtype=torch.float16
+        ).to(DEVICE)
+
+        # 3) refine파이프라인 로드
+        refine_pipe = DiffusionPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-xl-refiner-1.0",
+            text_encoder_2=SDXL_pipe.text_encoder_2,
+            vae=SDXL_pipe.vae,
+            torch_dtype=torch.float16,
+            use_safetensors=True,
+            variant="fp16"
+        ).to(DEVICE)
+
+        SDXL_pipe.safety_checker = lambda images, **kwargs: (images, [False] * len(images))
+        return SDXL_pipe, refine_pipe
+    
+badge_loader_instance = BadgeModel()
