@@ -20,7 +20,7 @@ from pydantic import Field
 from app.github_crawling.gemini import GeminiLangChainLLM
 
 FILTERED_RESPONSE = """\
-💭 저는 팀 프로젝트 전용 AI, pu, mati의 mati예요! 
+💭 저는 팀 프로젝트 전용 AI, pumati의 mati예요! 
 팀 프로젝트와 관련된 질문에만 응답할 수 있어요.
 
 예:
