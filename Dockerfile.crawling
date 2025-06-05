@@ -1,0 +1,9 @@
+# Dockerfile.crawling
+FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
+
+WORKDIR /app
+COPY . .
+
+RUN pip install -r requirements.txt
+
+CMD ["python", "app/github_crawling/scheduler.py"]
