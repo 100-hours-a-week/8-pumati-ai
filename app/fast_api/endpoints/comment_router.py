@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from faker import Faker
 import os
 import logging
 import json
 from google.cloud import tasks_v2
-from google.protobuf import timestamp_pb2
-from datetime import datetime, timezone
+# from google.protobuf import timestamp_pb2
+# from datetime import datetime, timezone
 import requests
 import random
 
@@ -22,7 +23,7 @@ comment_app = APIRouter()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-COMMENT_GENERATE_COUNT = 4
+COMMENT_GENERATE_COUNT = 3
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_LOCATION = os.getenv("ARTIFACT_REGISTRY_LOCATION")
 GCP_QUEUE_NAME = os.getenv("GCP_QUEUE_NAME")
@@ -66,11 +67,24 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
             }
         }
 
+        # http_request = HttpRequest(
+        #     http_method=HttpMethod.POST,
+        #     url=f"{GCP_TARGET_URL}/api/tasks/process-comment",
+        #     headers={"Content-Type": "application/json"},
+        #     body=json.dumps(task_payload).encode(),
+        #     oidc_token=OidcToken(service_account_email=GCP_SERVICE_ACCOUNT_EMAIL)
+        # )
+
+        # task = Task(
+        #     http_request=http_request,
+        #     retry_config=RetryConfig(max_attempts=1)
+        # )
+
         # Optional: 지연 시간 설정 (즉시 실행 시 생략) -> 즉시 실행으로 설정함.
-        now = datetime.now(timezone.utc)
-        timestamp = timestamp_pb2.Timestamp()
-        timestamp.FromDatetime(now)
-        task["schedule_time"] = timestamp
+        # now = datetime.now(timezone.utc)
+        # timestamp = timestamp_pb2.Timestamp()
+        # timestamp.FromDatetime(now)
+        # task["schedule_time"] = timestamp
 
         response = client.create_task(parent=parent, task=task)
         logger.info(f" Task enqueued: {response.name}")
@@ -112,11 +126,11 @@ async def process_comment_task(request: Request) -> dict:
             gender = random.choice(["male", "female"])
 
             if gender == "male":
-                author_name = fake_en.first_name_male()
-                author_nickname = fake_ko.name_male()
+                author_name = fake_ko.name_male()
+                author_nickname = fake_en.first_name_male()
             else:
-                author_name = fake_en.first_name_female()
-                author_nickname = fake_ko.name_female()
+                author_name = fake_ko.name_female() 
+                author_nickname = fake_en.first_name_female()
 
             generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
 
@@ -133,7 +147,7 @@ async def process_comment_task(request: Request) -> dict:
         except Exception as e:
             logger.error(f"댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
 
-    return {"status": "success"}
+    return JSONResponse(status_code=200, content={"status": "ok"})
 
 
 # ------------------------------

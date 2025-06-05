@@ -9,9 +9,9 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_COMMENT = "개발자 입장에서 정말 필요한 서비스 같아요, 대단합니다! 🙌"
+FALLBACK_COMMENT = "좋아요! 추천합니다! 🙌"
 MAX_NEW_TOKENS = 80
-MAX_RETRY = 40
+MAX_RETRY = 8
 
 class GenerateComment:
     def __init__(self):
@@ -37,6 +37,11 @@ class GenerateComment:
         similarity = util.cos_sim(comment_emb, context_emb).item()
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
+    
+    def detail_summary(self, detail_Description: str, ratio_summ: float = 0.6) -> str:
+        summary = summarize(detail_Description, ratio=ratio_summ) or detail_Description
+        summary = summarize(summary, ratio=ratio_summ) or summary
+        return summary
 
     def generate_comment(self, request_data: CommentRequest) -> str:
         prompt_builder = GemmaPrompt(request_data)
@@ -48,9 +53,14 @@ class GenerateComment:
             "이다.", prompt_builder.detailedDescription
         ])
 
-        summary = summarize(prompt_builder.detailedDescription, ratio=0.7) or prompt_builder.detailedDescription
-        summary = summarize(summary, ratio=0.7) or summary
-        prompt_builder.detailedDescription = summary
+        if len(prompt_builder.detailedDescription) < 180:
+            pass
+
+        elif len(prompt_builder.detailedDescription) < 500:
+            prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.7)
+        else:
+            prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.6)
+            #print(summary)
 
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
 
@@ -74,7 +84,7 @@ class GenerateComment:
 
                 if self.validate_generated_comment(generated_comment_dict):
                     comment = generated_comment_dict.get("comment", "").strip()
-                    if any(word in comment for word in (["디자인", "UI", "UX", "좋아요", "인터페이스"])): #prompt_builder.tags + 
+                    if any(word in comment for word in (prompt_builder.tags +["디자인", "UI", "UX", "좋아요", "인터페이스"])):
                         logger.info(f"댓글 생성 성공: {comment}")
                         return comment
                     if self.is_semantically_relevant(comment, context_text):
