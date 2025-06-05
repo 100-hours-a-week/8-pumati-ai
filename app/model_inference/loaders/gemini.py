@@ -9,7 +9,7 @@ from pydantic import PrivateAttr
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 class GeminiLangChainLLM(LLM):
-    model_name: str = "gemini-1.5-flash"  # 또는 "models/gemini-1.5-flash"
+    model_name: str = "gemini-1.5-flash"
 
     _model: genai.GenerativeModel = PrivateAttr()
 

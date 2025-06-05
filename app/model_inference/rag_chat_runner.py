@@ -17,7 +17,7 @@ from typing import List, Optional, Callable, Any
 from pydantic import Field
 
 
-from app.github_crawling.gemini import GeminiLangChainLLM
+from app.model_inference.loaders.gemini import GeminiLangChainLLM
 
 FILTERED_RESPONSE = """\
 💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 

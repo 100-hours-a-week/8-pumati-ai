@@ -23,7 +23,7 @@ TEAM_URLS = [
     # "https://github.com/orgs/100-hours-a-week/teams/13-cafeboo"
 ]
 
-# 예시: slug → id 매핑 (실제 환경에서는 DB나 config로 관리할 것)
+# slug → id 매핑 (실제 환경에서는 DB나 config로 관리예정 - sse api 수정 전)
 TEAM_META = {
     "8": 1,
     "7-1": 2,
