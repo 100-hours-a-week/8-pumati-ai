@@ -1,9 +1,10 @@
 import os
 import requests
 from io import BytesIO
+from typing import List
 
-from fast_api.schemas.badge_schemas import BadgeRequest
-from model_inference.badge_inference_runner import generate_image
+from app.fast_api.schemas.badge_schemas import BadgeRequest
+from app.model_inference.badge_inference_runner import generate_image
 
 BE_SERVER = os.getenv("BE_SERVER_URL")
 
@@ -46,22 +47,22 @@ class BadgeService:
 
         return public_url 
 
-    def generate_and_save_badge(self, team_number: int, request_data: BadgeRequest):
+    def generate_and_save_badge(self, mod_tags: List[str], team_number: int, request_data: BadgeRequest):
         '''
         BadgeService의 메인 기능.
         '''
         # 1) 이미지 생성하기
-        image = generate_image(team_number, request_data)
+        image = generate_image(mod_tags, team_number, request_data)
 
         # 2) 이미지 메모리 스트림 변환
-        image_bytes = BytesIO()
-        image.save(image_bytes, format="PNG")
-        image_bytes.seek(0)
+        with BytesIO() as image_bytes:
+            image.save(image_bytes, format="PNG")
+            image_bytes.seek(0)
+            public_url = self.create_url(image_bytes, team_number)
 
         # 3) S3에 저장 후 url 반환받기
         public_url = self.create_url(image_bytes, team_number)
 
         return public_url
 
-    # Todo: implement implanting + controlnet extensions here later
 

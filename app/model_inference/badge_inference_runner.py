@@ -1,16 +1,17 @@
-from fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
-from context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
-from model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
+from app.fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
+from app.context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
+from app.model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
 
 import torch
 from PIL import Image
+from typing import List
 
-def generate_image(team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 800, height: int = 800):
+def generate_image(mod_tags: List[str], team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 800, height: int = 800):
     generator = torch.Generator("cuda").manual_seed(seed)
 
     # 1) 프롬프트 로드
     prompt_instance = BadgePrompt(request_data)
-    prompt = prompt_instance.build_badge_prompt(team_number)
+    prompt = prompt_instance.build_badge_prompt(mod_tags, team_number)
 
     # 2) pipline로드
     SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model()
