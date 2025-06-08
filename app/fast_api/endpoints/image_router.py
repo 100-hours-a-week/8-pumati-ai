@@ -1,9 +1,7 @@
-from fastapi import APIRouter, HTTPException, Request, responses
+from fastapi import APIRouter,Request, responses
 import logging
 from dotenv import load_dotenv
-from google.cloud import tasks_v2
 import os
-import json
 import asyncio
 import requests
 

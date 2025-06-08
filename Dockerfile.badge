@@ -1,0 +1,30 @@
+# PyTorch 2.7.0 with CUDA 12.1 (공식 이미지)
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+#FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn8-devel
+#FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn8-runtime
+#2.7.0-cuda11.8-cudnn8-runtime
+
+# 기본 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libgl1-mesa-glx \
+    && rm -rf /var/lib/apt/lists/*
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# requirements.txt 복사 및 설치
+COPY requirements.badge.txt .
+RUN pip install --upgrade pip
+RUN pip install -r requirements.badge.txt
+
+# 앱 코드 복사
+COPY . .
+
+# 캐시 디렉토리 설정 (선택)
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+
+# FastAPI 앱 실행 (포트는 필요에 따라 조정)
+CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8000"]

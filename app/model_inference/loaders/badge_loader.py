@@ -1,9 +1,8 @@
-import os, logging
-from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, StableDiffusionXLControlNetPipeline, DiffusionPipeline
+import os
+from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, DiffusionPipeline
 from dotenv import load_dotenv
 from huggingface_hub import login
 import torch
-from PIL import Image
 
 
 # "Controlnet -> SDXL -> REFINEMODEL" 구조로, 모델 3개 사용예정.
