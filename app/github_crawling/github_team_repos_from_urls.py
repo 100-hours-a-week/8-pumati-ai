@@ -5,31 +5,51 @@ import os
 import re
 from dotenv import load_dotenv
 
-# 환경변수에서 GitHub 토큰 로드
 load_dotenv()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+ORG_NAME = os.getenv("ORG_NAME")
+TEAM_LIST_API_URL = os.getenv("TEAM_LIST_API_URL")
+USE_BACKEND_API = os.getenv("USE_BACKEND_API", "true").lower() == "true"
 
-ORG_NAME = "100-hours-a-week"
 HEADERS = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
     "Accept": "application/vnd.github+json"
 }
 
-# 주어진 팀 URL 리스트
-TEAM_URLS = [
-    "https://github.com/orgs/100-hours-a-week/teams/8",
-    # "https://github.com/orgs/100-hours-a-week/teams/20",
-    "https://github.com/orgs/100-hours-a-week/teams/7-1"
-    # "https://github.com/orgs/100-hours-a-week/teams/13-cafeboo"
-]
+def fetch_team_meta():
+    if USE_BACKEND_API:
+        try:
+            res = requests.get(TEAM_LIST_API_URL, timeout=10)
+            res.raise_for_status()
+            result = res.json()
 
-# slug → id 매핑 (실제 환경에서는 DB나 config로 관리예정 - sse api 수정 전)
-TEAM_META = {
-    "8": 1,
-    "7-1": 2,
-    "13-cafeboo": 3,
-    # 필요에 따라 추가
-}
+            team_urls = []
+            team_meta = {}
+            for item in result["data"]:
+                url = item["githubUrl"]
+                project_id = item["projectId"]
+                slug = url.split("/")[-1]
+                team_urls.append(url)
+                team_meta[slug] = project_id
+
+            return team_urls, team_meta
+        except Exception as e:
+            print(f"❌ [API 실패] 팀 목록을 불러오는 데 실패했습니다, api/projects/github-urls실패, 백엔드 서버 켜졌는지 확인 필요: {e}")
+            return [], {}
+    else:
+        # ✅ 수동 fallback
+        team_urls = [
+            "https://github.com/orgs/100-hours-a-week/teams/8",
+            "https://github.com/orgs/100-hours-a-week/teams/7-1",
+            # "https://github.com/orgs/100-hours-a-week/teams/20",
+            # "https://github.com/orgs/100-hours-a-week/teams/13-cafeboo",
+
+        ]
+        team_meta = {
+            "8": 1,
+            "7-1": 2
+        }
+        return team_urls, team_meta
 
 def extract_team_slugs_from_urls(urls):
     slugs = []
@@ -57,6 +77,7 @@ def get_team_repos(org, team_slug):
 
 
 def get_all_repos_from_team_urls():
+    TEAM_URLS, TEAM_META = fetch_team_meta()
     team_slugs = extract_team_slugs_from_urls(TEAM_URLS)
     all_repos = []
     for slug in team_slugs:
