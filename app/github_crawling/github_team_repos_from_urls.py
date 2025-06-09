@@ -22,7 +22,6 @@ def fetch_team_meta():
             res = requests.get(TEAM_LIST_API_URL, timeout=10)
             res.raise_for_status()
             result = res.json()
-
             team_urls = []
             team_meta = {}
             for item in result["data"]:
@@ -31,13 +30,12 @@ def fetch_team_meta():
                 slug = url.split("/")[-1]
                 team_urls.append(url)
                 team_meta[slug] = project_id
-
             return team_urls, team_meta
         except Exception as e:
             print(f"❌ [API 실패] 팀 목록을 불러오는 데 실패했습니다, api/projects/github-urls실패, 백엔드 서버 켜졌는지 확인 필요: {e}")
             return [], {}
     else:
-        # ✅ 수동 fallback
+        # 수동 fallback
         team_urls = [
             "https://github.com/orgs/100-hours-a-week/teams/8",
             "https://github.com/orgs/100-hours-a-week/teams/7-1",
@@ -88,14 +86,11 @@ def get_all_repos_from_team_urls():
                 all_repos.append((repo["full_name"], team_id, slug)) 
         except Exception as e:
             print(f"⚠️ 팀 {slug} 에러: {e}")
-
-    # 확인용
     print("\n✅ 전체 REPOS 리스트")
     print("REPOS = [")
     for r in all_repos:
         print(f'    "{r[0]}",')
     print("]")
-
     return all_repos
 
 if __name__ == "__main__":
