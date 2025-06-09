@@ -12,6 +12,7 @@ async def chat_team(project_id: int, request: ChatRequest):
     answer = run_rag(request.question, project_id)
     return {"answer": answer}
 
+########## SSE ##############
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
@@ -38,12 +39,6 @@ async def send_message(projectId: int, sessionId: str, body: MessageRequest):
 
 
 # --- 2. SSE 연결 및 질문 대기 ---
-async def run_rag_streaming(question: str, projectId: int):
-    tokens = ["이번", "주에는", "챗봇", "기능이", "추가", "되었습니다."]
-    for token in tokens:
-        await asyncio.sleep(0.3)
-        yield token
-
 @router.get("/projects/{projectId}/chatbot/sessions/{sessionId}/stream")
 async def stream_chatbot(projectId: int, sessionId: str, request: Request):
     async def event_stream():
