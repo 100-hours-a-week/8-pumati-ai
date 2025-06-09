@@ -146,9 +146,8 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
-    if not isinstance(llm, GeminiLangChainLLM):
-        raise ValueError("이 스트리밍 구조는 GeminiLangChainLLM에만 사용됩니다.")
 
+    # 검색
     retriever = WeightedChromaRetriever(
         chroma_collection=vectorstore._collection,
         embedding_fn=embedding_model.embed_query,
@@ -165,7 +164,7 @@ async def run_rag_streaming(question: str, project_id: int):
         yield FILTERED_RESPONSE
         return
 
-    # 1. 프롬프트 구성
+    # 프롬프트
     if is_structured_question(question):
         q_type = classify_question_type(question)
         prompt_template = build_prompt_template(q_type)
@@ -175,11 +174,6 @@ async def run_rag_streaming(question: str, project_id: int):
     context = "\n".join([doc.page_content for doc in docs])
     prompt_str = prompt_template.format(question=question, context=context)
 
-    # 2. Gemini 직접 스트리밍 호출
-    prev_text = ""
-    async for text in llm.astream(prompt_str):
-        new_text = text[len(prev_text):]
-        prev_text = text
-
-        for token in new_text.split():
-            yield token + " "
+    # 스트리밍
+    async for sentence in llm.astream(prompt_str):
+        yield sentence
