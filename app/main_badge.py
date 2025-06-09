@@ -11,4 +11,4 @@ async def healthz():
 
 
 if __name__ == "__main__":
-    uvicorn.run("app.main_badge:app_badge", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("app.main_badge:app_badge", host="0.0.0.0", port=8000, reload=True)
