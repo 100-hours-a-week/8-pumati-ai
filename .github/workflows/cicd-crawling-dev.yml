@@ -1,6 +1,6 @@
 # cicd-crawling-dev.yml
 
-# GitHub Actions 워크플로우 이름
+# GitHub Actions 워크플로우 이름 
 name: Build and Push Crawling Image
 
 # 워크플로우 트리거 조건 설정
