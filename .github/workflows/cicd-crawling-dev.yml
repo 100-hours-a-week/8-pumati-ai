@@ -4,7 +4,7 @@
 name: Build and Push Crawling Image
 
 # 워크플로우 트리거 조건 설정
-# main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
+# feat/99-chatbot-deploy 브랜치에 push 이벤트가 발생했을 때 실행됩니다.
 on:
   push:
     branches:
@@ -74,12 +74,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (GPU 관련 인자 제거)
+      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (환경변수를 빌드 인자로 전달)
       - name: Build Docker image for crawling
         run: |
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg-file .env \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
