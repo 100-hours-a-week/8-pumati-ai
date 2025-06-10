@@ -1,7 +1,7 @@
-# cicd-anna.yml
+# cicd-crawling-dev.yml
 
 # GitHub Actions 워크플로우 이름
-name: Build and Push Anna AI Image
+name: Build and Push Crawling Image
 
 # 워크플로우 트리거 조건 설정
 # main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-and-push:
-    # 커밋 메시지에 [gpu]가 포함된 경우에만 실행
+    # 커밋 메시지에 [crawling]가 포함된 경우에만 실행
     if: ${{ contains(github.event.head_commit.message, '[crawling]') }}
     name: Build and Push Docker image
     runs-on: self-hosted
@@ -25,8 +25,8 @@ jobs:
       GCP_PROJECT_ID: ktb8team-458916 
       ARTIFACT_REGISTRY_LOCATION: "asia-east1"
       ARTIFACT_REGISTRY_REPO: "ktb8team"
-      IMAGE_NAME: "dev/ai"
-      DOCKERFILE_PATH: "Dockerfile.gpu"
+      IMAGE_NAME: "dev/crawling"  # 크롤링용 이미지 이름으로 변경
+      DOCKERFILE_PATH: "Dockerfile.crawling"  # 크롤링용 도커파일로 변경
 
     steps:
       # 1. 코드 체크아웃
@@ -44,16 +44,10 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         
 
-      # 환경 변수 파일 생성 (.env)
+      # 환경 변수 파일 생성 (.env) - 크롤링용 환경변수 사용
       - name: Create .env file
         run: |
-          echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" > .env
-
-      # NVIDIA Container Toolkit 상태 확인
-      - name: Verify NVIDIA Container Toolkit
-        run: |
-          nvidia-smi || true
-          docker info | grep -i nvidia || true
+          echo "${{ secrets.ENV_CRAWLING }}" > .env
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
@@ -80,14 +74,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 + GPU 사용
-      - name: Build Docker image with GPU
+      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (GPU 관련 인자 제거)
+      - name: Build Docker image for crawling
         run: |
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg CUDA_VISIBLE_DEVICES=all \
-            --build-arg HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }} \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
@@ -110,7 +102,7 @@ jobs:
         if: failure()
         run: |
           curl -H "Content-Type: application/json" -d '{
-            "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "content": "🚨 크롤링 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시
@@ -143,5 +135,5 @@ jobs:
       # 8. 이미지 주소 출력
       - name: Output image URL
         run: |
-          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Crawling image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
