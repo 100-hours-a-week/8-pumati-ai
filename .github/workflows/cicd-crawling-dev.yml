@@ -49,6 +49,21 @@ jobs:
         run: |
           echo "${{ secrets.ENV_CRAWLING }}" > .env
 
+      # 환경변수들을 GitHub Actions 환경변수로 추출
+      - name: Load environment variables
+        run: |
+          # .env 파일에서 환경변수들을 읽어서 GitHub Actions 환경변수로 설정
+          set -a
+          source .env
+          set +a
+          echo "BUILD_USE_REMOTE_CHROMA=$USE_REMOTE_CHROMA" >> $GITHUB_ENV
+          echo "BUILD_CHROMA_HOST=$CHROMA_HOST" >> $GITHUB_ENV
+          echo "BUILD_CHROMA_PORT=$CHROMA_PORT" >> $GITHUB_ENV
+          echo "BUILD_ORG_NAME=$ORG_NAME" >> $GITHUB_ENV
+          echo "BUILD_TEAM_LIST_API_URL=$TEAM_LIST_API_URL" >> $GITHUB_ENV
+          echo "BUILD_USE_BACKEND_API=$USE_BACKEND_API" >> $GITHUB_ENV
+          echo "BUILD_GITHUB_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
+
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
       - name: Google Auth
@@ -74,13 +89,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (환경변수를 빌드 인자로 전달)
+      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (환경변수를 개별 빌드 인자로 전달)
       - name: Build Docker image for crawling
         run: |
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg-file .env \
+            --build-arg USE_REMOTE_CHROMA="${{ env.BUILD_USE_REMOTE_CHROMA }}" \
+            --build-arg CHROMA_HOST="${{ env.BUILD_CHROMA_HOST }}" \
+            --build-arg CHROMA_PORT="${{ env.BUILD_CHROMA_PORT }}" \
+            --build-arg ORG_NAME="${{ env.BUILD_ORG_NAME }}" \
+            --build-arg TEAM_LIST_API_URL="${{ env.BUILD_TEAM_LIST_API_URL }}" \
+            --build-arg USE_BACKEND_API="${{ env.BUILD_USE_BACKEND_API }}" \
+            --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
