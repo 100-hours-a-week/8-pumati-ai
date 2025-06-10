@@ -8,16 +8,15 @@ from langchain.chains.retrieval import create_retrieval_chain
 from langsmith import traceable
 from app.context_construction.question_router import is_structured_question, classify_question_type
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
-
 from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
 from langchain.schema import Document
 from langchain_core.runnables import RunnableConfig
 from langchain_core.retrievers import BaseRetriever
 from typing import List, Optional, Callable, Any
 from pydantic import Field
-
-
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
+from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+import asyncio
 
 FILTERED_RESPONSE = """\
 💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 
@@ -145,3 +144,36 @@ def run_rag(question: str, project_id: int) -> str:
         return raw_answer.split("답변:", 1)[1].strip()
     return raw_answer.strip()
 
+@traceable
+async def run_rag_streaming(question: str, project_id: int):
+
+    # 검색
+    retriever = WeightedChromaRetriever(
+        chroma_collection=vectorstore._collection,
+        embedding_fn=embedding_model.embed_query,
+        top_k=40,
+        project_id=project_id
+    )
+    docs = retriever._get_relevant_documents(question)
+    if not docs:
+        yield FILTERED_RESPONSE
+        return
+
+    top_score = docs[0].metadata.get("adjusted_score", 0)
+    if top_score < 0.6:
+        yield FILTERED_RESPONSE
+        return
+
+    # 프롬프트
+    if is_structured_question(question):
+        q_type = classify_question_type(question)
+        prompt_template = build_prompt_template(q_type)
+    else:
+        prompt_template = general_prompt_template
+
+    context = "\n".join([doc.page_content for doc in docs])
+    prompt_str = prompt_template.format(question=question, context=context)
+
+    # 스트리밍
+    async for sentence in llm.astream(prompt_str):
+        yield sentence
