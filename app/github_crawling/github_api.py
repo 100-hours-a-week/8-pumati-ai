@@ -101,7 +101,7 @@ def fetch_wiki_md_files(repo: str) -> dict:
     if not os.path.exists(clone_path):
         print(f"📥 Cloning wiki for {repo}...")
         os.makedirs("./cached_wikis", exist_ok=True)
-        wiki_git_url = f"https://github.com/{repo}.wiki.git"
+        wiki_git_url = f"https://{GITHUB_TOKEN}@github.com/{repo}.wiki.git"
         subprocess.run(["git", "clone", wiki_git_url, clone_path], check=True)
     else:
         print(f"✅ Wiki already cloned for {repo} → 생략")
