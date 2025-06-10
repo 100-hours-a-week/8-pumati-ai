@@ -25,7 +25,8 @@ ENV TEAM_LIST_API_URL=${TEAM_LIST_API_URL}
 ENV USE_BACKEND_API=${USE_BACKEND_API}
 
 # .env 파일 생성
-RUN echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env && \
+RUN mkdir -p /workspace && \
+    echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env && \
     echo "CHROMA_HOST=${CHROMA_HOST}" >> /workspace/.env && \
     echo "CHROMA_PORT=${CHROMA_PORT}" >> /workspace/.env && \
     echo "ORG_NAME=${ORG_NAME}" >> /workspace/.env && \
