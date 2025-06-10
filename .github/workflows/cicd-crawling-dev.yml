@@ -1,0 +1,147 @@
+# cicd-anna.yml
+
+# GitHub Actions 워크플로우 이름
+name: Build and Push Anna AI Image
+
+# 워크플로우 트리거 조건 설정
+# main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
+on:
+  push:
+    branches:
+      # 브랜치는 맞게 잘 바꿔서.
+      - feat/99-chatbot-deploy
+
+
+jobs:
+  build-and-push:
+    # 커밋 메시지에 [gpu]가 포함된 경우에만 실행
+    if: ${{ contains(github.event.head_commit.message, '[crawling]') }}
+    name: Build and Push Docker image
+    runs-on: self-hosted
+    
+
+    # 환경 변수 설정
+    env:
+      GCP_PROJECT_ID: ktb8team-458916 
+      ARTIFACT_REGISTRY_LOCATION: "asia-east1"
+      ARTIFACT_REGISTRY_REPO: "ktb8team"
+      IMAGE_NAME: "dev/ai"
+      DOCKERFILE_PATH: "Dockerfile.gpu"
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 커밋 메시지 추출
+      - name: Get commit message
+        id: commit_message
+        run: |
+          {
+            echo 'message<<EOF'
+            git log -1 --pretty=%B
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+        
+
+      # 환경 변수 파일 생성 (.env)
+      - name: Create .env file
+        run: |
+          echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" > .env
+
+      # NVIDIA Container Toolkit 상태 확인
+      - name: Verify NVIDIA Container Toolkit
+        run: |
+          nvidia-smi || true
+          docker info | grep -i nvidia || true
+
+      # 2. Google Cloud 인증 (서비스 계정 키 사용)
+      # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 3. Google Cloud SDK (gcloud CLI) 설정 (선택 사항, auth 단계에서 이미 gcloud가 설정될 수 있음)
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      # 4. Artifact Registry에 Docker 인증 설정
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
+
+      # 5. Docker 레이어 캐싱
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # 6. Docker BuildKit 활성화 + GPU 사용
+      - name: Build Docker image with GPU
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --platform=linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg CUDA_VISIBLE_DEVICES=all \
+            --build-arg HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }} \
+            --label git_commit="${{ github.sha }}" \
+            --label git_author="${{ github.actor }}" \
+            --label git_message="${{ steps.commit_message.outputs.message }}" \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
+            -f ${{ env.DOCKERFILE_PATH }} .
+
+      # 빌드 후 이미지 태그 확인
+      - name: List Docker images
+        run: docker images
+
+      # 필요시 강제로 latest 태그 붙이기
+      - name: Retag image as latest
+        run: |
+          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # 실패 시 간단한 알림 추가 
+      - name: Send failure notification
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" -d '{
+            "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
+
+      # 7. Docker 이미지를 Artifact Registry에 푸시
+      - name: Push Docker image to Artifact Registry
+        run: |
+          echo "Pushing :sha tag (${{ github.sha }})..."
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          
+          echo "---------------------------------------------------------------------"
+          echo "Inspecting local 'latest' tag before pushing to registry:"
+          # 로컬에 태그된 latest 이미지의 상세 정보 (특히 Image ID 또는 Digest) 확인
+          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          echo "---------------------------------------------------------------------"
+          
+          echo "Attempting to push :latest tag..."
+          # latest 태그 푸시 시도. Actions는 기본적으로 명령어의 모든 출력을 로깅합니다.
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "---------------------------------------------------------------------"
+          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
+          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보(digest, 업데이트 시간 등)를 가져옵니다.
+          # 이를 통해 Docker 클라이언트의 보고나 UI 지연과 관계없이 실제 레지스트리 상태를 확인할 수 있습니다.
+          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe 'latest' tag from Artifact Registry, or it does not exist."
+          echo "---------------------------------------------------------------------"
+          echo "Verifying pushed :sha tag in Artifact Registry (via gcloud):"
+          # 비교를 위해 방금 푸시한 :sha 태그의 정보도 가져옵니다.
+          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe ':sha' tag from Artifact Registry."
+          echo "---------------------------------------------------------------------"
+
+      # 8. 이미지 주소 출력
+      - name: Output image URL
+        run: |
+          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
