@@ -1,20 +1,29 @@
-#Dockerfile
+# Dockerfile.gpu
 
-# 로컬용
-# FROM python:3.10
-
-# gpu용
 FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 
-# 빌드 인자 정의 : 허깅페이스 토큰 추가
+# 빌드 인자 정의
 ARG HF_AUTH_TOKEN
+ARG GITHUB_TOKEN
+ARG LANGSMITH_TRACING
+ARG LANGSMITH_ENDPOINT
+ARG LANGSMITH_API_KEY
+ARG LANGCHAIN_PROJECT
+ARG GEMINI_API_KEY
+
+# 환경변수 설정
 ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN}
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+ENV LANGSMITH_TRACING=${LANGSMITH_TRACING}
+ENV LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}
+ENV LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+ENV LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
+ENV GEMINI_API_KEY=${GEMINI_API_KEY}
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
     PYTHONPATH=/workspace
-
 
 # Python 3.10 설치
 RUN apt-get update && \
@@ -26,7 +35,6 @@ RUN apt-get update && \
     ln -sf /usr/bin/python3.10 /usr/bin/python && \
     ln -sf /usr/bin/pip3 /usr/bin/pip
 
-# 작업 폴더 설정
 WORKDIR /workspace
 
 # 시스템 패키지 설치
@@ -36,19 +44,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
     && rm -rf /var/lib/apt/lists/*
 
-# requirements.gpu.txt 복사 후 Python 의존성 설치
+# requirements 설치
 COPY requirements.gpu.txt .
 RUN pip install --no-cache-dir --upgrade pip \
  && pip uninstall -y torch torchvision torch_xla || true \
  && pip install --no-cache-dir -r requirements.gpu.txt \
  && pip install --no-cache-dir --upgrade tokenizers transformers faker
 
-# .env 파일 생성 - HF_AUTH_TOKEN을 포함시킴
-RUN echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env
+# .env 파일 생성
+RUN echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env && \
+    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> /workspace/.env && \
+    echo "LANGSMITH_TRACING=${LANGSMITH_TRACING}" >> /workspace/.env && \
+    echo "LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}" >> /workspace/.env && \
+    echo "LANGSMITH_API_KEY=${LANGSMITH_API_KEY}" >> /workspace/.env && \
+    echo "LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}" >> /workspace/.env && \
+    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env
 
 # 소스 코드 복사
 COPY . /workspace/
 
-# 포트 노출 및 FastAPI 서버 실행
+# FastAPI 서버 실행
 EXPOSE 8080
 CMD ["python", "-m", "uvicorn", "app.main_gpu:app", "--host", "0.0.0.0", "--port", "8080"]
