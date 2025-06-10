@@ -18,8 +18,6 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 import asyncio
 
-router = APIRouter()
-
 # 세션별 질문 저장소
 session_questions = {}
 
