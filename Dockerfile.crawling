@@ -34,4 +34,4 @@ RUN mkdir -p /workspace && \
     echo "USE_BACKEND_API=${USE_BACKEND_API}" >> /workspace/.env
 
 
-CMD ["python", "app/github_crawling/scheduler.py"]
+CMD ["python", "-m", "app.github_crawling.scheduler"]
