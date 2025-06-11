@@ -216,10 +216,3 @@ async def run_rag_streaming(question: str, project_id: int):
             yield "\n".join(sse_lines) + "\n\n"
 
     yield "data: [END]\n\n"
-    # async for chunk in chain.astream(prompt_input, config=config):
-    #     words = re.findall(r'\s+|\S+', chunk)
-    #     for word in words:
-    #         if word.strip() or word == " ":  # 공백 유지
-    #             yield f"data: {word}\n\n"  # 단어별로 실시간 전송
-
-    # yield "data: [END]\n\n"
