@@ -71,7 +71,6 @@ async def send_message(projectId: int, sessionId: str, body: MessageRequest, bac
         await queue.put(("typing", "true"))
         async for chunk in run_rag_streaming(body.content.strip(), projectId):
             await queue.put(("message", chunk))
-        await queue.put(("done", "ok"))
 
     background_tasks.add_task(sse_event_sender, queue, handler)
     return {"message": "messageAccepted"}
@@ -113,10 +112,10 @@ async def close_stream(projectId: int, sessionId: str):
 
     queue = event_queues.get(key)
     if queue:
-        await queue.put(("done", "ok"))
+        await queue.put(("stream-end", "disconnected"))
         del event_queues[key]
+        logger.info(f"SSE 수동 종료 요청 처리됨: {key}")
 
-    print(f"[세션 종료] session={key}")
     return {"message": "disconnected"}
 
 # --- 예외 처리 --- 
