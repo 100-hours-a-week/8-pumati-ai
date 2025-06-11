@@ -13,11 +13,19 @@ import chromadb
 from app.github_crawling.github_api import fetch_wiki_md_files
 from app.github_crawling.vector_store import show_vector_summary
 
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
-REPOS = get_all_repos_from_team_urls()
-client = chromadb.PersistentClient(path="./chroma_db_weight")
+USE_REMOTE_CHROMA = os.getenv("USE_REMOTE_CHROMA", "false").lower() == "true"
+
+if USE_REMOTE_CHROMA:
+    host = os.getenv("CHROMA_HOST", "localhost")
+    port = int(os.getenv("CHROMA_PORT", "8000"))
+    client = chromadb.HttpClient(host=host, port=port)
+else:
+    client = chromadb.PersistentClient(path="./chroma_db_weight")
+
 collection = client.get_or_create_collection(name="github_docs")
 
 def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, team_id: int):
@@ -50,7 +58,7 @@ def hash_text(text: str) -> str:
 
 def main():
     show_vector_summary()
-    
+
     for repo_entry in REPOS:
         repo, project_id, team_id = repo_entry
         print(f"\n🚀 Start crawling: {repo} (Team ID: {project_id}, Number: {team_id})")
