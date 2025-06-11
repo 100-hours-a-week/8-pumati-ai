@@ -54,12 +54,23 @@ class WeightedChromaRetriever(BaseRetriever):
         query_embedding = self.embedding_fn(query)
         filter_by_project = {"project_id": self.project_id} if self.project_id else {}
 
-        results = self.chroma_collection.query(
-            query_embeddings=[query_embedding],
-            n_results=50,
-            include=["documents", "metadatas", "distances"],
-            where=filter_by_project
-        )
+        # ✅ DEBUG: 임베딩 결과 및 필터 확인
+        print("\n🔍 [DEBUG] 쿼리 임베딩 벡터 (앞 5개):", query_embedding[:5])
+        print("🔍 [DEBUG] 필터 조건 (where):", filter_by_project)
+
+        try:
+            results = self.chroma_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=50,
+                include=["documents", "metadatas", "distances"],
+                where=filter_by_project
+            )
+        except Exception as e:
+            print("❌ [DEBUG] Chroma 쿼리 실패:", e)
+            return []
+
+        # ✅ DEBUG: 결과 문서 개수 출력
+        print("📄 [DEBUG] 검색된 문서 수:", len(results["documents"][0]) if results["documents"] else 0)
 
         scored_docs = []
         for doc_text, metadata, distance in zip(
@@ -68,6 +79,16 @@ class WeightedChromaRetriever(BaseRetriever):
             weight = float(metadata.get("weight", 1.0))
             score = 1.0 - distance
             adjusted_score = score * weight
+
+            # ✅ DEBUG: 각 문서별 점수 출력
+            print(f"🧮 [DEBUG] 문서 {i}:")
+            print("    - 내용 앞부분:", doc_text[:80].replace("\n", " "), "...")
+            print("    - raw_distance:", distance)
+            print("    - cosine_score (1.0 - 거리):", score)
+            print("    - weight:", weight)
+            print("    - adjusted_score:", adjusted_score)
+            print("    - metadata.project_id:", metadata.get("project_id"))
+            print("    - metadata.type:", metadata.get("type"))
 
             doc = Document(
                 page_content=doc_text,
@@ -81,7 +102,9 @@ class WeightedChromaRetriever(BaseRetriever):
             scored_docs.append((adjusted_score, doc))
 
         # 점수 기준 정렬 후 Document만 반환
-        scored_docs.sort(key=lambda x: x[0], reverse=True)
+        scored_docs.sort(key=lambda x: x[0], reverse=True)    
+        # ✅ DEBUG: 상위 top_k 개수 확인
+        print("📌 [DEBUG] 최종 반환할 문서 수:", len(scored_docs[:self.top_k]))
         return [doc for _, doc in scored_docs[:self.top_k]]
 
 
