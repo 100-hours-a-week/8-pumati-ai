@@ -11,6 +11,7 @@ from collections import defaultdict
 import hashlib
 import chromadb
 from app.github_crawling.github_api import fetch_wiki_md_files
+from app.github_crawling.vector_store import show_vector_summary
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -48,6 +49,8 @@ def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 def main():
+    show_vector_summary()
+    
     for repo_entry in REPOS:
         repo, project_id, team_id = repo_entry
         print(f"\n🚀 Start crawling: {repo} (Team ID: {project_id}, Number: {team_id})")
