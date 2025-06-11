@@ -174,7 +174,7 @@ async def run_rag_streaming(question: str, project_id: int):
 
     retrieved_docs = get_retrieved_docs(question, project_id) # 검색 함수 호출
 
-    if not retrieved_docs or retrieved_docs[0].metadata.get("adjusted_score", 0) < 0.6:
+    if not retrieved_docs or retrieved_docs[0].metadata.get("adjusted_score", 0) < 1.2:
         for line in FILTERED_RESPONSE.strip().splitlines():
             yield line # strip()을 여기서 제거하고, 빈 줄도 그대로 전달
         return
