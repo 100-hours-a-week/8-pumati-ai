@@ -54,7 +54,8 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
         weight += 1.0
     metadata["weight"] = weight
 
-    # metadata["weight"] = default_weights.get(doc_type, 1.0)
+    print("✅ 저장 직전 metadata:", metadata)
+    print("✅ project_id 타입:", type(metadata.get("project_id")))
 
     collection.add(
         documents=[text],
