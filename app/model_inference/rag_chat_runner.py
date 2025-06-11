@@ -73,9 +73,10 @@ class WeightedChromaRetriever(BaseRetriever):
         print("📄 [DEBUG] 검색된 문서 수:", len(results["documents"][0]) if results["documents"] else 0)
 
         scored_docs = []
-        for doc_text, metadata, distance in zip(
+        for i, (doc_text, metadata, distance) in enumerate(zip(
             results["documents"][0], results["metadatas"][0], results["distances"][0]
-        ):
+        )):
+
             weight = float(metadata.get("weight", 1.0))
             score = 1.0 - distance
             adjusted_score = score * weight
