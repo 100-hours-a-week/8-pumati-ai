@@ -20,4 +20,4 @@ if __name__ == "__main__":
 
 # vsc 실행방법: 프로젝트 루트에서 실행 커맨드
 # uvicorn app.main:app --reload
-# uvicorn app.main_gpu:app --host 0.0.0.0 --port 8080 --reload
+# uvicorn app.main_gpu:app --host 0.0.0.0 --port 8080
