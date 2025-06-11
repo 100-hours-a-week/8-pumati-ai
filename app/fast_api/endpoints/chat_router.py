@@ -68,7 +68,6 @@ async def send_message(projectId: int, sessionId: str, body: MessageRequest, bac
     queue = get_queue_or_404(key)
 
     async def handler():
-        await queue.put(("typing", "true"))
         async for chunk in run_rag_streaming(body.content.strip(), projectId):
             await queue.put(("message", chunk))
 
@@ -81,7 +80,8 @@ async def send_message(projectId: int, sessionId: str, body: MessageRequest, bac
 async def stream_chatbot(projectId: int, sessionId: str, request: Request):
     key = f"{projectId}:{sessionId}"
 
-    if key in event_queues and not event_queues[key].empty():
+    if key in event_queues:
+        logger.warning(f"중복 SSE 연결 시도: {key}")
         async def conflict():
             yield "event: error\ndata: sessionConflict\n\n"
             yield "event: done\ndata: ok\n\n"
@@ -96,10 +96,22 @@ async def stream_chatbot(projectId: int, sessionId: str, request: Request):
         try:
             while True:
                 if await request.is_disconnected():
+                    logger.info(f"SSE 연결 종료 감지 (클라이언트): {key}")
+                    yield "event: stream-end\ndata: disconnected\n"
                     break
-                event_type, data = await queue.get()
-                yield f"event: {event_type}\ndata: {data}\n\n"
-        except Exception:
+
+                try:
+                    event_type, data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    logger.info(f"[SSE 송신] {event_type}: {data}")
+                    yield f"event: {event_type}\ndata: {data}\n\n"
+                except asyncio.TimeoutError:
+                    logger.warning(f"타임아웃: {key}")
+                    yield "event: timeout\ndata: streamTimeout\n\n"
+                    yield "event: stream-end\ndata: disconnected\n\n"
+                    break
+
+        except Exception as e:
+            logger.exception("SSE 오류")
             yield "event: error\ndata: internalServerError\n\n"
             yield "event: done\ndata: ok\n\n"
 

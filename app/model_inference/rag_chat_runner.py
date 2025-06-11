@@ -210,15 +210,14 @@ async def run_rag_streaming(question: str, project_id: int):
 
     # 5. 실행 및 SSE 출력
     async for chunk in chain.astream(prompt_input, config=config):
-        # 💡 청크를 수집하여 최종 응답을 만듭니다.
         full_response_content.append(chunk)
 
         words = re.findall(r'\s+|\S+', chunk)
-        sse_lines = [f"data: {word}" for word in words if word.strip() or word == " "]
-        if sse_lines:
-            yield "\n".join(sse_lines) + "\n\n"
-
-    yield "data: [END]\n\n"
+        if words: # words 리스트가 비어있지 않은 경우에만 전송
+            yield "".join(words)
+        else:
+            # LLM이 빈 청크를 보내는 경우, 빈 문자열이라도 전송하여 스트림의 연속성을 유지
+            yield "" # 빈 문자열이라도 보내야 다음 람다에서 데이터를 받음
 
     # 6. 최종 응답을 LangSmith에 기록 (선택 사항)
     # 현재 run의 컨텍스트를 가져와서 최종 응답을 metadata로 기록합니다.
