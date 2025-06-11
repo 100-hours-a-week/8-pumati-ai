@@ -80,7 +80,8 @@ async def send_message(projectId: int, sessionId: str, body: MessageRequest, bac
 async def stream_chatbot(projectId: int, sessionId: str, request: Request):
     key = f"{projectId}:{sessionId}"
 
-    if key in event_queues and not event_queues[key].empty():
+    if key in event_queues:
+        logger.warning(f"중복 SSE 연결 시도: {key}")
         async def conflict():
             yield "event: error\ndata: sessionConflict\n\n"
             yield "event: done\ndata: ok\n\n"
