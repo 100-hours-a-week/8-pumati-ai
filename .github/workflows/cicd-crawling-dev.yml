@@ -28,6 +28,7 @@ jobs:
       ARTIFACT_REGISTRY_REPO: "ktb8team"
       IMAGE_NAME: "dev/crawling"  # 크롤링용 이미지 이름으로 변경
       DOCKERFILE_PATH: "Dockerfile.crawling"  # 크롤링용 도커파일로 변경
+      
 
     steps:
       # 1. 코드 체크아웃
