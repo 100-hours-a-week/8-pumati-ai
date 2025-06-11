@@ -5,28 +5,14 @@ from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readm
 from app.github_crawling.parser import parse_commit_item, parse_pr_item, parse_readme
 from app.github_crawling.text_splitter import split_text
 from app.github_crawling.embedding import get_embedding
-from app.github_crawling.vector_store import store_document, is_id_exists
+from app.github_crawling.vector_store import store_document, is_id_exists, show_vector_summary
 from app.github_crawling.issue_connect_pr_check import fetch_pr_from_issue
 from collections import defaultdict
 import hashlib
-import chromadb
 from app.github_crawling.github_api import fetch_wiki_md_files
-from app.github_crawling.vector_store import show_vector_summary
 
-import os
 from dotenv import load_dotenv
 load_dotenv()
-
-USE_REMOTE_CHROMA = os.getenv("USE_REMOTE_CHROMA", "false").lower() == "true"
-
-if USE_REMOTE_CHROMA:
-    host = os.getenv("CHROMA_HOST", "localhost")
-    port = int(os.getenv("CHROMA_PORT", "8000"))
-    client = chromadb.HttpClient(host=host, port=port)
-else:
-    client = chromadb.PersistentClient(path="./chroma_db_weight")
-
-collection = client.get_or_create_collection(name="github_docs")
 
 def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, team_id: int):
     chunks = split_text(raw)
@@ -51,7 +37,6 @@ def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, 
             print(f"📥 저장 완료: {chunk_id}")
         except Exception as e:
             print(f"❌ 저장 실패: {repo} / {chunk_id} / {e}")
-
 
 def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -123,11 +108,8 @@ def main():
         except Exception as e:
             print(f"❌ Wiki 저장 실패: {repo} / {e}")
 
-
 if __name__ == "__main__":
     main()
     show_vector_summary()
-
-
 
 # PYTHONPATH=. python app/github_crawling/scheduler.py

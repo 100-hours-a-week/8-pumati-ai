@@ -1,39 +1,52 @@
 # app/github_crawling/vector_store.py
 
 import os
-import chromadb
 from datetime import datetime
-from app.github_crawling.text_splitter import split_text
-from app.github_crawling.embedding import get_embedding
-from app.github_crawling.github_api import (
-    fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues
+from uuid import uuid5, NAMESPACE_DNS
+from dotenv import load_dotenv
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import (
+    VectorParams, Distance, PayloadSchemaType
+    
 )
 
-from dotenv import load_dotenv
+# 기존 ChromaDB 관련 코드 제거 & Qdrant 설정으로 교체
 load_dotenv()
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "github_docs")
 
-USE_REMOTE_CHROMA = os.getenv("USE_REMOTE_CHROMA", "false").lower() == "true"
+client = QdrantClient(
+    url=QDRANT_URL,
+    api_key=QDRANT_API_KEY
+)
 
-if USE_REMOTE_CHROMA:
-    host = os.getenv("CHROMA_HOST", "localhost")
-    port = int(os.getenv("CHROMA_PORT", "8000"))
-    client = chromadb.HttpClient(host=host, port=port)
-else:
-    client = chromadb.PersistentClient(path="./chroma_db_weight")
+# 1. 컬렉션이 존재하면 삭제
+if client.collection_exists(collection_name=QDRANT_COLLECTION):
+    client.delete_collection(collection_name=QDRANT_COLLECTION)
 
-collection = client.get_or_create_collection(name="github_docs")
+# 2. 새 컬렉션 생성
+client.create_collection(
+    collection_name=QDRANT_COLLECTION,
+    vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
+)
+
+# 3. 필드별 인덱스 생성
+# payload_schema 인자를 sync client가 허용하지 않아서 필드별 인덱스 수동 생성
+
+client.create_payload_index(QDRANT_COLLECTION, field_name="project_id", field_schema=PayloadSchemaType.INTEGER)
+client.create_payload_index(QDRANT_COLLECTION, field_name="team_id", field_schema=PayloadSchemaType.KEYWORD)
+client.create_payload_index(QDRANT_COLLECTION, field_name="repo", field_schema=PayloadSchemaType.KEYWORD)
+client.create_payload_index(QDRANT_COLLECTION, field_name="type", field_schema=PayloadSchemaType.KEYWORD)
+client.create_payload_index(QDRANT_COLLECTION, field_name="weight", field_schema=PayloadSchemaType.FLOAT)
+client.create_payload_index(QDRANT_COLLECTION, field_name="date", field_schema=PayloadSchemaType.TEXT)
 
 def is_id_exists(doc_id: str) -> bool:
-    existing = collection.get(ids=[doc_id], include=["documents"])
-    return bool(existing["ids"])
-
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일 방식으로 변환
+    result = client.retrieve(collection_name=QDRANT_COLLECTION, ids=[uuid_id])
+    return len(result) > 0
 
 def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
-    """
-    청크 단위 텍스트를 임베딩과 함께 저장합니다.
-    metadata에 weight를 자동 부여하여 저장합니다.
-    """
-    # type으로 weight 추론
     doc_type = metadata.get("type", "other").lower()
     filename = metadata.get("filename", "").lower()
 
@@ -45,7 +58,7 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
         "contents": 0.8,
         "contributor": 0.5,
         "stats": 0.5,
-        "wiki":0.7,
+        "wiki": 0.7,
     }
     weight = default_weights.get(doc_type, 1.0)
     if "Home" in filename or "Vision" in filename:
@@ -57,22 +70,29 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
     print("✅  저장 직전 metadata:", metadata)
     print("✅ project_id 타입:", type(metadata.get("project_id")))
 
-    collection.add(
-        documents=[text],
-        metadatas=[metadata],
-        embeddings=[embedding],
-        ids=[doc_id]
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 문자열 doc_id → UUID 변환
+
+    client.upsert(
+        collection_name=QDRANT_COLLECTION,
+        points=[{
+            "id": uuid_id,
+            "vector": embedding,
+            "payload": {
+                "document": text,
+                **metadata
+            }
+        }]
     )
 
-
-
 def show_vector_summary():
-    client = chromadb.PersistentClient(path="./chroma_db_weight")
-    collection = client.get_collection(name="github_docs")
-    
-    print("📦 총 벡터 수:", collection.count())
-    
-    docs = collection.peek(3)
+    count = client.count(collection_name=QDRANT_COLLECTION).count
+    print("📦 총 벡터 수:", count)
+
+    results = client.scroll(
+        collection_name=QDRANT_COLLECTION,
+        limit=3,
+        with_payload=True
+    )
     print("🔍 일부 문서 미리보기:")
-    for doc in docs:
-        print("-", doc[:120], "...")
+    for point in results[0]:
+        print("-", point.payload.get("document", "")[:120], "...")
