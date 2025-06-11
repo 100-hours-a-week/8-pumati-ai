@@ -1,22 +1,21 @@
-# cicd-anna.yml
+# cicd-crawling-prod.yml
 
 # GitHub Actions 워크플로우 이름
-name: Build and Push Anna AI Image
+name: Build and Push Crawling Image (Production)
 
 # 워크플로우 트리거 조건 설정
-# main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
+# main 브랜치에 push 이벤트가 발생했을 때 실행됩니다.
 on:
   push:
     branches:
-      # 브랜치는 맞게 잘 바꿔서.
-      - dev
-      - feat/99-chatbot-deploy
+      # 프로덕션은 main 브랜치
+      - main
 
 
 jobs:
   build-and-push:
-    # 커밋 메시지에 [gpu]가 포함된 경우에만 실행
-    if: ${{ contains(github.event.head_commit.message, '[gpu]') }}
+    # 커밋 메시지에 [crawling]가 포함된 경우에만 실행
+    if: ${{ contains(github.event.head_commit.message, '[crawling]') }}
     name: Build and Push Docker image
     runs-on: self-hosted
     
@@ -26,8 +25,8 @@ jobs:
       GCP_PROJECT_ID: ktb8team-458916 
       ARTIFACT_REGISTRY_LOCATION: "asia-east1"
       ARTIFACT_REGISTRY_REPO: "ktb8team"
-      IMAGE_NAME: "dev/ai"
-      DOCKERFILE_PATH: "Dockerfile.gpu"
+      IMAGE_NAME: "prod/crawling"  # 프로덕션용 이미지 이름 
+      DOCKERFILE_PATH: "Dockerfile.crawling"  # 크롤링용 도커파일
 
     steps:
       # 1. 코드 체크아웃
@@ -44,10 +43,11 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
         
-      # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
+
+      # 환경 변수 파일 생성 (.env) - 크롤링용 환경변수 사용
       - name: Create .env file
         run: |
-          echo "${{ secrets.ENV_GPU }}" > .env
+          echo "${{ secrets.ENV_CRAWLING }}" > .env
 
       # 환경변수들을 GitHub Actions 환경변수로 추출
       - name: Load environment variables
@@ -56,19 +56,13 @@ jobs:
           set -a
           source .env
           set +a
-          echo "BUILD_HF_AUTH_TOKEN=$HF_AUTH_TOKEN" >> $GITHUB_ENV
-          echo "BUILD_LANGSMITH_TRACING=$LANGSMITH_TRACING" >> $GITHUB_ENV
-          echo "BUILD_LANGSMITH_ENDPOINT=$LANGSMITH_ENDPOINT" >> $GITHUB_ENV
-          echo "BUILD_LANGSMITH_API_KEY=$LANGSMITH_API_KEY" >> $GITHUB_ENV
-          echo "BUILD_LANGCHAIN_PROJECT=$LANGCHAIN_PROJECT" >> $GITHUB_ENV
-          echo "BUILD_GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
-          echo "BUILD_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
-
-      # NVIDIA Container Toolkit 상태 확인
-      - name: Verify NVIDIA Container Toolkit
-        run: |
-          nvidia-smi || true
-          docker info | grep -i nvidia || true
+          echo "BUILD_USE_REMOTE_CHROMA=$USE_REMOTE_CHROMA" >> $GITHUB_ENV
+          echo "BUILD_CHROMA_HOST=$CHROMA_HOST" >> $GITHUB_ENV
+          echo "BUILD_CHROMA_PORT=$CHROMA_PORT" >> $GITHUB_ENV
+          echo "BUILD_ORG_NAME=$ORG_NAME" >> $GITHUB_ENV
+          echo "BUILD_TEAM_LIST_API_URL=$TEAM_LIST_API_URL" >> $GITHUB_ENV
+          echo "BUILD_USE_BACKEND_API=$USE_BACKEND_API" >> $GITHUB_ENV
+          echo "BUILD_GITHUB_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
@@ -95,19 +89,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 + GPU 사용 - 환경변수를 개별 빌드 인자로 전달
-      - name: Build Docker image with GPU
+      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (환경변수를 개별 빌드 인자로 전달)
+      - name: Build Docker image for crawling
         run: |
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg CUDA_VISIBLE_DEVICES=all \
-            --build-arg HF_AUTH_TOKEN="${{ env.BUILD_HF_AUTH_TOKEN }}" \
-            --build-arg LANGSMITH_TRACING="${{ env.BUILD_LANGSMITH_TRACING }}" \
-            --build-arg LANGSMITH_ENDPOINT="${{ env.BUILD_LANGSMITH_ENDPOINT }}" \
-            --build-arg LANGSMITH_API_KEY="${{ env.BUILD_LANGSMITH_API_KEY }}" \
-            --build-arg LANGCHAIN_PROJECT="${{ env.BUILD_LANGCHAIN_PROJECT }}" \
-            --build-arg GEMINI_API_KEY="${{ env.BUILD_GEMINI_API_KEY }}" \
+            --build-arg USE_REMOTE_CHROMA="${{ env.BUILD_USE_REMOTE_CHROMA }}" \
+            --build-arg CHROMA_HOST="${{ env.BUILD_CHROMA_HOST }}" \
+            --build-arg CHROMA_PORT="${{ env.BUILD_CHROMA_PORT }}" \
+            --build-arg ORG_NAME="${{ env.BUILD_ORG_NAME }}" \
+            --build-arg TEAM_LIST_API_URL="${{ env.BUILD_TEAM_LIST_API_URL }}" \
+            --build-arg USE_BACKEND_API="${{ env.BUILD_USE_BACKEND_API }}" \
             --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
@@ -131,7 +124,7 @@ jobs:
         if: failure()
         run: |
           curl -H "Content-Type: application/json" -d '{
-            "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "content": "🚨 크롤링 프로덕션 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시
@@ -164,5 +157,5 @@ jobs:
       # 8. 이미지 주소 출력
       - name: Output image URL
         run: |
-          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Production Crawling image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
