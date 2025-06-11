@@ -58,7 +58,8 @@ def hash_text(text: str) -> str:
 
 def main():
     show_vector_summary()
-
+    REPOS = get_all_repos_from_team_urls()
+    
     for repo_entry in REPOS:
         repo, project_id, team_id = repo_entry
         print(f"\n🚀 Start crawling: {repo} (Team ID: {project_id}, Number: {team_id})")
