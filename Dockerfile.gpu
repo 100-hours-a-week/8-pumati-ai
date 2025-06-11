@@ -1,8 +1,13 @@
 # Dockerfile.gpu
 
+# ──────────────────────────────────────────────────
+# 최적화된 Dockerfile.gpu - 빌드 속도 개선
+# ──────────────────────────────────────────────────
 FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 
-# 빌드 인자 정의
+# ──────────────────────────────────────────────────
+# 1. 빌드 인자 정의 (변경 빈도가 낮은 것부터)
+# ──────────────────────────────────────────────────
 ARG HF_AUTH_TOKEN
 ARG GITHUB_TOKEN
 ARG LANGSMITH_TRACING
@@ -11,37 +16,45 @@ ARG LANGSMITH_API_KEY
 ARG LANGCHAIN_PROJECT
 ARG GEMINI_API_KEY
 
-# 환경변수 설정
-ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN}
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
-ENV LANGSMITH_TRACING=${LANGSMITH_TRACING}
-ENV LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}
-ENV LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
-ENV LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}
-ENV GEMINI_API_KEY=${GEMINI_API_KEY}
-
-ENV PYTHONUNBUFFERED=1 \
+# ──────────────────────────────────────────────────
+# 2. 환경변수 설정 (한번에 설정하여 레이어 최소화)
+# ──────────────────────────────────────────────────
+ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
+    GITHUB_TOKEN=${GITHUB_TOKEN} \
+    LANGSMITH_TRACING=${LANGSMITH_TRACING} \
+    LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT} \
+    LANGSMITH_API_KEY=${LANGSMITH_API_KEY} \
+    LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT} \
+    GEMINI_API_KEY=${GEMINI_API_KEY} \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
-    PYTHONPATH=/workspace
+    PYTHONPATH=/workspace \
+    PIP_NO_CACHE_DIR=0
 
-# Python 3.10 설치
-RUN apt-get update && \
-    apt-get install -y software-properties-common curl git && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y python3.10 python3.10-distutils && \
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
-    ln -sf /usr/bin/python3.10 /usr/bin/python && \
-    ln -sf /usr/bin/pip3 /usr/bin/pip
-
+# ──────────────────────────────────────────────────
+# 3. 작업 디렉토리 설정
+# ──────────────────────────────────────────────────
 WORKDIR /workspace
 
-# 시스템 패키지 설치
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential \
-      python3-dev \
-      git \
+# ──────────────────────────────────────────────────
+# 4. 시스템 패키지 설치 (한 번에 설치하여 레이어 최소화)
+# ──────────────────────────────────────────────────
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        software-properties-common \
+        curl \
+        git \
+        build-essential \
+        python3-dev \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y python3.10 python3.10-distutils \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && rm -rf /var/lib/apt/lists/*
 
 # requirements 설치
