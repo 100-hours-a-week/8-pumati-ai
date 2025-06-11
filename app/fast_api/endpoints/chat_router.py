@@ -68,7 +68,6 @@ async def send_message(projectId: int, sessionId: str, body: MessageRequest, bac
     queue = get_queue_or_404(key)
 
     async def handler():
-        await queue.put(("typing", "true"))
         async for chunk in run_rag_streaming(body.content.strip(), projectId):
             await queue.put(("message", chunk))
 
