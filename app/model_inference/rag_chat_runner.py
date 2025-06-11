@@ -218,8 +218,6 @@ async def run_rag_streaming(question: str, project_id: int):
         if sse_lines:
             yield "\n".join(sse_lines) + "\n\n"
 
-    yield "data: [END]\n\n"
-
     # 6. 최종 응답을 LangSmith에 기록 (선택 사항)
     # 현재 run의 컨텍스트를 가져와서 최종 응답을 metadata로 기록합니다.
     from langsmith import client
