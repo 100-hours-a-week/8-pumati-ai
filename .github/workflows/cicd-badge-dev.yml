@@ -1,7 +1,7 @@
-# cicd-cpu-dev.yml
+# cicd-badge-dev.yml
 
 # GitHub Actions 워크플로우 이름
-name: Build, Push and Deploy to Cloud Run with CPU - Development
+name: Build, Push and Deploy Badge Service to Cloud Run with GPU - Development
 
 # 워크플로우 트리거 조건 설정
 # 해당 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-push-deploy:
-    # 커밋 메시지에 [cpu]가 포함된 경우에만 실행
+    # 커밋 메시지에 [badge]가 포함된 경우에만 실행
     if: ${{ contains(github.event.head_commit.message, '[badge]') }}
     name: Build, Push and Deploy to Cloud Run
     runs-on: self-hosted
@@ -85,9 +85,70 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      # ENV_BADGE_DEV 시크릿에서 환경 변수 처리 및 확인
+      - name: Process and verify environment variables
+        run: |
+          echo "🔧 ENV_BADGE_DEV 시크릿에서 환경 변수 추출 중..."
+          
+          # GitHub Secret을 임시 파일에 저장
+          echo '${{ secrets.ENV_BADGE_DEV }}' > temp_env
+          
+          echo "📋 원본 ENV_BADGE_DEV 내용:"
+          echo "----------------------------------------"
+          cat temp_env
+          echo "----------------------------------------"
+          
+          # 환경 변수들을 개별적으로 추출
+          export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export HF_AUTH_TOKEN=$(grep "HF_AUTH_TOKEN=" temp_env | grep -v "HF_AUTH_TOKEN_VICKY=" | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_PROJECT_ID=$(grep "GCP_PROJECT_ID=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export ARTIFACT_REGISTRY_LOCATION=$(grep "ARTIFACT_REGISTRY_LOCATION=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_QUEUE_NAME=$(grep "GCP_QUEUE_NAME=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export AI_SERVER_URL=$(grep "AI_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export BE_SERVER_URL=$(grep "BE_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_SERVICE_EMAIL=$(grep "GCP_SERVICE_EMAIL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          
+          # 환경 변수들 확인 출력 (민감한 정보는 마스킹)
+          echo "🔍 추출된 환경 변수들 확인:"
+          echo "----------------------------------------"
+          echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
+          echo "HF_AUTH_TOKEN: ${HF_AUTH_TOKEN:0:10}****"
+          echo "GCP_PROJECT_ID: ${GCP_PROJECT_ID}"
+          echo "ARTIFACT_REGISTRY_LOCATION: ${ARTIFACT_REGISTRY_LOCATION}"
+          echo "GCP_QUEUE_NAME: ${GCP_QUEUE_NAME}"
+          echo "AI_SERVER_URL: ${AI_SERVER_URL}"
+          echo "BE_SERVER_URL: ${BE_SERVER_URL}"
+          echo "GCP_SERVICE_EMAIL: ${GCP_SERVICE_EMAIL}"
+          echo "----------------------------------------"
+          
+          # gcloud 명령어용 환경 변수 문자열 생성
+          ENV_VARS="HF_AUTH_TOKEN_VICKY=${HF_AUTH_TOKEN_VICKY}"
+          ENV_VARS="${ENV_VARS},HF_AUTH_TOKEN=${HF_AUTH_TOKEN}"
+          ENV_VARS="${ENV_VARS},HUGGING_FACE_HUB_TOKEN=${HF_AUTH_TOKEN}"
+          ENV_VARS="${ENV_VARS},GCP_PROJECT_ID=${GCP_PROJECT_ID}"
+          ENV_VARS="${ENV_VARS},ARTIFACT_REGISTRY_LOCATION=${ARTIFACT_REGISTRY_LOCATION}"
+          ENV_VARS="${ENV_VARS},GCP_QUEUE_NAME=${GCP_QUEUE_NAME}"
+          ENV_VARS="${ENV_VARS},AI_SERVER_URL=${AI_SERVER_URL}"
+          ENV_VARS="${ENV_VARS},BE_SERVER_URL=${BE_SERVER_URL}"
+          ENV_VARS="${ENV_VARS},GCP_SERVICE_EMAIL=${GCP_SERVICE_EMAIL}"
+          
+          # 환경 변수 문자열을 파일에 저장 (다음 스텝에서 사용)
+          echo "${ENV_VARS}" > env_vars_string
+          
+          echo "✅ 환경 변수 처리 완료!"
+          
+          # 임시 파일 정리
+          rm temp_env
+
       # Cloud Run에 배포
       - name: Deploy to Cloud Run
         run: |
+          # 이전 스텝에서 준비된 환경 변수 문자열 읽기
+          ENV_VARS=$(cat env_vars_string)
+          
+          echo "🚀 Cloud Run 배포 시작..."
+          echo "📝 설정할 환경 변수들: ${ENV_VARS:0:100}..." # 처음 100자만 출력
+          
           gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
             --image ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --platform managed \
@@ -101,9 +162,12 @@ jobs:
             --gpu-type nvidia-l4 \
             --no-gpu-zonal-redundancy \
             --timeout 600 \
-            --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_VICKY }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_VICKY }},GCP_PROJECT_ID=ktb8team-458916,ARTIFACT_REGISTRY_LOCATION=asia-southeast1,GCP_QUEUE_NAME=comment-queue, \
-            BE_SERVER_URL=${{ secrets.BE_SERVER_URL_TEST }},AI_SERVER_URL=${{ secrets.AI_SERVER_URL_TEST }}, GCP_SERVICE_EMAIL=${{ secrets.GCP_SERVICE_EMAIL}}"
-          #   --project ${{ env.GCP_PROJECT_ID }}
+            --set-env-vars="${ENV_VARS}"
+          
+          echo "✅ Cloud Run 배포 완료!"
+          
+          # 환경 변수 파일 정리
+          rm env_vars_string
         #run: |
           # gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
           #   --image ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
