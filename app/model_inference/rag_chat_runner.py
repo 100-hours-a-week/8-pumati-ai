@@ -206,11 +206,33 @@ async def run_rag_streaming(question: str, project_id: int):
         | StreamingLLMWrapper(llm)  # LLM 스트리밍 실행
     )
 
+    full_response_content = [] # 최종 응답을 모을 리스트
+
     # 5. 실행 및 SSE 출력
     async for chunk in chain.astream(prompt_input, config=config):
+        # 💡 청크를 수집하여 최종 응답을 만듭니다.
+        full_response_content.append(chunk)
+
         words = re.findall(r'\s+|\S+', chunk)
         sse_lines = [f"data: {word}" for word in words if word.strip() or word == " "]
         if sse_lines:
             yield "\n".join(sse_lines) + "\n\n"
 
     yield "data: [END]\n\n"
+
+    # 6. 최종 응답을 LangSmith에 기록 (선택 사항)
+    # 현재 run의 컨텍스트를 가져와서 최종 응답을 metadata로 기록합니다.
+    # 이 부분은 현재 @traceable 데코레이터가 적용된 run_rag_streaming 함수 자체의 run 객체에 기록됩니다.
+    # 만약 run_rag_streaming 함수의 output을 통째로 이 값으로 바꾸고 싶다면,
+    # yield 대신 return으로 이 값을 반환해야 하는데, 이는 스트리밍 목적에 맞지 않습니다.
+    # 따라서 metadata에 추가하는 것이 가장 현실적입니다.
+    from langsmith import client
+    current_run_id = config.get("callbacks")[0].current_run_id if config and config.get("callbacks") else None
+    if current_run_id:
+        ls_client = client.Client()
+        final_answer = "".join(full_response_content).strip()
+        ls_client.update_run(
+            current_run_id,
+            outputs={"final_ai_response": final_answer}, # outputs 필드를 사용하여 최종 응답 추가
+            # metadata={"final_ai_response": final_answer} # metadata에 추가해도 됩니다.
+        )
