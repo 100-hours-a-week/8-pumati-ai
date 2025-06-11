@@ -16,7 +16,10 @@ from typing import List, Optional, Callable, Any
 from pydantic import Field
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_core.runnables import RunnableLambda, RunnableMap, RunnableSequence, Runnable
+from langchain_core.output_parsers import StrOutputParser
 import asyncio
+import re
 
 FILTERED_RESPONSE = """\
 💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 
@@ -29,6 +32,17 @@ FILTERED_RESPONSE = """\
 
 이런 식으로 질문해 주시면 열심히 도와드릴게요! ☺️"""
 
+class StreamingLLMWrapper(Runnable):
+    def __init__(self, llm):
+        self.llm = llm
+
+    def invoke(self, input, config=None):
+        # 스트리밍만 쓸 경우라도 필수 구현
+        raise NotImplementedError("Only streaming is supported in this wrapper.")
+
+    async def astream(self, input, config=None):
+        async for token in self.llm.astream(input, config=config):
+            yield token
 
 class WeightedChromaRetriever(BaseRetriever):
     chroma_collection: Any = Field(exclude=True)
@@ -146,34 +160,66 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
-
-    # 검색
+    # 1. 문서 검색
     retriever = WeightedChromaRetriever(
         chroma_collection=vectorstore._collection,
         embedding_fn=embedding_model.embed_query,
         top_k=40,
         project_id=project_id
     )
-    docs = retriever._get_relevant_documents(question)
-    if not docs:
-        yield FILTERED_RESPONSE
+    retrieved_docs = retriever._get_relevant_documents(question)
+    if not retrieved_docs or retrieved_docs[0].metadata.get("adjusted_score", 0) < 0.6:
+        for line in FILTERED_RESPONSE.strip().splitlines():
+            yield f"data: {line}\n"
+        yield "\n"
+        yield "data: [END]\n\n"
         return
 
-    top_score = docs[0].metadata.get("adjusted_score", 0)
-    if top_score < 0.6:
-        yield FILTERED_RESPONSE
-        return
-
-    # 프롬프트
+    # 2. 프롬프트 구성
     if is_structured_question(question):
         q_type = classify_question_type(question)
         prompt_template = build_prompt_template(q_type)
     else:
         prompt_template = general_prompt_template
 
-    context = "\n".join([doc.page_content for doc in docs])
-    prompt_str = prompt_template.format(question=question, context=context)
+    context = "\n".join([doc.page_content for doc in retrieved_docs])
+    prompt_input = {
+        "question": question,
+        "context": context
+    }
 
-    # 스트리밍
-    async for sentence in llm.astream(prompt_str):
-        yield sentence
+    # 3. LangSmith metadata 기록
+    config = RunnableConfig(
+        tags=["run_rag_streaming"],
+        metadata={
+            "retrieved_docs": [
+                {
+                    "content": doc.page_content[:100],
+                    "adjusted_score": doc.metadata.get("adjusted_score", 0)
+                }
+                for doc in retrieved_docs
+            ]
+        }
+    )
+
+    # 4. 전체 체인을 구성
+    chain = (
+        RunnableLambda(lambda x: prompt_template.format(**x))  # 프롬프트 포맷팅
+        | StreamingLLMWrapper(llm)  # LLM 스트리밍 실행
+    )
+
+    # 5. 실행 및 SSE 출력
+    async for chunk in chain.astream(prompt_input, config=config):
+        words = re.findall(r'\s+|\S+', chunk)
+        sse_lines = [f"data: {word}" for word in words if word.strip() or word == " "]
+        if sse_lines:
+            yield "\n".join(sse_lines) + "\n\n"
+
+    yield "data: [END]\n\n"
+    # async for chunk in chain.astream(prompt_input, config=config):
+    #     words = re.findall(r'\s+|\S+', chunk)
+    #     for word in words:
+    #         if word.strip() or word == " ":  # 공백 유지
+    #             yield f"data: {word}\n\n"  # 단어별로 실시간 전송
+
+    # yield "data: [END]\n\n"
