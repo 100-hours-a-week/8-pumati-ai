@@ -168,7 +168,6 @@ async def run_rag_streaming(question: str, project_id: int):
         project_id=project_id
     )
 
-    # @traceable 데코레이터를 사용하여 검색 단계를 별도의 Span으로 기록
     @traceable(name="Retrieve Documents", tags=["retrieval"])
     def get_retrieved_docs(query: str, project_id: int) -> List[Document]:
         return retriever._get_relevant_documents(query)
@@ -177,9 +176,7 @@ async def run_rag_streaming(question: str, project_id: int):
 
     if not retrieved_docs or retrieved_docs[0].metadata.get("adjusted_score", 0) < 0.6:
         for line in FILTERED_RESPONSE.strip().splitlines():
-            yield f"data: {line}\n"
-        yield "\n"
-        yield "data: [END]\n\n"
+            yield line # strip()을 여기서 제거하고, 빈 줄도 그대로 전달
         return
 
     # 2. 프롬프트 구성
@@ -211,13 +208,7 @@ async def run_rag_streaming(question: str, project_id: int):
     # 5. 실행 및 SSE 출력
     async for chunk in chain.astream(prompt_input, config=config):
         full_response_content.append(chunk)
-
-        words = re.findall(r'\s+|\S+', chunk)
-        if words: # words 리스트가 비어있지 않은 경우에만 전송
-            yield "".join(words)
-        else:
-            # LLM이 빈 청크를 보내는 경우, 빈 문자열이라도 전송하여 스트림의 연속성을 유지
-            yield "" # 빈 문자열이라도 보내야 다음 람다에서 데이터를 받음
+        yield chunk
 
     # 6. 최종 응답을 LangSmith에 기록 (선택 사항)
     # 현재 run의 컨텍스트를 가져와서 최종 응답을 metadata로 기록합니다.
