@@ -38,7 +38,7 @@ def fetch_team_meta():
         # 수동 fallback
         team_urls = [
             "https://github.com/orgs/100-hours-a-week/teams/8",
-            "https://github.com/orgs/100-hours-a-week/teams/7-1",
+            # "https://github.com/orgs/100-hours-a-week/teams/7-1",
             # "https://github.com/orgs/100-hours-a-week/teams/20",
             # "https://github.com/orgs/100-hours-a-week/teams/13-cafeboo",
 
