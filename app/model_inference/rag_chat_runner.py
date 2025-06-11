@@ -18,8 +18,8 @@ from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.runnables import RunnableLambda, RunnableMap, RunnableSequence, Runnable
 from langchain_core.output_parsers import StrOutputParser
-import asyncio
-import re
+import os
+import chromadb
 
 FILTERED_RESPONSE = """\
 💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 
@@ -93,10 +93,23 @@ embedding_model = HuggingFaceEmbeddings(
     model_name="intfloat/multilingual-e5-large",
     encode_kwargs={"normalize_embeddings": True}
 )
+
+USE_REMOTE_CHROMA = os.getenv("USE_REMOTE_CHROMA", "false").lower() == "true"
+
+if USE_REMOTE_CHROMA:
+    host = os.getenv("CHROMA_HOST", "localhost")
+    port = int(os.getenv("CHROMA_PORT", "8000"))
+    chroma_client = chromadb.HttpClient(host=host, port=port)
+else:
+    chroma_client = chromadb.PersistentClient(path="./chroma_db_weight")
+
+collection = chroma_client.get_or_create_collection(name="github_docs")
+
 vectorstore = Chroma(
     collection_name="github_docs",
     persist_directory="./chroma_db_weight",
     embedding_function=embedding_model,
+    client=chroma_client
 )
 
 # LLM (HyperCLOVA)
