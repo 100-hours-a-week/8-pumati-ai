@@ -27,4 +27,4 @@ ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/transformers
 
 # FastAPI 앱 실행 (포트는 필요에 따라 조정)
-CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8080"]
