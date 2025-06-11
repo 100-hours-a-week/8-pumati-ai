@@ -160,14 +160,21 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
-    # 1. 문서 검색
+    # 1. 문서 검색 (Retriever)
     retriever = WeightedChromaRetriever(
         chroma_collection=vectorstore._collection,
         embedding_fn=embedding_model.embed_query,
         top_k=40,
         project_id=project_id
     )
-    retrieved_docs = retriever._get_relevant_documents(question)
+
+    # @traceable 데코레이터를 사용하여 검색 단계를 별도의 Span으로 기록
+    @traceable(name="Retrieve Documents", tags=["retrieval"])
+    def get_retrieved_docs(query: str, project_id: int) -> List[Document]:
+        return retriever._get_relevant_documents(query)
+
+    retrieved_docs = get_retrieved_docs(question, project_id) # 검색 함수 호출
+
     if not retrieved_docs or retrieved_docs[0].metadata.get("adjusted_score", 0) < 0.6:
         for line in FILTERED_RESPONSE.strip().splitlines():
             yield f"data: {line}\n"
@@ -191,15 +198,6 @@ async def run_rag_streaming(question: str, project_id: int):
     # 3. LangSmith metadata 기록
     config = RunnableConfig(
         tags=["run_rag_streaming"],
-        metadata={
-            "retrieved_docs": [
-                {
-                    "content": doc.page_content[:100],
-                    "adjusted_score": doc.metadata.get("adjusted_score", 0)
-                }
-                for doc in retrieved_docs
-            ]
-        }
     )
 
     # 4. 전체 체인을 구성
