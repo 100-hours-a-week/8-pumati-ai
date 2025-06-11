@@ -62,7 +62,8 @@ qdrant_client = QdrantClient(
 vectorstore = Qdrant(
     client=qdrant_client,
     collection_name=QDRANT_COLLECTION,
-    embeddings=embedding_model
+    embeddings=embedding_model,
+    content_payload_key="document",
 )
 
 # LLM (HyperCLOVA)
@@ -131,7 +132,7 @@ async def run_rag_streaming(question: str, project_id: int):
 
     # 관련 문서 검색
     docs = retriever.get_relevant_documents(question)
-    if not docs or docs[0].metadata.get("adjusted_score", 0) < 1.2:
+    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.6:
         for line in FILTERED_RESPONSE.strip().splitlines():
             yield line
         return
