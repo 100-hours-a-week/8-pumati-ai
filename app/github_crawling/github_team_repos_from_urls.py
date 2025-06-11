@@ -45,7 +45,7 @@ def fetch_team_meta():
         ]
         team_meta = {
             "8": 1,
-            "7-1": 2
+            # "7-1": 2
         }
         return team_urls, team_meta
 
