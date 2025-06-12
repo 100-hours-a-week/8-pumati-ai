@@ -130,10 +130,28 @@ class BadgePrompt:
         # chrome_options.add_argument('--disable-dev-shm-usage')
 
         logger.info("4-5) 크롬 트라이버 생성중...")
-        driver_path = ChromeDriverManager().install()
+        driver_path = ChromeDriverManager(version="137.0.7151.70").install()
         os.chmod(driver_path, stat.S_IRWXU)
         service = Service(driver_path)
 
+        import subprocess
+        def get_chromedriver_version(driver_path):
+            try:
+                result = subprocess.run(
+                    [driver_path, '--version'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    text=True
+                )
+                version = result.stdout.strip()
+                return version
+            except Exception as e:
+                logging.error(f"chromedriver 버전 확인 실패: {e}")
+                return None
+
+        version = get_chromedriver_version(driver_path)
+        logger.info(f"실제 사용 중인 chromedriver 버전: {version}")
         driver = webdriver.Chrome(service=service, options=options)
 
         #version = get_chromedriver_version(driver_path)
