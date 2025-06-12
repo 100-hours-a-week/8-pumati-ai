@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 
-import logging, os, stat
+import logging, os, stat, tempfile
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -128,6 +128,9 @@ class BadgePrompt:
         # chrome_options.add_argument('--headless')
         # chrome_options.add_argument('--no-sandbox')
         # chrome_options.add_argument('--disable-dev-shm-usage')
+
+        user_data_dir = tempfile.mkdtemp()
+        options.add_argument(f'--user-data-dir={user_data_dir}')
 
         logger.info("4-5) 크롬 트라이버 생성중...")
         driver_path = ChromeDriverManager(driver_version="137.0.7151.70").install()
