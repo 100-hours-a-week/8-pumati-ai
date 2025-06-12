@@ -117,19 +117,24 @@ class BadgePrompt:
         # options.add_argument("--headless")
         # options.add_argument("--no-sandbox")
         # options.add_argument("--disable-dev-shm-usage")
-        options = Options()
-        options.add_argument("--headless")  # GUI 없이 실행
-        options.add_argument("--no-sandbox")  # 권한 문제 회피
-        options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
-        options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
-        options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
+        # options = Options()
+        # options.add_argument("--headless")  # GUI 없이 실행
+        # options.add_argument("--no-sandbox")  # 권한 문제 회피
+        # options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
+        # options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
+        # options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
 
         logger.info("4-5) 크롬 트라이버 생성중...")
         driver_path = ChromeDriverManager().install()
         os.chmod(driver_path, stat.S_IRWXU)
-        service = Service(driver_path)
+        #service = Service(driver_path)
 
-        driver = webdriver.Chrome(service=service, options=options)
+        driver = webdriver.Chrome(executable_path=driver_path, options=chrome_options)
+        #driver = webdriver.Chrome(service=service, chrome_options=chrome_options)
         #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get(url)
         time.sleep(3)  # JS 렌더링 대기
