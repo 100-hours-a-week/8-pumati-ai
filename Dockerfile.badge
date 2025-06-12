@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     fonts-liberation \
     xdg-utils \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libgbm1 \
     #libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
