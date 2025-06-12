@@ -43,6 +43,7 @@ async def enqueue_badge_task(mod_tags: str, team_info: dict) -> None:
     뱃지 task를 Cloud RUN에 등록하는 과정.
     추후 큐 새로 생성하여 등록하기.
     '''
+    logger.info("2-1) 큐 등록 요청 전송시작")
     logger.info(f"이미지 생성 요청을 큐에 보냅니다. AI_server: {GCP_TARGET_URL}")
     logger.info(f"이미지 생성 요청을 큐에 보냅니다. BE_server: {BE_URL}")
     logger.info(f"현재 위치는 {GCP_LOCATION}입니다.")
@@ -52,6 +53,7 @@ async def enqueue_badge_task(mod_tags: str, team_info: dict) -> None:
     badge_parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, GCP_QUEUE_NAME) # 작업(Task)을 보낼 대상 큐 경로를 생성합니다
     try:
         #이미지 생성에 필요한 정보(body)를 JSON으로 준비함.
+        logger.info("2-2) 큐 등록 요청 전송: payload 작성중")
         task_payload = {
             "modTags": mod_tags,
             "requestData": team_info
@@ -59,6 +61,7 @@ async def enqueue_badge_task(mod_tags: str, team_info: dict) -> None:
 
         ################################################
         #Cloud Tasks에 전송할 하나의 작업 정보임. 추후 재 작성할것. -> 작성 완료됨.
+        logger.info("2-3) 큐 등록 요청 전송: 큐 등록 Tasks 작성중")
         badge_task = {
             "http_request": {
                 "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
@@ -71,6 +74,7 @@ async def enqueue_badge_task(mod_tags: str, team_info: dict) -> None:
             }
         }
         ##############################################
+        logger.info("2-4) 큐 등록 요청 전송중.")
         response = client.create_task(parent=badge_parent, task=badge_task)
         logger.info(f" Task enqueued: {response.name}")
 
@@ -81,7 +85,7 @@ async def enqueue_badge_task(mod_tags: str, team_info: dict) -> None:
 
 @app_badge.post("/api/badges/enque")
 async def process_badge_task(task_request: Request) -> dict:
-    logger.info("큐에 등록되었습니다.")
+    logger.info("3-1) 큐 등록 완료")
     # Cloud Tasks가 보낸 JSON body를 파싱 -> project_id, request_data를 가져옴.
     try:
         body = await task_request.json()
@@ -96,23 +100,28 @@ async def process_badge_task(task_request: Request) -> dict:
     if not (request_team_info):
         raise HTTPException(status_code=400, detail="Invalid task payload")
 
-    logger.info(f" Cloud Task 수신함.")
+    logger.info("3-2) 큐: 데이터 수신 완료")
 
     try:
         badge_generate_instance = BadgeService()
+        logger.info("3-3) 뱃지 생성을 시작중")
         badge_URL = badge_generate_instance.generate_and_save_badge(mod_tags = mod_tags, team_number = request_team_info["teamNumber"] ,request_data = BadgeRequest(**request_team_info)) #request_data를 BadgeRequest형태로 변경하여 모델에 전달.
 
+        logger.info(f"9-1) BE 서버에 전송할 payload작성중...")
         #BE에 전달할 body
         payload = {
             "badgeImageUrl" : badge_URL
         }
 
+        
         teamId = request_team_info["teamId"]
 
         endpoint = f"{BE_URL}/api/teams/{teamId}/badge-image-url"
+        logger.info(f"9-2) {endpoint}으로 patch요청")
         response = requests.patch(endpoint, json=payload, headers={"Content-Type": "application/json"})
         response.raise_for_status()
-        logger.info(f"이미지 전송 성공: {endpoint}, {payload}")
+        logger.info(f"9-3) 이미지 전송 성공: {endpoint}, {payload}")
+        logger.info(f"9-4) 서버를 종료합니다.")
     except Exception as e:
         logger.error(f"이미지 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
         await error_occured(request_team_info)
@@ -145,13 +154,15 @@ async def receive_badge_modi_request(badge_modi_body: BadgeModifyRequest):
     '''
     비동기 처리: 백엔드 응답 전송, 뱃지 생성 두가지 테스크를 비동기로 실행.
     '''
-    logger.info(f"뱃지 수정 요청 수신. 수신된 데이터: {badge_modi_body}")
+    logger.info(f"1-1) 뱃지 수정 요청 수신. 수신된 데이터: {badge_modi_body}")
 
     # mod_tags, team_info로 미리 빼서 전달
     mod_tags = badge_modi_body.modificationTags
     team_info = badge_modi_body.projectSummary
 
     response = await prepare_response()
+
+    logger.info("1-2) 큐 등록 요청을 요청")
     asyncio.create_task(enqueue_badge_task(mod_tags = mod_tags, team_info = team_info.model_dump()))  # 이건 백그라운드에서 실행되고 안 기다림
 
     return response
