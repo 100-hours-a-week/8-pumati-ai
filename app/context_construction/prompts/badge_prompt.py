@@ -16,6 +16,11 @@ from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 class BadgePrompt:
     def __init__(self, data: BadgeRequest):
         self.data = data
@@ -61,7 +66,7 @@ class BadgePrompt:
         # 5. Canny 엣지 적용 및 저장
         cv_image = np.array(base)
         canny_image = cv2.Canny(cv_image, 30, 100)
-        print("created badge background")
+        logger.info("5-2) Canny이미지 배경 생성 완료")
         return canny_image
 
 
@@ -104,6 +109,7 @@ class BadgePrompt:
         return canny_logo
 
     def get_disquiet_exact_team_image(self, team_title: str):
+        logger.info("5-3) 각 팀의 로고 찾는 중...")
         url = f"https://disquiet.io/product/{team_title}"
         page_url = self.data.deploymentUrl 
 
@@ -112,6 +118,7 @@ class BadgePrompt:
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
+        logger.info("5-4) 크롬 트라이버 생성중...")
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get(url)
         time.sleep(3)  # JS 렌더링 대기
@@ -123,6 +130,7 @@ class BadgePrompt:
             # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
             icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
             if icon_link and icon_link.get("href"):
+                logger.info("5-5) 팀 파비콘 있음.")
                 #print(urljoin(page_url, icon_link["href"]))
                 ################# 공통부분 묶기
                 canny_logo = self.get_image(page_url)
@@ -130,24 +138,26 @@ class BadgePrompt:
                 return canny_logo
 
         except Exception as e:
+            logger.info("5-5) 팀 파비콘 없음.")
             print("❌ 이미지 추출 실패:", e)
 
         try:
             # 정확한 클래스들이 모두 포함된 img 요소를 찾음
+            logger.info("5-6) 크롤링 재시도 중..")
             img = driver.find_element(
                 "xpath",
                 '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
             )
             img_url = img.get_attribute("src")
-            print("✅ 정확한 위치의 이미지 URL:", img_url)
-
-            canny_logo = self.get_image(img_url)
-            
-            print("created logo")
-            return canny_logo
+            if img_url:
+                logger.info(f"5-7) 팀 이미지 확인. URL: {img_url}")
+                canny_logo = self.get_image(img_url)
+                
+                logger.info("5-8) 로고 생성 완료")
+                return canny_logo
 
         except Exception as e:
-            print("❌ 이미지 추출 실패:", e)
+            logger.error("5-8) 팀 로고 불러오기 실패")
         
 
         finally:
@@ -192,7 +202,7 @@ class BadgePrompt:
 
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
-        print("created badge")
+        logger.info("5-9) 뱃지 이미지 생성 완료.")
         cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge

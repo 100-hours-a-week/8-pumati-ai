@@ -4,11 +4,15 @@ from io import BytesIO
 from typing import List
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+import logging
 
 from app.fast_api.schemas.badge_schemas import BadgeRequest
 from app.model_inference.badge_inference_runner import generate_image
 
 BE_SERVER = os.getenv("BE_SERVER_URL")
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class BadgeService:
     def __init__(self):
@@ -20,6 +24,8 @@ class BadgeService:
         content_type = "image/png"
 
         # 1) Pre-signed URL 요청
+        logger.info("8-2) Presigned URL 요청")
+        logger.info(f"8-3) {BE_SERVER}/api/pre-signed-url으로 post요청.")
         response = requests.post(f"{BE_SERVER}/api/pre-signed-url", json={
             "fileName": file_name,
             "contentType": content_type
@@ -34,6 +40,7 @@ class BadgeService:
         public_url = upload_data["publicUrl"]
 
         # 2. S3에 PUT으로 이미지 업로드
+        logger.info(f"8-4) {upload_url}에 put요청.")
         upload_response = requests.put(
             upload_url,
             data=image_bytes.getvalue(),
@@ -95,12 +102,15 @@ class BadgeService:
         '''
         BadgeService의 메인 기능.
         '''
+        logger.info("4-1) badge 이미지 생성 시작")
         # 1) 이미지 생성하기
         image = generate_image(mod_tags, team_number, request_data)
 
         # 2) 팀 title 입력
+        logger.info("7-1) teamtitle 붙여주기")
         image_final = self.draw_rotated_text(image, (400, 400), 280, request_data.title)
 
+        logger.info("8-1) Presigned URL 가져오기")
         # 3) 이미지 메모리 스트림 변환
         with BytesIO() as image_bytes:
             image_final.save(image_bytes, format="PNG")
