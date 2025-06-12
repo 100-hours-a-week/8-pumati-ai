@@ -130,7 +130,7 @@ class BadgePrompt:
         # chrome_options.add_argument('--disable-dev-shm-usage')
 
         logger.info("4-5) 크롬 트라이버 생성중...")
-        driver_path = ChromeDriverManager(version="137.0.7151.70").install()
+        driver_path = ChromeDriverManager(driver_version="137.0.7151.70").install()
         os.chmod(driver_path, stat.S_IRWXU)
         service = Service(driver_path)
 
