@@ -10,6 +10,7 @@ from app.github_crawling.issue_connect_pr_check import fetch_pr_from_issue
 from collections import defaultdict
 import hashlib
 from app.github_crawling.github_api import fetch_wiki_md_files
+from uuid import uuid5, NAMESPACE_DNS
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -17,9 +18,9 @@ load_dotenv()
 def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, team_id: int):
     chunks = split_text(raw)
     for idx, chunk in enumerate(chunks):
-        chunk_id = f"{doc_id_prefix}_chunk{idx}"
+        chunk_id = str(uuid5(NAMESPACE_DNS, f"{doc_id_prefix}_chunk{idx}"))
         if is_id_exists(chunk_id):
-            print(f"⚠️ 이미 저장된 ID: {chunk_id} → 생략")
+            print(f"➡️ 이미 저장된 ID: {chunk_id} → 생략")
             continue
         try:
             embedding = get_embedding(chunk)
@@ -75,7 +76,7 @@ def main():
             content_hash = hash_text(raw)
             doc_id_prefix = f"{repo}_{doc_type}_{content_hash}"
             if is_id_exists(doc_id_prefix + "_chunk0"):
-                print(f"⚠️ {doc_type} 변경 없음 → 생략")
+                print(f"➡️ {doc_type} 변경 없음 → 생략")
             else:
                 save_vector_entry(raw, doc_id_prefix, repo, project_id, team_id)
 
@@ -97,7 +98,11 @@ def main():
         try:
             wiki_pages = fetch_wiki_md_files(repo)
             for filename, content in wiki_pages.items():
-                doc_id_prefix = f"{repo}_wiki_{filename}"
+                content_hash = hash_text(content)
+                doc_id_prefix = f"{repo}_wiki_{content_hash}"
+                if is_id_exists(doc_id_prefix + "_chunk0"):
+                    print(f"➡️ Wiki {filename} 중복 감지됨 → 생략")
+                    continue
                 save_vector_entry(
                     raw=content,
                     doc_id_prefix=doc_id_prefix,

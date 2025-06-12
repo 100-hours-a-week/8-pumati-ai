@@ -21,3 +21,6 @@ __pycache__/
 
 # 크로마 디비
 chroma_db/
+chroma.log
+chroma.sqlite3
+chroma_db_weight/
