@@ -21,15 +21,25 @@ client = QdrantClient(
     api_key=QDRANT_API_KEY
 )
 
-# 1. 컬렉션이 존재하면 삭제
-if client.collection_exists(collection_name=QDRANT_COLLECTION):
-    client.delete_collection(collection_name=QDRANT_COLLECTION)
+if not client.collection_exists(collection_name=QDRANT_COLLECTION):
+    print(f"✨ '{QDRANT_COLLECTION}' 컬렉션이 존재하지 않아 새로 생성합니다.")
+    
+    # 컬렉션 생성
+    client.create_collection(
+        collection_name=QDRANT_COLLECTION,
+        vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
+    )
 
-# 2. 새 컬렉션 생성
-client.create_collection(
-    collection_name=QDRANT_COLLECTION,
-    vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
-)
+    # 필드별 인덱스 생성
+    client.create_payload_index(QDRANT_COLLECTION, field_name="project_id", field_schema=PayloadSchemaType.INTEGER)
+    client.create_payload_index(QDRANT_COLLECTION, field_name="team_id", field_schema=PayloadSchemaType.KEYWORD)
+    client.create_payload_index(QDRANT_COLLECTION, field_name="repo", field_schema=PayloadSchemaType.KEYWORD)
+    client.create_payload_index(QDRANT_COLLECTION, field_name="type", field_schema=PayloadSchemaType.KEYWORD)
+    client.create_payload_index(QDRANT_COLLECTION, field_name="weight", field_schema=PayloadSchemaType.FLOAT)
+    client.create_payload_index(QDRANT_COLLECTION, field_name="date", field_schema=PayloadSchemaType.TEXT)
+
+else:
+    print(f"➡️ '{QDRANT_COLLECTION}' 컬렉션이 이미 존재합니다. 생성을 생략합니다.")
 
 # 3. 필드별 인덱스 생성
 # payload_schema 인자를 sync client가 허용하지 않아서 필드별 인덱스 수동 생성
