@@ -49,7 +49,7 @@ class GeminiLangChainLLM(LLM):
                 if split_point != -1:
                     partial = buffer[:split_point + 1]
                     buffer = buffer[split_point + 1:]
-                    print("⚠️ Gemini buffer partial:", repr(partial))
+                    print("💭 Gemini buffer partial:", repr(partial))
                     yield partial
 
         # 남은 버퍼 처리

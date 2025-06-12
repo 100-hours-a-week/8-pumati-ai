@@ -19,7 +19,7 @@ def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, 
     for idx, chunk in enumerate(chunks):
         chunk_id = f"{doc_id_prefix}_chunk{idx}"
         if is_id_exists(chunk_id):
-            print(f"⚠️ 이미 저장된 ID: {chunk_id} → 생략")
+            print(f"➡️ 이미 저장된 ID: {chunk_id} → 생략")
             continue
         try:
             embedding = get_embedding(chunk)
@@ -75,7 +75,7 @@ def main():
             content_hash = hash_text(raw)
             doc_id_prefix = f"{repo}_{doc_type}_{content_hash}"
             if is_id_exists(doc_id_prefix + "_chunk0"):
-                print(f"⚠️ {doc_type} 변경 없음 → 생략")
+                print(f"➡️ {doc_type} 변경 없음 → 생략")
             else:
                 save_vector_entry(raw, doc_id_prefix, repo, project_id, team_id)
 
