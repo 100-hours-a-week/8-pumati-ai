@@ -81,7 +81,27 @@ class BadgePrompt:
                 closest_name = name
 
         return closest_name
+    
+    def get_image(self, url):
+        response = requests.get(url)
+        img = Image.open(BytesIO(response.content)).convert("RGB")
 
+        small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
+
+        # 색상 목록 추출 (flatten)
+        pixels = list(small_img.getdata())
+
+        # 가장 많이 쓰인 색 찾기
+        color_counts = Counter(pixels)
+        most_common_colors = color_counts.most_common(3)
+        css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
+        color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors]
+        # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
+        self.color = ', '.join(color_names)
+
+        cv_image_logo = np.array(img)
+        canny_logo = cv2.Canny(cv_image_logo, 50, 150)
+        return canny_logo
 
     def get_disquiet_exact_team_image(self, team_title: str):
         url = f"https://disquiet.io/product/{team_title}"
@@ -105,24 +125,7 @@ class BadgePrompt:
             if icon_link and icon_link.get("href"):
                 #print(urljoin(page_url, icon_link["href"]))
                 ################# 공통부분 묶기
-                response = requests.get(img_url)
-                img = Image.open(BytesIO(response.content)).convert("RGB")
-
-                small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
-
-                # 색상 목록 추출 (flatten)
-                pixels = list(small_img.getdata())
-
-                # 가장 많이 쓰인 색 찾기
-                color_counts = Counter(pixels)
-                most_common_colors = color_counts.most_common(5)
-                css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
-                color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors]
-                # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
-                self.color = ', '.join(color_names)
-
-                cv_image_logo = np.array(img)
-                canny_logo = cv2.Canny(cv_image_logo, 50, 150)
+                canny_logo = self.get_image(page_url)
                 #####################
                 return canny_logo
 
@@ -137,25 +140,9 @@ class BadgePrompt:
             )
             img_url = img.get_attribute("src")
             print("✅ 정확한 위치의 이미지 URL:", img_url)
-            response = requests.get(img_url)
-            img = Image.open(BytesIO(response.content)).convert("RGB")
 
-            small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
-
-            # 색상 목록 추출 (flatten)
-            pixels = list(small_img.getdata())
-
-            # 가장 많이 쓰인 색 찾기
-            color_counts = Counter(pixels)
-            most_common_colors = color_counts.most_common(5)
-            css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
-            color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors]
-            # 색상명 리스트 추출
-            print(color_names)  # 예: ['red', 'lime', 'blue']
-            self.color = ', '.join(color_names)
-
-            cv_image_logo = np.array(img)
-            canny_logo = cv2.Canny(cv_image_logo, 50, 150)
+            canny_logo = self.get_image(img_url)
+            
             print("created logo")
             return canny_logo
 
@@ -211,7 +198,7 @@ class BadgePrompt:
         return canny_badge
 
     
-    def modi_mapping(mod_tags):
+    def modi_mapping(self, mod_tags):
         if mod_tags == "원본":
             return " "
         elif mod_tags == "몽환적인":
@@ -250,7 +237,7 @@ if __name__ == '__main__':
 
 
     dummy_data = BadgeModifyRequest(
-        modificationTags=["귀엽게", "예쁘게"],
+        modificationTags="몽환적인",
         projectSummary=BadgeRequest(
             title="품앗이",
             introduction="카카오테크 부트캠프를 위한 트래픽 품앗이 플랫폼",
@@ -272,10 +259,14 @@ if __name__ == '__main__':
     cv2.imwrite("logo_canny.png", canny_badge)
 
 
-    plt.imshow(badge_canny)
-    plt.show()
+    # plt.imshow(badge_canny)
+    # plt.show()
 
 #터미널에서 실행시키기   
 #PYTHONPATH=/Users/hbin/KTD/pumati-ai/8-pumati-ai \
 #/Users/hbin/KTD/pumati-ai/8-pumati-ai/.venv/bin/python \
 #/Users/hbin/KTD/pumati-ai/8-pumati-ai/app/context_construction/prompts/badge_prompt.py
+
+# PYTHONPATH=/Users/hbin/KTD/pumati-ai/8-pumati-ai \
+# /Users/hbin/KTD/pumati-ai/8-pumati-ai/.venv/bin/python \
+# /Users/hbin/KTD/pumati-ai/8-pumati-ai/app/context_construction/prompts/badge_prompt.py
