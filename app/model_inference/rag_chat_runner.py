@@ -1,8 +1,7 @@
 # app/model_inference/rag_chat_runner.py
 
 import os
-from typing import List, Callable, Any
-
+from typing import List
 from dotenv import load_dotenv
 
 from qdrant_client import QdrantClient
