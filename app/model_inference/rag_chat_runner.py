@@ -25,15 +25,7 @@ from app.model_inference.loaders.gemini import GeminiLangChainLLM
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 FILTERED_RESPONSE = """\
-💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 
-팀 프로젝트와 관련된 질문에만 응답할 수 있어요.
-
-예:
-• "이 팀의 프로젝트는 어떤 프로젝트야?"
-• "어떤 기능들이 있어?"
-• "최근에는 어떤 기능 추가했어?"
-
-이런 식으로 질문해 주시면 열심히 도와드릴게요! ☺️"""
+💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요!\n팀 프로젝트와 관련된 질문에만 응답할 수 있어요.\n\n예:\n• "이 팀의 프로젝트는 어떤 프로젝트야?"\n• "어떤 기능들이 있어?"\n• "최근에는 어떤 기능 추가했어?"\n\n이런 식으로 질문해 주시면 열심히 도와드릴게요! ☺️"""
 
 load_dotenv()
 
@@ -51,7 +43,11 @@ class StreamingLLMWrapper(Runnable):
 
     async def astream(self, input, config=None):
         async for token in self.llm.astream(input, config=config):
-            yield token
+            for char in token:
+                if char == '\n':
+                    yield '\\n' # 줄바꿈 문자를 특정 문자열로 치환하여 yield
+                else:
+                    yield char
 
 class WeightedQdrantRetriever(BaseRetriever):
     vectorstore: QdrantVectorStore
@@ -61,7 +57,7 @@ class WeightedQdrantRetriever(BaseRetriever):
     def _get_relevant_documents(self, query: str, *, config=None) -> List[Document]:
         # 쿼리 임베딩 생성
         # 'embedding' 대신 'embeddings'를 사용합니다.
-        query_embedding = self.vectorstore.embeddings.embed_query(query) # <--- 여기가 변경되었습니다!
+        query_embedding = self.vectorstore.embeddings.embed_query(query) 
         
         results = self.vectorstore.client.search(
             collection_name=self.vectorstore.collection_name,
@@ -175,8 +171,8 @@ async def run_rag_streaming(question: str, project_id: int):
     # LangSmith에 문서 정보 traceable하게 남기기
     retrieved_doc_metadata = [
     {
-        **doc.metadata,  # 모든 메타데이터 포함
-        "page_content": doc.page_content[:300]  # 선택적으로 일부 내용 포함
+        **doc.metadata, # 모든 메타데이터 포함
+        "page_content": doc.page_content[:300] # 선택적으로 일부 내용 포함
     }
     for doc in docs
 ]
@@ -202,9 +198,13 @@ async def run_rag_streaming(question: str, project_id: int):
                 }
             )
 
-    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.1:
-        for line in FILTERED_RESPONSE.strip().splitlines():
-            yield line
+    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.2:
+        # FILTERED_RESPONSE의 각 글자를 순회하며 yield하되, 줄바꿈은 치환
+        for char in FILTERED_RESPONSE:
+            if char == '\n':
+                yield '\\n' # 줄바꿈 문자를 특정 문자열로 치환하여 yield
+            else:
+                yield char
         return
 
     # 프롬프트 구성
@@ -231,7 +231,7 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 응답 스트리밍 처리
-    full_response_content = []
+    # full_response_content = [] # <-- 이 부분은 사용되지 않아 주석 처리 또는 삭제할 수 있습니다.
     async for chunk in chain.astream(prompt_input, config=config):
-        full_response_content.append(chunk)
+        # full_response_content.append(chunk) # <-- 이 부분도 사용되지 않아 주석 처리 또는 삭제할 수 있습니다.
         yield chunk
