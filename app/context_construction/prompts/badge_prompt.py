@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 
-import logging
+import logging, os, stat
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -113,13 +113,23 @@ class BadgePrompt:
         url = f"https://disquiet.io/product/{team_title}"
         page_url = self.data.deploymentUrl 
 
+        # options = Options()
+        # options.add_argument("--headless")
+        # options.add_argument("--no-sandbox")
+        # options.add_argument("--disable-dev-shm-usage")
         options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--headless")  # GUI 없이 실행
+        options.add_argument("--no-sandbox")  # 권한 문제 회피
+        options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
+        options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
+        options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
 
         logger.info("4-5) 크롬 트라이버 생성중...")
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver_path = ChromeDriverManager().install()
+        os.chmod(driver_path, stat.S_IRWXU)
+
+        driver = webdriver.Chrome(driver_path, options=options)
+        #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get(url)
         time.sleep(3)  # JS 렌더링 대기
 
