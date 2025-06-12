@@ -1,14 +1,20 @@
 # PyTorch 2.7.0 with CUDA 12.1 (공식 이미지)
 FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+
+# syntax=docker/dockerfile:1.4
+#FROM --platform=linux/amd64 pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+
 #FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn8-devel
 #FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn8-runtime
 #2.7.0-cuda11.8-cudnn8-runtime
 
-# 기본 시스템 패키지 설치
+# 기본 시스템 패키지 설치: libglib2.0-0, libgl1은 cv2라이브러리 실행을 위한 필수 패키지. 
 RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libgl1 \
     git \
     curl \
-    libgl1-mesa-glx \
+    #libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 # 작업 디렉토리 설정

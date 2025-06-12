@@ -23,7 +23,7 @@ class BadgeModel:
         if BadgeModel._is_authenticated:
             return
         load_dotenv()
-        token = os.getenv("HF_AUTH_TOKEN")
+        token = os.getenv("HF_AUTH_TOKEN_VICKY")
         if not token:
             raise EnvironmentError("HF_AUTH_TOKEN is not set in .env file.")
         login(token=token)
