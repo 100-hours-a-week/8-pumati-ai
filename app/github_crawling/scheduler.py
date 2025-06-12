@@ -18,8 +18,11 @@ def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, 
     chunks = split_text(raw)
     for idx, chunk in enumerate(chunks):
         chunk_id = f"{doc_id_prefix}_chunk{idx}"
-        if is_id_exists(chunk_id):
-            print(f"➡️ 이미 저장된 ID: {chunk_id} → 생략")
+        # 중복 방지: UUID 기준으로 동일 ID 생성하여 체크
+        from uuid import uuid5, NAMESPACE_DNS
+        uuid_id = str(uuid5(NAMESPACE_DNS, chunk_id))
+        if is_id_exists(uuid_id):
+            print(f"➡️ UUID 기준 이미 저장된 ID: {chunk_id} → 생략")
             continue
         try:
             embedding = get_embedding(chunk)
