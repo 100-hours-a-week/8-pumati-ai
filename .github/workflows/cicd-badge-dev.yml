@@ -100,7 +100,8 @@ jobs:
           
           # 환경 변수들을 개별적으로 추출
           export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
-          export HF_AUTH_TOKEN=$(grep "HF_AUTH_TOKEN=" temp_env | grep -v "HF_AUTH_TOKEN_VICKY=" | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          # HF_AUTH_TOKEN_VICKY를 HF_AUTH_TOKEN으로도 사용 (호환성을 위해)
+          export HF_AUTH_TOKEN=${HF_AUTH_TOKEN_VICKY}
           export GCP_PROJECT_ID=$(grep "GCP_PROJECT_ID=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           export ARTIFACT_REGISTRY_LOCATION=$(grep "ARTIFACT_REGISTRY_LOCATION=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           export GCP_QUEUE_NAME=$(grep "GCP_QUEUE_NAME=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
