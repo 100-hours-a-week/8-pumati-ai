@@ -68,7 +68,6 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
     metadata["weight"] = weight
 
     print("✅  저장 직전 metadata:", metadata)
-    print("✅ project_id 타입:", type(metadata.get("project_id")))
 
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 문자열 doc_id → UUID 변환
 
