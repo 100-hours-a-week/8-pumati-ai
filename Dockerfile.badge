@@ -1,6 +1,5 @@
 # PyTorch 2.7.0 with CUDA 12.1 (공식 이미지)
 FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
-
 # syntax=docker/dockerfile:1.4
 #FROM --platform=linux/amd64 pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
 
@@ -14,6 +13,16 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     git \
     curl \
+    chromium-browser \
+    chromium-chromedriver \
+    wget \
+    unzip \
+    libnss3 \
+    libxss1 \
+    libappindicator3-1 \
+    libasound2 \
+    fonts-liberation \
+    xdg-utils \
     #libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
