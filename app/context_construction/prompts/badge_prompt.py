@@ -90,7 +90,8 @@ class BadgePrompt:
     def get_image(self, url):
         response = requests.get(url)
         img = Image.open(BytesIO(response.content)).convert("RGB")
-
+        # plt.imshow(img)  
+        # plt.show()
         small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
 
         # 색상 목록 추출 (flatten)
@@ -117,27 +118,31 @@ class BadgePrompt:
         # options.add_argument("--headless")
         # options.add_argument("--no-sandbox")
         # options.add_argument("--disable-dev-shm-usage")
-        # options = Options()
-        # options.add_argument("--headless")  # GUI 없이 실행
-        # options.add_argument("--no-sandbox")  # 권한 문제 회피
-        # options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
-        # options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
-        # options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
+        options = Options()
+        options.add_argument("--headless")  # GUI 없이 실행
+        options.add_argument("--no-sandbox")  # 권한 문제 회피
+        options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
+        options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
+        options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
+        # chrome_options = webdriver.ChromeOptions()
+        # chrome_options.add_argument('--headless')
+        # chrome_options.add_argument('--no-sandbox')
+        # chrome_options.add_argument('--disable-dev-shm-usage')
 
         logger.info("4-5) 크롬 트라이버 생성중...")
         driver_path = ChromeDriverManager().install()
         os.chmod(driver_path, stat.S_IRWXU)
         service = Service(driver_path)
 
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver = webdriver.Chrome(service=service, options=options)
+
+        #version = get_chromedriver_version(driver_path)
+        #logger.info(f"사용 중인 chromedriver 버전: {version}")
         #driver = webdriver.Chrome(service=service, chrome_options=chrome_options)
         #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.get(url)
+        driver.get(page_url)
         time.sleep(3)  # JS 렌더링 대기
+        logger.info("4-6) 크롬 접속 가능함")
 
         try:
             resp = requests.get(page_url)
@@ -146,34 +151,48 @@ class BadgePrompt:
             # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
             icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
             if icon_link and icon_link.get("href"):
-                logger.info("4-6) 팀 파비콘 있음.")
-                #print(urljoin(page_url, icon_link["href"]))
-                ################# 공통부분 묶기
-                canny_logo = self.get_image(page_url)
-                #####################
+                logger.info("4-7) 팀 파비콘 있음.")
+                favicon_url = urljoin(page_url, icon_link["href"])
+                canny_logo = self.get_image(favicon_url)
+
                 return canny_logo
-
-        except Exception as e:
-            logger.info("4-6) 팀 파비콘 없음.")
-            print("❌ 이미지 추출 실패:", e)
-
-        try:
-            # 정확한 클래스들이 모두 포함된 img 요소를 찾음
-            logger.info("4-7) 크롤링 재시도 중..")
-            img = driver.find_element(
-                "xpath",
-                '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
-            )
-            img_url = img.get_attribute("src")
-            if img_url:
-                logger.info(f"4-8) 팀 이미지 확인. URL: {img_url}")
-                canny_logo = self.get_image(img_url)
+            else:
+                logger.info("4-8) 크롤링 재시도 중..")
+                driver.get(url=url)
+                img = driver.find_element(
+                    "xpath",
+                    '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+                )
+                img_url = img.get_attribute("src")
+                if img_url:
+                    logger.info(f"4-9) 팀 이미지 확인. URL: {img_url}")
+                    canny_logo = self.get_image(img_url)
+                    
+                    logger.info("4-10) 로고 생성 완료")
+                    return canny_logo
                 
-                logger.info("4-9) 로고 생성 완료")
-                return canny_logo
 
         except Exception as e:
-            logger.error("4-9) 팀 로고 불러오기 실패")
+            logger.info("4-10) 팀 파비콘 없음.")
+            # print("❌ 이미지 추출 실패:", e)
+
+            # try:
+                # 정확한 클래스들이 모두 포함된 img 요소를 찾음
+                # logger.info("4-8) 크롤링 재시도 중..")
+                # img = driver.find_element(
+                #     "xpath",
+                #     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+                # )
+                # img_url = img.get_attribute("src")
+                # if img_url:
+                #     logger.info(f"4-9) 팀 이미지 확인. URL: {img_url}")
+                #     canny_logo = self.get_image(img_url)
+                    
+                #     logger.info("4-10) 로고 생성 완료")
+                #     return canny_logo
+
+            # except Exception as e:
+            #     logger.error("4-10) 팀 로고 불러오기 실패")
         
 
         finally:
@@ -190,7 +209,7 @@ class BadgePrompt:
         """
         # 이미지 열기
         badge = Image.fromarray(self.generate_corrected_badge(self.data.teamNumber)).convert("L")
-        logo = Image.fromarray(self.get_disquiet_exact_team_image(self.data.title)).convert("L")   
+        logo = Image.fromarray(self.get_disquiet_exact_team_image(self.data.title)).convert("L")
 
         # 중심점 및 삽입 가능 영역 크기
         center = (badge.width // 2, badge.height // 2)
@@ -218,7 +237,7 @@ class BadgePrompt:
 
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
-        logger.info("4-10) 뱃지 이미지 생성 완료.")
+        logger.info("4-11) 뱃지 이미지 생성 완료.")
         cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
