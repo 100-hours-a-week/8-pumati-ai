@@ -13,5 +13,5 @@ class BadgeRequest(BaseModel):
     teamNumber: int
 
 class BadgeModifyRequest(BaseModel):
-    modificationTags: List[str]
+    modificationTags: str
     projectSummary: BadgeRequest

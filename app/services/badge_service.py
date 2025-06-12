@@ -1,7 +1,9 @@
-import os
+import os, math
 import requests
 from io import BytesIO
 from typing import List
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 
 from app.fast_api.schemas.badge_schemas import BadgeRequest
 from app.model_inference.badge_inference_runner import generate_image
@@ -47,20 +49,65 @@ class BadgeService:
 
         return public_url 
 
-    def generate_and_save_badge(self, mod_tags: List[str], team_number: int, request_data: BadgeRequest):
+    def draw_rotated_text(self, base_image, draw_center, radius, text, total_angle=90, start_angle=-90):
+        chars = list(text)
+
+        thresholds = [6, 9, 12, 15]
+        angles = [60, 90, 120, 150]
+
+        for t, a in zip(thresholds, angles):
+            if len(chars) - 1 < t:
+                total_angle = a
+                break
+        else:
+            total_angle = 180
+
+        font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 50)
+        angle_step = total_angle / (len(chars) - 1) if len(chars) > 1 else 0
+        base_angle = start_angle - total_angle / 2 #첫 글자의 위치(+는 시계방향, -는 반시계방향임.)
+
+        # 각 글자를 알맞은 각도에 맞게 돌리기.
+        for i, ch in enumerate(chars):
+            angle_deg = base_angle + i * angle_step 
+            angle_rad = math.radians(angle_deg)
+            x = draw_center[0] + int(radius * math.cos(angle_rad))
+            y = draw_center[1] + int(radius * math.sin(angle_rad))
+
+            dx = abs(draw_center[0] - x)
+            dy = abs(draw_center[1] - y)
+            base_rotation = np.rad2deg(np.arctan2(dx, dy))
+
+            if i < len(text) // 2:
+                rotation = base_rotation
+            else:
+                rotation = - base_rotation
+
+            char_img = Image.new("RGBA", (65, 65), (255, 255, 255, 0))  # 완전 투명 배경, text의 기본 틀
+            char_draw = ImageDraw.Draw(char_img)
+            char_draw.text((25, 25), ch, font=font, fill=(0, 0, 0, 255), anchor="mm") #(255, 215, 0, 255)
+
+            rotated_char = char_img.rotate(rotation, center=(25, 25), resample=Image.Resampling.BICUBIC)
+            base_image.paste(rotated_char, (x - 25, y - 25), rotated_char)
+
+        return base_image
+
+    def generate_and_save_badge(self, mod_tags: str, team_number: int, request_data: BadgeRequest):
         '''
         BadgeService의 메인 기능.
         '''
         # 1) 이미지 생성하기
         image = generate_image(mod_tags, team_number, request_data)
 
-        # 2) 이미지 메모리 스트림 변환
+        # 2) 팀 title 입력
+        image_final = self.draw_rotated_text(image, (400, 400), 280, request_data.title)
+
+        # 3) 이미지 메모리 스트림 변환
         with BytesIO() as image_bytes:
-            image.save(image_bytes, format="PNG")
+            image_final.save(image_bytes, format="PNG")
             image_bytes.seek(0)
             public_url = self.create_url(image_bytes, team_number)
 
-        # 3) S3에 저장 후 url 반환받기
+        # 4) S3에 저장 후 url 반환받기
         public_url = self.create_url(image_bytes, team_number)
 
         return public_url

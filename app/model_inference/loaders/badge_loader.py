@@ -6,7 +6,7 @@ import torch
 
 
 # "Controlnet -> SDXL -> REFINEMODEL" 구조로, 모델 3개 사용예정.
-CONTROLNET_NAME = "diffusers/controlnet-canny-sdxl-1.0"
+CONTROLNET_NAME = "diffusers/controlnet-canny-sdxl-1.0-small"
 MODEL_NAME = "stabilityai/stable-diffusion-xl-base-1.0"
 REFINEMODEL_NAME = "stabilityai/stable-diffusion-xl-refiner-1.0"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

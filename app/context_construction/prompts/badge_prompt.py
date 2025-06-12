@@ -15,20 +15,16 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
-#from webcolors import rgb_to_name, CSS3_HEX_TO_NAMES
-import webcolors 
 
 class BadgePrompt:
     def __init__(self, data: BadgeRequest):
         self.data = data
         self.color= None
     
-    def generate_corrected_badge(self, service_name: str, number: int, image_size: int = 800):
+    def generate_corrected_badge(self, number: int, image_size: int = 800):
         center = (image_size // 2, image_size // 2)
         outer_radius = 350
-        mid_radius = 330
         inner_radius = 240
-        arc_radius = 270
 
         # 1. 흰 배경 생성
         base = Image.new("L", (image_size, image_size), 255)
@@ -45,120 +41,25 @@ class BadgePrompt:
         draw_full_circle(draw, outer_radius)
 
         # 3. 중간/내부 원 - 상단 90도만 그리기 (45도~135도)
-        def draw_top_arc(draw_obj, radius, keep_start=-210, keep_end=30, thickness=1):
+        def draw_top_arc(draw_obj, radius, keep_start=-150 , keep_end=-30, thickness=1): #(-210, 30), (-245, 65), (-150,-30)
             for angle in range(keep_start, keep_end):
                 theta = math.radians(angle)
                 x = center[0] + int(radius * math.cos(theta))
                 y = center[1] + int(radius * math.sin(theta))
                 draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
 
-        draw_top_arc(draw, mid_radius)
         draw_top_arc(draw, inner_radius)
 
-        def draw_lines_on_image(draw_obj, line_width=3):
-            """
-            이미지에 여러 쌍의 점을 선으로 연결합니다.
-
-            Parameters:
-            - image: PIL.Image 객체
-            - point_pairs: [(x1, y1), (x2, y2)] 형태의 좌표쌍 리스트
-            - line_color: 선 색상 (RGB 튜플)
-            - line_width: 선 두께
-            """
-            point_pairs = [
-                ((118, 570), (194, 525)),
-                ((606, 521), (685, 565))
-            ]
-
-            for start, end in point_pairs:
-                draw_obj.line([start, end], width=line_width)
-
-
-        # 함수 호출
-        draw_lines_on_image(draw, line_width=3)
-
-
-        # 4. 좌우 아치형 곡선
-        def draw_arc(draw_obj, radius, start_angle, end_angle, thickness=4):
-            for angle in range(start_angle, end_angle):
-                theta = math.radians(angle)
-                x = center[0] + int(radius * math.cos(theta))
-                y = center[1] + int(radius * math.sin(theta))
-                draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
-
-        draw_arc(draw, arc_radius, -245, -225) #160, 270)       # 왼쪽 아치
-        draw_arc(draw, arc_radius, 45, 65) #-90 % 360, 20)  # 오른쪽 아치
-
-        # 5. 숫자 텍스트 삽입
-        number_font = ImageFont.truetype("./app/utils/Pretendard-ExtraBold.ttf", 100)
+        # 4. 숫자 텍스트 삽입
+        number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 100)
         number_text = str(number)
         bbox = draw.textbbox((0, 0), number_text, font=number_font)
-        text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font)
+        text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font) 
 
-        #6. 서비스명 아치형 회전 텍스트
-        def draw_rotated_text(draw_center, text, radius, total_angle=90, start_angle=-90):
-            chars = list(text)
 
-            if len(chars) -1 < 6:
-                total_angle = 60
-
-            elif len(chars) -1 < 9:
-                total_angle = 90
-
-            elif len(chars) -1 < 12:
-                total_angle = 120
-
-            elif len(chars) -1 < 15:
-                total_angle = 150
-
-            else:
-                total_angle = 180
-
-            font = ImageFont.truetype("./app/utils/Pretendard-ExtraLight.ttf", 55)
-            angle_step = total_angle / (len(chars) - 1) if len(chars) > 1 else 0
-            base_angle = start_angle - total_angle / 2
-
-            for i, ch in enumerate(chars):
-                angle_deg = base_angle + i * angle_step
-                angle_rad = math.radians(angle_deg)
-                x = draw_center[0] + int(radius * math.cos(angle_rad))
-                y = draw_center[1] + int(radius * math.sin(angle_rad))
-
-                dx = abs(draw_center[0] - x)
-                dy = abs(draw_center[1] - y)
-                base_rotation = np.rad2deg(np.arctan2(dx, dy))
-                #print("dx", dx, "dy", dy, "arctan2", base_rotation)
-
-                if i < len(text) // 2:
-                    rotation = base_rotation
-                else:
-                # 전체 90도 시계 반대 회전
-                    rotation = - base_rotation
-
-                # char_img = Image.new("L", (65, 65), 255)
-                # char_draw = ImageDraw.Draw(char_img)
-                # # bbox = char_draw.textbbox((x, y), ch, font=font, anchor="mm")
-                # # char_draw.rectangle(bbox, outline="red")
-                # char_draw.text((25, 25), ch, font=font, fill=0, anchor="mm")
-                # rotated_char = char_img.rotate(rotation, center=(25, 25), resample=Image.Resampling.BICUBIC, expand=False)
-                # rotated_char_rgba = rotated_char.convert("RGBA")
-                # #rotated_char = char_img.rotate(rotation, center=(25, 25), resample=Image.Resampling.BICUBIC)
-                # base.paste(rotated_char_rgba, (x - 25, y - 25), rotated_char_rgba)
-                char_img = Image.new("RGBA", (65, 65), (255, 255, 255, 0))  # 완전 투명 배경
-                char_draw = ImageDraw.Draw(char_img)
-                char_draw.text((25, 25), ch, font=font, fill=(0, 0, 0, 255), anchor="mm")
-
-                rotated_char = char_img.rotate(rotation, center=(25, 25), resample=Image.Resampling.BICUBIC)
-                base.paste(rotated_char, (x - 25, y - 25), rotated_char)
-
-        draw_rotated_text(center, service_name, radius=280)
-
-        # 7. Canny 엣지 적용 및 저장
+        # 5. Canny 엣지 적용 및 저장
         cv_image = np.array(base)
-        #cv_image = cv2.cvtColor(np.array(base), cv2.COLOR_RGB2GRAY)
-        # plt.imshow(cv_image)
-        # plt.show()
         canny_image = cv2.Canny(cv_image, 30, 100)
         print("created badge background")
         return canny_image
@@ -184,7 +85,7 @@ class BadgePrompt:
 
     def get_disquiet_exact_team_image(self, team_title: str):
         url = f"https://disquiet.io/product/{team_title}"
-        page_url = self.data.deploymentUrl #f"https://youtil.co.kr/"
+        page_url = self.data.deploymentUrl 
 
         options = Options()
         options.add_argument("--headless")
@@ -217,8 +118,7 @@ class BadgePrompt:
                 most_common_colors = color_counts.most_common(5)
                 css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
                 color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors]
-                # 색상명 리스트 추출
-                print(color_names)  # 예: ['red', 'lime', 'blue']
+                # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
                 self.color = ', '.join(color_names)
 
                 cv_image_logo = np.array(img)
@@ -276,8 +176,8 @@ class BadgePrompt:
             max_half_size (int): 중심 기준 최대 절반 크기 (기본: 120)
         """
         # 이미지 열기
-        badge = Image.fromarray(self.generate_corrected_badge(self.data.title, self.data.teamNumber)).convert("L")#Image.open(badge_path).convert("L")
-        logo = Image.fromarray(self.get_disquiet_exact_team_image(self.data.title)).convert("L")#Image.open(logo_path).convert("L")   
+        badge = Image.fromarray(self.generate_corrected_badge(self.data.teamNumber)).convert("L")
+        logo = Image.fromarray(self.get_disquiet_exact_team_image(self.data.title)).convert("L")   
 
         # 중심점 및 삽입 가능 영역 크기
         center = (badge.width // 2, badge.height // 2)
@@ -310,11 +210,30 @@ class BadgePrompt:
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
 
-    def build_badge_prompt(self, mod_tags: List[str], team_number: int) -> str:
+    
+    def modi_mapping(mod_tags):
+        if mod_tags == "원본":
+            return " "
+        elif mod_tags == "몽환적인":
+            return "Watercolor"
+        elif mod_tags == "화려한":
+            return "glittery style with sparkling particles"
+        elif mod_tags == "80년대 개성적인":
+            return "in vaporwave aesthetic"
+        elif mod_tags == "십자수":
+            return "embroidered patch style"
+        elif mod_tags == "가죽":
+            return "Leather Patch Style"
+        elif mod_tags == "우드":
+            return "Wood Burned Badge"
+    
+
+    def build_badge_prompt(self, mod_tags: str, team_number: int) -> str:
         if mod_tags == None:
-            return f"A kawaii badge with {self.data.title} on the top(it can be Hangul), number {team_number} on bottom and colored character on the middle of the image. Watercolor. Pixiv, Modernist. point {self.color} color with gradation inside the badge, iridescent gold. rimlighting, halo"
+            return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient without any other color, soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows"""
+        #f"A kawaii badge with {self.data.title} on the top(it can be Hangul), number {team_number} on bottom and colored character on the middle of the image. Watercolor. Pixiv, Modernist. point {self.color} color with gradation inside the badge, iridescent gold. rimlighting, halo"
         else:
-            return f"A kawaii badge with {self.data.title} on the top(it can be Hangul), number {team_number} on bottom and colored character on the middle of the image. Watercolor. Pixiv, Modernist. point {self.color} color with gradation inside the badge, iridescent gold. rimlighting, halo. more {','.join(mod_tags)}"
+            return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient. {self.modi_mapping(mod_tags)}. soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows."""
 
     # 아래는 한국어 -> 영어로 변환.
     def translate_korean_to_english(self, korean_prompt: str) -> str:

@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from typing import List
 
-def generate_image(mod_tags: List[str], team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 800, height: int = 800):
+def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 800, height: int = 800):
     generator = torch.Generator("cuda").manual_seed(seed)
 
     # 1) 프롬프트 로드
