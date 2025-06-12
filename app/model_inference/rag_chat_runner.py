@@ -23,6 +23,8 @@ from app.context_construction.question_router import is_structured_question, cla
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 FILTERED_RESPONSE = """\
 💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 
 팀 프로젝트와 관련된 질문에만 응답할 수 있어요.
