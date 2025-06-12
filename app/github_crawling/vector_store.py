@@ -21,17 +21,18 @@ client = QdrantClient(
     api_key=QDRANT_API_KEY
 )
 
-# 1. 컬렉션이 존재하면 삭제
-if client.collection_exists(collection_name=QDRANT_COLLECTION):
-    client.delete_collection(collection_name=QDRANT_COLLECTION)
+# 디비 생성시 최초 1회만 실행
+# # 1. 컬렉션이 존재하면 삭제
+# if client.collection_exists(collection_name=QDRANT_COLLECTION):
+#     client.delete_collection(collection_name=QDRANT_COLLECTION)
 
-# 2. 새 컬렉션 생성
-client.create_collection(
-    collection_name=QDRANT_COLLECTION,
-    vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
-)
+# # 2. 새 컬렉션 생성
+# client.create_collection(
+#     collection_name=QDRANT_COLLECTION,
+#     vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
+# )
 
-# 3. 필드별 인덱스 생성
+# 필드별 인덱스 생성
 # payload_schema 인자를 sync client가 허용하지 않아서 필드별 인덱스 수동 생성
 
 client.create_payload_index(QDRANT_COLLECTION, field_name="project_id", field_schema=PayloadSchemaType.INTEGER)
@@ -68,7 +69,6 @@ def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
     metadata["weight"] = weight
 
     print("✅  저장 직전 metadata:", metadata)
-    print("✅ project_id 타입:", type(metadata.get("project_id")))
 
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 문자열 doc_id → UUID 변환
 
