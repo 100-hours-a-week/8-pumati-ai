@@ -28,7 +28,6 @@ jobs:
       ARTIFACT_REGISTRY_REPO: "ktb8team"
       IMAGE_NAME: "dev/ai"
       DOCKERFILE_PATH: "Dockerfile.gpu"
-      USE_REMOTE_CHROMA: false
 
     steps:
       # 1. 코드 체크아웃
@@ -64,6 +63,9 @@ jobs:
           echo "BUILD_LANGCHAIN_PROJECT=$LANGCHAIN_PROJECT" >> $GITHUB_ENV
           echo "BUILD_GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
           echo "BUILD_USE_REMOTE_CHROMA=$USE_REMOTE_CHROMA" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_API_KEY=$QDRANT_API_KEY" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_URL=$QDRANT_URL" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_COLLECTION=$QDRANT_COLLECTION" >> $GITHUB_ENV
           echo "BUILD_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
 
       # NVIDIA Container Toolkit 상태 확인
@@ -110,8 +112,11 @@ jobs:
             --build-arg LANGSMITH_API_KEY="${{ env.BUILD_LANGSMITH_API_KEY }}" \
             --build-arg LANGCHAIN_PROJECT="${{ env.BUILD_LANGCHAIN_PROJECT }}" \
             --build-arg GEMINI_API_KEY="${{ env.BUILD_GEMINI_API_KEY }}" \
-            --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
             --build-arg USE_REMOTE_CHROMA="${{ env.BUILD_USE_REMOTE_CHROMA }}" \
+            --build-arg QDRANT_API_KEY="${{ env.BUILD_QDRANT_API_KEY }}" \
+            --build-arg QDRANT_URL="${{ env.BUILD_QDRANT_URL }}" \
+            --build-arg QDRANT_COLLECTION="${{ env.BUILD_QDRANT_COLLECTION }}" \
+            --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
