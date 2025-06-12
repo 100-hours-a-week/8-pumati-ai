@@ -141,10 +141,11 @@ async def receive_badge_request(badge_body: BadgeRequest):
     '''
     비동기 처리: 백엔드 응답 전송, 뱃지 생성 두가지 테스크를 비동기로 실행.
     '''
-    logger.info(f"뱃지 생성 요청 수신. 수신된 데이터: {badge_body}")
+    logger.info(f"1-1) 뱃지 생성 요청 수신. 수신된 데이터: {badge_body}")
     # teamId, teamNumber는 미리 빼서 전달
 
     response = await prepare_response()
+    logger.info("1-2) 큐 등록 요청을 요청")
     asyncio.create_task(enqueue_badge_task(mod_tags = None, team_info = badge_body.model_dump()))  # 이건 백그라운드에서 실행되고 안 기다림
 
     return response
