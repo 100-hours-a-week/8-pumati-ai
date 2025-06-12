@@ -127,8 +127,9 @@ class BadgePrompt:
         logger.info("4-5) 크롬 트라이버 생성중...")
         driver_path = ChromeDriverManager().install()
         os.chmod(driver_path, stat.S_IRWXU)
+        service = Service(driver_path)
 
-        driver = webdriver.Chrome(driver_path, options=options)
+        driver = webdriver.Chrome(service=service, options=options)
         #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get(url)
         time.sleep(3)  # JS 렌더링 대기
