@@ -28,7 +28,7 @@ langchain # LangChain (JsonOutputParser)
 langchain-community==0.3.24 # chatbot
 sentence-transformers==4.1.0
 langchain-huggingface==0.2.0
-langchain-chroma==0.2.4
+langchain-qdrant==0.2.0
 langsmith==0.3.42
 
 google-generativeai==0.8.5

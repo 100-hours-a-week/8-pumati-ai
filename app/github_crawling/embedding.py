@@ -33,7 +33,7 @@ def get_embedding(text: str) -> list:
 
     vec = embeddings.squeeze().cpu().numpy()
 
-    # ✅ norm이 0이 아닌 경우에만 normalize
+    # norm이 0이 아닌 경우에만 normalize
     norm = np.linalg.norm(vec)
     if norm == 0:
         raise ValueError("Embedding vector has zero norm!")
