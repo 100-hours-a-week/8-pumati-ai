@@ -105,10 +105,9 @@ class BadgeService:
         with BytesIO() as image_bytes:
             image_final.save(image_bytes, format="PNG")
             image_bytes.seek(0)
+            # 4) S3에 저장 후 url 반환받기
             public_url = self.create_url(image_bytes, team_number)
 
-        # 4) S3에 저장 후 url 반환받기
-        public_url = self.create_url(image_bytes, team_number)
 
         return public_url
 
