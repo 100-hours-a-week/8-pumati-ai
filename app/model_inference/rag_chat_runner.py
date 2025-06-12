@@ -1,22 +1,27 @@
 # app/model_inference/rag_chat_runner.py
 
+import os
+from typing import List, Callable, Any
+
+from dotenv import load_dotenv
+
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Filter, FieldCondition, MatchValue
-from langchain_community.vectorstores import Qdrant
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.schema import Document
-from langchain.prompts import PromptTemplate
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue, SearchRequest
+
+from langchain_core.runnables import RunnableConfig, RunnableLambda, Runnable
+from langchain_core.retrievers import BaseRetriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
+from langchain.prompts import PromptTemplate
+from langchain.schema import Document
+from langchain_qdrant import QdrantVectorStore
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from langsmith import traceable, client
+
 from app.context_construction.question_router import is_structured_question, classify_question_type
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
-from langsmith import traceable
-from langchain_core.runnables import RunnableConfig
-from langchain_core.runnables import RunnableLambda, Runnable
-from langchain_core.runnables import RunnableLambda
-import os
-from dotenv import load_dotenv
 
 FILTERED_RESPONSE = """\
 💭 저는 팀 프로젝트 전용 AI, 품앗이(pumati)의 마티예요! 
@@ -47,6 +52,42 @@ class StreamingLLMWrapper(Runnable):
         async for token in self.llm.astream(input, config=config):
             yield token
 
+class WeightedQdrantRetriever(BaseRetriever):
+    vectorstore: QdrantVectorStore
+    top_k: int = 5
+    project_id: int
+
+    def _get_relevant_documents(self, query: str, *, config=None) -> List[Document]:
+        # 쿼리 임베딩 생성
+        # 'embedding' 대신 'embeddings'를 사용합니다.
+        query_embedding = self.vectorstore.embeddings.embed_query(query) # <--- 여기가 변경되었습니다!
+        
+        results = self.vectorstore.client.search(
+            collection_name=self.vectorstore.collection_name,
+            query_vector=query_embedding,
+            limit=self.top_k,
+            with_payload=True,
+            query_filter=Filter(
+                must=[FieldCondition(key="project_id", match=MatchValue(value=self.project_id))]
+            )
+        )
+        
+        docs = []
+        for item in results:
+            payload = item.payload or {}
+            distance = item.score
+            cosine_score = 1 - distance
+            weight = payload.get("weight", 1.0)
+            adjusted_score = cosine_score * weight
+            metadata = {
+                **payload,
+                "raw_distance": distance,
+                "cosine_score": cosine_score,
+                "adjusted_score": adjusted_score
+            }
+            docs.append(Document(page_content=payload.get("document", ""), metadata=metadata))
+        return docs
+
 # 임베딩 모델 및 벡터스토어 로딩
 embedding_model = HuggingFaceEmbeddings(
     model_name="intfloat/multilingual-e5-large",
@@ -59,10 +100,10 @@ qdrant_client = QdrantClient(
     api_key=QDRANT_API_KEY
 )
 
-vectorstore = Qdrant(
+vectorstore = QdrantVectorStore(
     client=qdrant_client,
     collection_name=QDRANT_COLLECTION,
-    embeddings=embedding_model,
+    embedding=embedding_model,
     content_payload_key="document",
 )
 
@@ -121,18 +162,46 @@ def run_rag(question: str, project_id: int) -> str:
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
     # 문서 검색기 구성 (project_id 필터 포함)
-    retriever = vectorstore.as_retriever(
-        search_kwargs={
-            "k": 40,
-            "filter": Filter(
-                must=[FieldCondition(key="project_id", match=MatchValue(value=project_id))]
-            )
-        }
+    retriever = WeightedQdrantRetriever(
+        vectorstore=vectorstore,
+        project_id=project_id,
+        top_k=40
     )
 
     # 관련 문서 검색
     docs = retriever.get_relevant_documents(question)
-    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.6:
+    
+    # LangSmith에 문서 정보 traceable하게 남기기
+    retrieved_doc_metadata = [
+    {
+        **doc.metadata,  # 모든 메타데이터 포함
+        "page_content": doc.page_content[:300]  # 선택적으로 일부 내용 포함
+    }
+    for doc in docs
+]
+
+    config = RunnableConfig(tags=["run_rag_streaming"])
+
+    if config and config.get("callbacks"):
+        run_id = config.get("callbacks")[0].current_run_id
+        if run_id:
+            ls_client = client.Client()
+            retrieved_doc_metadata = [
+                {
+                    **doc.metadata,
+                    "page_content": doc.page_content[:300]
+                }
+                for doc in docs
+            ]
+            ls_client.update_run(
+                run_id,
+                inputs={
+                    "question": question,
+                    "retrieved_docs": retrieved_doc_metadata
+                }
+            )
+
+    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.1:
         for line in FILTERED_RESPONSE.strip().splitlines():
             yield line
         return
