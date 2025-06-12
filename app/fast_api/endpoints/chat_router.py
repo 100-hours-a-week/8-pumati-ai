@@ -97,13 +97,19 @@ async def stream_chatbot(projectId: int, sessionId: str, request: Request):
             while True:
                 if await request.is_disconnected():
                     logger.info(f"SSE 연결 종료 감지 (클라이언트): {key}")
-                    yield "event: stream-end\ndata: disconnected\n"
+                    yield "event: stream-end\ndata: disconnected\n\n"
                     break
 
                 try:
                     event_type, data = await asyncio.wait_for(queue.get(), timeout=30.0)
                     logger.info(f"[SSE 송신] {event_type}: {data}")
                     yield f"event: {event_type}\ndata: {data}\n\n"
+
+                    # stream-end 이벤트 수신 시 명시적으로 종료
+                    if event_type == "stream-end":
+                        logger.info(f"SSE stream-end 이벤트 감지: {key}")
+                        break
+
                 except asyncio.TimeoutError:
                     logger.warning(f"타임아웃: {key}")
                     yield "event: timeout\ndata: streamTimeout\n\n"
