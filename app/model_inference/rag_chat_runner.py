@@ -145,7 +145,7 @@ def run_rag(question: str, project_id: int) -> str:
     rag_chain = create_retrieval_chain(retriever=retriever, combine_docs_chain=combine_docs_chain)
 
     # 문서 검색 수행
-    docs = retriever.get_relevant_documents(question)
+    docs = retriever.invoke(question)
     if not docs:
         return FILTERED_RESPONSE
 
@@ -169,7 +169,7 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 관련 문서 검색
-    docs = retriever.get_relevant_documents(question)
+    docs = retriever.invoke(question)
     
     # LangSmith에 문서 정보 traceable하게 남기기
     retrieved_doc_metadata = [
