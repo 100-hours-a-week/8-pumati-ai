@@ -101,7 +101,7 @@ async def stream_chatbot(projectId: int, sessionId: str, request: Request):
                     break
 
                 try:
-                    event_type, data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    event_type, data = await asyncio.wait_for(queue.get(), timeout=5.0)
                     logger.info(f"[SSE 송신] {event_type}: {data}")
                     yield f"event: {event_type}\ndata: {data}\n\n"
 
@@ -120,6 +120,10 @@ async def stream_chatbot(projectId: int, sessionId: str, request: Request):
             logger.exception("SSE 오류")
             yield "event: error\ndata: internalServerError\n\n"
             yield "event: done\ndata: ok\n\n"
+        finally:
+            # 세션 종료 시 큐 제거
+            event_queues.pop(key, None)
+            logger.info(f"SSE 세션 제거됨: {key}")
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
