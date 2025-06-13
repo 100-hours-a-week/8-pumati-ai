@@ -1,15 +1,10 @@
 # app/github_crawling/embedding.py
 
-# sentence_transformers는 transformers 버전 충돌이 나서 제외
-# transformers 기반 embedding 함수 예시 (intfloat/multilingual-e5-small)
 from transformers import AutoTokenizer, AutoModel
 import torch
 import numpy as np
-# from sentence_transformers import SentenceTransformer
 
 # 사용할 임베딩 모델 지정
-# MODEL_NAME = "intfloat/multilingual-e5-small"
-# MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 MODEL_NAME = "intfloat/multilingual-e5-large"
 
 # 토크나이저와 모델 로딩

@@ -8,11 +8,11 @@ import google.generativeai as genai
 
 from app.model_inference.rag_chat_runner import run_rag
 
-# 🔐 환경 변수 로드
+# 환경 변수 로드
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# ✅ Gemini 평가 함수
+# Gemini 평가 함수
 def evaluate_with_gemini(question, answer, context, eval_type="accuracy"):
     if eval_type == "accuracy":
         prompt = f"""
@@ -54,11 +54,11 @@ def evaluate_with_gemini(question, answer, context, eval_type="accuracy"):
     model = genai.GenerativeModel("gemini-pro")
     response = model.generate_content(prompt.strip())
     result = response.text.strip()
-    time.sleep(1)  # ✅ 과금 방지를 위한 sleep
+    time.sleep(1)  # 과금 방지를 위한 sleep
 
     return result
 
-# ✅ 전체 평가 실행 함수
+# 전체 평가 실행 함수
 def evaluate_questions_from_csv(csv_path, project_id=1, output_path="rag_eval_result.csv"):
     results = []
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
@@ -69,15 +69,15 @@ def evaluate_questions_from_csv(csv_path, project_id=1, output_path="rag_eval_re
 
             print(f"\n🧪 질문: {question}")
 
-            # 🔁 챗봇 응답 생성
+            # 챗봇 응답 생성
             answer = run_rag(question, project_id=project_id)
             print(f"🤖 응답: {answer}")
 
-            # 🔁 평가 수행
+            # 평가 수행
             accuracy_eval = evaluate_with_gemini(question, answer, context, "accuracy")
             conciseness_eval = evaluate_with_gemini(question, answer, context, "conciseness")
 
-            print(f"✅ 정확성 평가: {accuracy_eval} / 간결성 평가: {conciseness_eval}")
+            print(f"정확성 평가: {accuracy_eval} / 간결성 평가: {conciseness_eval}")
 
             results.append({
                 "question": question,
@@ -95,6 +95,6 @@ def evaluate_questions_from_csv(csv_path, project_id=1, output_path="rag_eval_re
     print(f"\n🎉 평가 완료 → 결과 저장: {output_path}")
     return output_path
 
-# ✅ 실행 엔트리포인트
+# 실행 엔트리포인트
 if __name__ == "__main__":
     evaluate_questions_from_csv("questions.csv", project_id=1)

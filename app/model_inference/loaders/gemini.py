@@ -1,13 +1,10 @@
 from langchain_core.language_models import LLM
-from langchain_core.outputs import LLMResult, Generation
 from typing import List, Optional
 import google.generativeai as genai
 import os
-import asyncio
 from pydantic import PrivateAttr
-from typing import List, Optional, AsyncGenerator
+from typing import List, Optional
 from langchain_core.callbacks import CallbackManagerForLLMRun
-import threading
 import re
 
 
@@ -49,7 +46,7 @@ class GeminiLangChainLLM(LLM):
                 if split_point != -1:
                     partial = buffer[:split_point + 1]
                     buffer = buffer[split_point + 1:]
-                    print("⚠️ Gemini buffer partial:", repr(partial))
+                    print("✉️ Gemini buffer partial:", repr(partial))
                     yield partial
 
         # 남은 버퍼 처리

@@ -56,7 +56,6 @@ class WeightedQdrantRetriever(BaseRetriever):
 
     def _get_relevant_documents(self, query: str, *, config=None) -> List[Document]:
         # 쿼리 임베딩 생성
-        # 'embedding' 대신 'embeddings'를 사용합니다.
         query_embedding = self.vectorstore.embeddings.embed_query(query) 
         
         results = self.vectorstore.client.search(
@@ -231,7 +230,5 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 응답 스트리밍 처리
-    # full_response_content = [] # <-- 이 부분은 사용되지 않아 주석 처리 또는 삭제할 수 있습니다.
     async for chunk in chain.astream(prompt_input, config=config):
-        # full_response_content.append(chunk) # <-- 이 부분도 사용되지 않아 주석 처리 또는 삭제할 수 있습니다.
         yield chunk

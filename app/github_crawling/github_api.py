@@ -103,7 +103,7 @@ def fetch_wiki_md_files(repo: str) -> dict:
         os.makedirs("./cached_wikis", exist_ok=True)
         wiki_git_url = f"https://{GITHUB_TOKEN}@github.com/{repo}.wiki.git"
         subprocess.run(["git", "clone", wiki_git_url, clone_path], check=True)
-        # ✅ clone 이후 폴더가 생성되었는지 확인
+        # clone 이후 폴더가 생성되었는지 확인
         if os.path.exists(clone_path):
             print(f"📁 Wiki cloned and saved to: {clone_path}")
         else:

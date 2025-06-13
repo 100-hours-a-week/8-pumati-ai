@@ -1,7 +1,6 @@
 # app/github_crawling/vector_store.py
 
 import os
-from datetime import datetime
 from uuid import uuid5, NAMESPACE_DNS
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
