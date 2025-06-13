@@ -140,7 +140,7 @@ class BadgePrompt:
             #html = driver.page_source
             resp = requests.get(page_url, timeout=3)
             logger.info(f"4-6-1) {resp}")
-            soup = BeautifulSoup(resp, "html.parser")
+            soup = BeautifulSoup(resp.text, "html.parser")
             logger.info(f"4-6-2) {soup.prettify()[:1000]}")
 
             # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
