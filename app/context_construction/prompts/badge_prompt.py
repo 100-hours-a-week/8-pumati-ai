@@ -1,7 +1,7 @@
 from app.fast_api.schemas.badge_schemas import BadgeRequest
 
 from deep_translator import GoogleTranslator
-from typing import List
+#from typing import List
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont #새로 추가됨.
 import math, json
@@ -9,14 +9,17 @@ import cv2
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+# from webdriver_manager.chrome import ChromeDriverManager
 import requests, time
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 
-import logging, os, stat, tempfile, subprocess, cairosvg
+import logging, os, tempfile,cairosvg #subprocess, stat
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -183,20 +186,31 @@ class BadgePrompt:
             
             logger.info("4-10) 크롤링 재시도 중..")
             driver.get(url=url)
-            img = driver.find_element(
-                "xpath",
-                '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
-            )
-            logger.info(f"4-10-1) {img_url}")
-            img_url = img.get_attribute("src")
-            logger.info(f"4-10-2) {img_url}")
-            if img_url:
-                logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
-                canny_logo = self.get_image(img_url)
+            # img = driver.find_element(
+            #     "xpath",
+            #     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+            # )
+            # logger.info(f"4-10-1) {img_url}")
+            # img_url = img.get_attribute("src")
+            # logger.info(f"4-10-2) {img_url}")
+            # if img_url:
+            #     logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
+            #     canny_logo = self.get_image(img_url)
                 
-                logger.info("4-12) 로고 생성 완료")
-                return canny_logo
+            #     logger.info("4-12) 로고 생성 완료")
+            #     return canny_logo
                 
+            try:
+                #페이지가 켜질 때 까지 3초 기다림.
+                img = WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((
+                        By.XPATH, '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+                    ))
+                )
+                img_url = img.get_attribute("src")
+                logger.info(f"✅ 팀 이미지 URL: {img_url}")
+            except Exception as e:
+                logger.error(f"❌ 이미지 못 찾음: {e}")
 
         except Exception as e:
             logger.info("4-12) 팀 파비콘 없음.")
