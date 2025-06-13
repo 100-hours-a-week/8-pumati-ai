@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 800, height: int = 800):
     generator = torch.Generator("cuda").manual_seed(seed)
 
-    logger.info("5-1) Canny이미지 로드, 프롬프트 불러오기")
+    logger.info("4-2) Canny이미지 로드, 프롬프트 불러오기")
     # 1) Canny이미지, 프롬프트 로드
     badge_input_instance = BadgePrompt(request_data)
 
