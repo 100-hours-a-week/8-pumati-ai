@@ -120,7 +120,7 @@ RUN rm /app/download_models.py
 # ==========================================
 FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS runtime
 
-# 런타임에 필요한 시스템 패키지만 설치
+# 런타임에 필요한 시스템 패키지만 설치 (wget, unzip 추가)
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libgl1 \
@@ -136,6 +136,8 @@ RUN apt-get update && apt-get install -y \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
     libgbm1 \
+    wget \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # 작업 디렉토리 설정
