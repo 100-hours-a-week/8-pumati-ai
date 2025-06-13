@@ -68,6 +68,7 @@ ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
 RUN echo '#!/usr/bin/env python3\n\
 import os\n\
 import sys\n\
+import time\n\
 from huggingface_hub import login, snapshot_download\n\
 import torch\n\
 \n\
@@ -93,31 +94,47 @@ except Exception as e:\n\
 cache_dir = "/app/.cache/huggingface"\n\
 print(f"📁 캐시 디렉토리: {cache_dir}")\n\
 \n\
+def download_with_retry(repo_id, max_retries=3):\n\
+    """재시도 로직이 있는 다운로드 함수"""\n\
+    for attempt in range(max_retries):\n\
+        try:\n\
+            print(f"📥 {repo_id} 다운로드 시도 {attempt + 1}/{max_retries}...")\n\
+            snapshot_download(\n\
+                repo_id,\n\
+                cache_dir=cache_dir,\n\
+                local_files_only=False,\n\
+                resume_download=True,\n\
+                max_workers=2\n\
+            )\n\
+            print(f"✅ {repo_id} 다운로드 완료!")\n\
+            return True\n\
+        except Exception as e:\n\
+            print(f"❌ {repo_id} 다운로드 실패 (시도 {attempt + 1}): {e}")\n\
+            if attempt < max_retries - 1:\n\
+                wait_time = (attempt + 1) * 10\n\
+                print(f"⏳ {wait_time}초 후 재시도...")\n\
+                time.sleep(wait_time)\n\
+            else:\n\
+                print(f"💥 {repo_id} 최종 다운로드 실패!")\n\
+                return False\n\
+    return False\n\
+\n\
 try:\n\
-    # 🚀 메모리 효율적인 다운로드 방식 (로딩하지 않음)\n\
-    print("📥 1/3 ControlNet 다운로드 중... (다운로드만)")\n\
-    snapshot_download(\n\
-        "diffusers/controlnet-canny-sdxl-1.0-small",\n\
-        cache_dir=cache_dir,\n\
-        local_files_only=False\n\
-    )\n\
-    print("✅ ControlNet 다운로드 완료!")\n\
+    # 🚀 메모리 효율적인 다운로드 방식 (재시도 포함)\n\
+    models = [\n\
+        ("diffusers/controlnet-canny-sdxl-1.0-small", "ControlNet"),\n\
+        ("stabilityai/stable-diffusion-xl-base-1.0", "SDXL Base"),\n\
+        ("stabilityai/stable-diffusion-xl-refiner-1.0", "Refiner")\n\
+    ]\n\
     \n\
-    print("📥 2/3 SDXL Base 모델 다운로드 중... (다운로드만)")\n\
-    snapshot_download(\n\
-        "stabilityai/stable-diffusion-xl-base-1.0",\n\
-        cache_dir=cache_dir,\n\
-        local_files_only=False\n\
-    )\n\
-    print("✅ SDXL Base 모델 다운로드 완료!")\n\
-    \n\
-    print("📥 3/3 Refiner 모델 다운로드 중... (다운로드만)")\n\
-    snapshot_download(\n\
-        "stabilityai/stable-diffusion-xl-refiner-1.0",\n\
-        cache_dir=cache_dir,\n\
-        local_files_only=False\n\
-    )\n\
-    print("✅ Refiner 모델 다운로드 완료!")\n\
+    for i, (repo_id, name) in enumerate(models, 1):\n\
+        print(f"📥 {i}/3 {name} 모델 다운로드 중... (다운로드만)")\n\
+        if not download_with_retry(repo_id):\n\
+            print(f"💥 {name} 모델 다운로드 실패로 빌드 중단!")\n\
+            sys.exit(1)\n\
+        print(f"🎉 {name} 모델 다운로드 성공!")\n\
+        print("💾 메모리 정리 중...")\n\
+        time.sleep(2)  # 메모리 정리 시간\n\
     \n\
     print("🎉 모든 모델 다운로드 성공! (메모리 사용량 최소화)")\n\
     print("💡 런타임에서 캐시된 모델을 로드하여 사용합니다.")\n\
