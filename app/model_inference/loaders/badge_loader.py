@@ -68,3 +68,4 @@ class BadgeModel:
     
 badge_loader_instance = BadgeModel()
 SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model()
+

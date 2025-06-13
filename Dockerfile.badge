@@ -86,13 +86,12 @@ def download_with_retry(repo_id, max_retries=3):\n\
 try:\n\
     # 🚀 메모리 효율적인 다운로드 방식 (재시도 포함)\n\
     models = [\n\
-        ("diffusers/controlnet-canny-sdxl-1.0-small", "ControlNet"),\n\
-        ("stabilityai/stable-diffusion-xl-base-1.0", "SDXL Base"),\n\
-        ("stabilityai/stable-diffusion-xl-refiner-1.0", "Refiner")\n\
+        ("lllyasviel/sd-controlnet-canny", "ControlNet SD 1.5"),\n\
+        ("runwayml/stable-diffusion-v1-5", "SD 1.5 Base")\n\
     ]\n\
     \n\
     for i, (repo_id, name) in enumerate(models, 1):\n\
-        print(f"📥 {i}/3 {name} 모델 다운로드 중... (다운로드만)")\n\
+        print(f"📥 {i}/2 {name} 모델 다운로드 중... (다운로드만)")\n\
         if not download_with_retry(repo_id):\n\
             print(f"💥 {name} 모델 다운로드 실패로 빌드 중단!")\n\
             sys.exit(1)\n\
