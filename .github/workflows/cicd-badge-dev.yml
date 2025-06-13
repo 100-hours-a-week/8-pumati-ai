@@ -147,8 +147,16 @@ jobs:
           # 이전 스텝에서 준비된 환경 변수 문자열 읽기
           ENV_VARS=$(cat env_vars_string)
           
+          # Chrome 전용 환경 변수 추가
+          ENV_VARS="${ENV_VARS},DISPLAY=:99"
+          ENV_VARS="${ENV_VARS},CHROME_NO_SANDBOX=1"
+          ENV_VARS="${ENV_VARS},CHROME_BIN=/usr/bin/google-chrome"
+          ENV_VARS="${ENV_VARS},CHROMEDRIVER_PATH=/usr/bin/chromedriver"
+          ENV_VARS="${ENV_VARS},TMPDIR=/tmp"
+          ENV_VARS="${ENV_VARS},XDG_RUNTIME_DIR=/tmp"
+          ENV_VARS="${ENV_VARS},XDG_CONFIG_HOME=/tmp"
+          
           echo "🚀 Cloud Run 배포 시작..."
-          echo "📝 설정할 환경 변수들: ${ENV_VARS:0:100}..." # 처음 100자만 출력
           
           gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
             --image ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
@@ -165,28 +173,15 @@ jobs:
             --timeout 600 \
             --execution-environment gen2 \
             --cpu-boost \
-            --set-env-vars="${ENV_VARS},DISPLAY=:99,CHROME_NO_SANDBOX=1"
+            --session-affinity \
+            --no-use-http2 \
+            --sandbox=gvisor \
+            --set-env-vars="${ENV_VARS}"
           
           echo "✅ Cloud Run 배포 완료!"
           
           # 환경 변수 파일 정리
           rm env_vars_string
-        #run: |
-          # gcloud run deploy ${{ env.CLOUD_RUN_SERVICE_NAME }} \
-          #   --image ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          #   --platform managed \
-          #   --region ${{ env.CLOUD_RUN_REGION }} \
-          #   --allow-unauthenticated \
-          #   --memory 32Gi \
-          #   --cpu 8 \
-          #   --port 8080 \
-          #   --max-instances 2 \
-          #   --gpu 1 \
-          #   --gpu-type nvidia-l4 \
-          #   --no-gpu-zonal-redundancy \
-          #   --timeout 600 \
-          #   --set-env-vars="HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }},HUGGING_FACE_HUB_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" \
-          #   --project ${{ env.GCP_PROJECT_ID }}
 
       # 이미지 주소 출력
       - name: Output image URL
