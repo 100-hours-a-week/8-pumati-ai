@@ -147,14 +147,20 @@ jobs:
           # 이전 스텝에서 준비된 환경 변수 문자열 읽기
           ENV_VARS=$(cat env_vars_string)
           
-          # Chrome 전용 환경 변수 추가
+          # Chrome 전용 환경 변수 추가 (Cloud Run 환경에 최적화)
           ENV_VARS="${ENV_VARS},DISPLAY=:99"
           ENV_VARS="${ENV_VARS},CHROME_NO_SANDBOX=1"
           ENV_VARS="${ENV_VARS},CHROME_BIN=/usr/bin/google-chrome"
           ENV_VARS="${ENV_VARS},CHROMEDRIVER_PATH=/usr/bin/chromedriver"
-          ENV_VARS="${ENV_VARS},TMPDIR=/tmp"
-          ENV_VARS="${ENV_VARS},XDG_RUNTIME_DIR=/tmp"
-          ENV_VARS="${ENV_VARS},XDG_CONFIG_HOME=/tmp"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_GPU=1"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_DEV_SHM_USAGE=1"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_EXTENSIONS=1"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_BACKGROUND_TIMER_THROTTLING=1"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_RENDERER_BACKGROUNDING=1"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_BACKGROUNDING_OCCLUDED_WINDOWS=1"
+          ENV_VARS="${ENV_VARS},CHROME_DISABLE_IPC_FLOODING_PROTECTION=1"
+          ENV_VARS="${ENV_VARS},CHROME_SINGLE_PROCESS=1"
+          ENV_VARS="${ENV_VARS},CHROME_REMOTE_DEBUGGING_PORT=9222"
           
           echo "🚀 Cloud Run 배포 시작..."
           
@@ -173,9 +179,9 @@ jobs:
             --timeout 600 \
             --execution-environment gen2 \
             --cpu-boost \
+            --no-cpu-throttling \
             --session-affinity \
             --no-use-http2 \
-            --sandbox=gvisor \
             --set-env-vars="${ENV_VARS}"
           
           echo "✅ Cloud Run 배포 완료!"
