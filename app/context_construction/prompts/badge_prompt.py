@@ -112,7 +112,7 @@ class BadgePrompt:
     def get_disquiet_exact_team_image(self, team_title: str):
         logger.info("4-4) 각 팀의 로고 찾는 중...")
         url = f"https://disquiet.io/product/{team_title}"
-        page_url = self.data.deploymentUrl 
+        page_url = self.data.deploymentUrl
 
         options = Options()
         options.binary_location = "/usr/bin/google-chrome"
@@ -137,9 +137,10 @@ class BadgePrompt:
 
         try:
             #resp = requests.get(page_url)
-            html = driver.page_source
-            logger.info(f"4-6-1) {html}")
-            soup = BeautifulSoup(html, "html.parser")
+            #html = driver.page_source
+            resp = requests.get(page_url, timeout=3)
+            logger.info(f"4-6-1) {resp}")
+            soup = BeautifulSoup(resp, "html.parser")
             logger.info(f"4-6-2) {soup.prettify()[:1000]}")
 
             # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
