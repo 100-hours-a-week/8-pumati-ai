@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 
-import logging, os, stat, tempfile, subprocess
+import logging, os, stat, tempfile, subprocess, cairosvg
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -89,7 +89,18 @@ class BadgePrompt:
     
     def get_image(self, url):
         response = requests.get(url)
-        img = Image.open(BytesIO(response.content)).convert("RGB")
+        content_type = response.headers.get("Content-Type", "")
+
+        if "svg" in content_type or url.lower().endswith(".svg"):
+            # SVG는 cairosvg로 처리
+            png_data = cairosvg.svg2png(bytestring=response.content)
+            img = Image.open(BytesIO(png_data)).convert("RGB")
+        else:
+            # 일반 이미지 처리
+            img = Image.open(BytesIO(response.content)).convert("RGB")
+
+        
+        #img = Image.open(BytesIO(response.content)).convert("RGB")
         # plt.imshow(img)  
         # plt.show()
         small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
@@ -138,39 +149,54 @@ class BadgePrompt:
         try:
             #resp = requests.get(page_url)
             #html = driver.page_source
-            resp = requests.get(page_url, timeout=3)
-            logger.info(f"4-6-1) {resp}")
-            soup = BeautifulSoup(resp.text, "html.parser")
-            logger.info(f"4-6-2) {soup.prettify()[:1000]}")
-
-            # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
-            icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-            logger.info(f"4-6-3) {icon_link}")
-
-            if icon_link and icon_link.get("href"):
-                logger.info("4-7) 팀 파비콘 있음.")
-                favicon_url = urljoin(page_url, icon_link["href"])
-                canny_logo = self.get_image(favicon_url)
-
-                return canny_logo
-            else:
-                logger.info("4-8) 크롤링 재시도 중..")
-                driver.get(url=url)
-                img = driver.find_element(
-                    "xpath",
-                    '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
-                )
-                img_url = img.get_attribute("src")
-                if img_url:
-                    logger.info(f"4-9) 팀 이미지 확인. URL: {img_url}")
-                    canny_logo = self.get_image(img_url)
-                    
-                    logger.info("4-10) 로고 생성 완료")
+            try: 
+                favicon_url = urljoin(page_url, "/favicon.ico")
+                resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
+                if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
+                    canny_logo = self.get_image(favicon_url)
                     return canny_logo
+            except:
+                logger.info("4-7) 파비콘 ico 없음")
+            
+            logger.info(f"4-8) 웹페이지 크롤링 시작")
+
+            try:
+                resp = requests.get(page_url, timeout=3)
+                logger.info(f"4-8-1) {resp}")
+                soup = BeautifulSoup(resp.text, "html.parser")
+                logger.info(f"4-8-2) {soup.prettify()[:1000]}")
+
+                # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
+                icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
+                logger.info(f"4-8-3) {icon_link}")
+
+                if icon_link and icon_link.get("href"):
+                    logger.info("4-8-4) 팀 파비콘 있음.")
+                    favicon_url = urljoin(page_url, icon_link["href"])
+                    logger.info(f"4-8-5) {favicon_url}")
+                    canny_logo = self.get_image(favicon_url)
+                    logger.info(f"4-8-6) {len(canny_logo)}")
+                    return canny_logo
+            except:
+                logger.info("4-9) 파비콘 ico 없음")
+            
+            logger.info("4-10) 크롤링 재시도 중..")
+            driver.get(url=url)
+            img = driver.find_element(
+                "xpath",
+                '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+            )
+            img_url = img.get_attribute("src")
+            if img_url:
+                logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
+                canny_logo = self.get_image(img_url)
+                
+                logger.info("4-12) 로고 생성 완료")
+                return canny_logo
                 
 
         except Exception as e:
-            logger.info("4-10) 팀 파비콘 없음.")
+            logger.info("4-12) 팀 파비콘 없음.")
 
         
 
@@ -216,7 +242,7 @@ class BadgePrompt:
 
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
-        logger.info("4-11) 뱃지 이미지 생성 완료.")
+        logger.info("4-13) 뱃지 이미지 생성 완료.")
         cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge

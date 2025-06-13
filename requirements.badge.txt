@@ -13,6 +13,7 @@ torch==2.7.0
 uvicorn[standard]==0.34.2
 transformers==4.51.1
 fastapi==0.115.12
+cairosvg==2.8.2
 
 #크롤링
 selenium==4.33.0
