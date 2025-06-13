@@ -176,7 +176,7 @@ jobs:
             --gpu 1 \
             --gpu-type nvidia-l4 \
             --no-gpu-zonal-redundancy \
-            --timeout 600 \
+            --timeout 3600 \
             --execution-environment gen2 \
             --cpu-boost \
             --no-cpu-throttling \
