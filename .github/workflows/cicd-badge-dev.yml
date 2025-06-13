@@ -163,7 +163,9 @@ jobs:
             --gpu-type nvidia-l4 \
             --no-gpu-zonal-redundancy \
             --timeout 600 \
-            --set-env-vars="${ENV_VARS}"
+            --execution-environment gen2 \
+            --cpu-boost \
+            --set-env-vars="${ENV_VARS},DISPLAY=:99,CHROME_NO_SANDBOX=1"
           
           echo "✅ Cloud Run 배포 완료!"
           
