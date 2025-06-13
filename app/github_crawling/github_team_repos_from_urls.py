@@ -28,6 +28,7 @@ def fetch_team_meta():
             res.raise_for_status()
 
             result = res.json()
+            print(f"📦 API 응답 내용: {result}")
 
             # 'data' 필드 유효성 검사 추가
             if "data" not in result:
