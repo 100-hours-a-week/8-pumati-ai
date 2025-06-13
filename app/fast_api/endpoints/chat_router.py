@@ -102,7 +102,7 @@ async def stream_chatbot(projectId: int, sessionId: str, request: Request):
 
                 try:
                     event_type, data = await asyncio.wait_for(queue.get(), timeout=5.0)
-                    logger.info(f"[SSE 송신] {event_type}: {data}")
+                    # logger.info(f"[SSE 송신] {event_type}: {data}")
                     yield f"event: {event_type}\ndata: {data}\n\n"
 
                     # stream-end 이벤트 수신 시 명시적으로 종료
