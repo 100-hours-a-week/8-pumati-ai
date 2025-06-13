@@ -59,24 +59,41 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
 
-      # 5. Docker BuildKit 활성화 + GPU 사용
-      - name: Build Docker image with GPU
+      # 🔧 HF 토큰 추출 및 Docker 빌드 인자 준비
+      - name: Extract HF Token and Build Docker image
         run: |
+          echo "🔧 HF 토큰 추출 중..."
+          
+          # GitHub Secret에서 HF 토큰 추출
+          echo '${{ secrets.ENV_BADGE_DEV }}' > temp_env
+          export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          
+          echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
+          echo "🔄 HUGGINGFACE_HUB_TOKEN으로 사용 예정"
+          
+          # Docker 빌드 (HF 토큰을 HUGGINGFACE_HUB_TOKEN으로 전달)
+          echo "🐳 Docker 이미지 빌드 시작..."
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
+            --build-arg HUGGINGFACE_HUB_TOKEN="${HF_AUTH_TOKEN_VICKY}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
+          
+          echo "✅ Docker 이미지 빌드 완료!"
+          
+          # 임시 파일 정리
+          rm temp_env
 
-      # 6. Docker 이미지를 Artifact Registry에 푸시
+      # 5. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
         run: |
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
 
-      # 7. Docker 레이어 캐싱
+      # 6. Docker 레이어 캐싱
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
@@ -90,17 +107,10 @@ jobs:
         run: |
           echo "🔧 ENV_BADGE_DEV 시크릿에서 환경 변수 추출 중..."
           
-          # GitHub Secret을 임시 파일에 저장
           echo '${{ secrets.ENV_BADGE_DEV }}' > temp_env
-          
-          echo "📋 원본 ENV_BADGE_DEV 내용:"
-          echo "----------------------------------------"
-          cat temp_env
-          echo "----------------------------------------"
           
           # 환경 변수들을 개별적으로 추출
           export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
-          # HF_AUTH_TOKEN_VICKY를 HF_AUTH_TOKEN으로도 사용 (호환성을 위해)
           export HF_AUTH_TOKEN=${HF_AUTH_TOKEN_VICKY}
           export GCP_PROJECT_ID=$(grep "GCP_PROJECT_ID=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           export ARTIFACT_REGISTRY_LOCATION=$(grep "ARTIFACT_REGISTRY_LOCATION=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
@@ -109,23 +119,11 @@ jobs:
           export BE_SERVER_URL=$(grep "BE_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           export GCP_SERVICE_EMAIL=$(grep "GCP_SERVICE_EMAIL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           
-          # 환경 변수들 확인 출력 (민감한 정보는 마스킹)
-          echo "🔍 추출된 환경 변수들 확인:"
-          echo "----------------------------------------"
-          echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
-          echo "HF_AUTH_TOKEN: ${HF_AUTH_TOKEN:0:10}****"
-          echo "GCP_PROJECT_ID: ${GCP_PROJECT_ID}"
-          echo "ARTIFACT_REGISTRY_LOCATION: ${ARTIFACT_REGISTRY_LOCATION}"
-          echo "GCP_QUEUE_NAME: ${GCP_QUEUE_NAME}"
-          echo "AI_SERVER_URL: ${AI_SERVER_URL}"
-          echo "BE_SERVER_URL: ${BE_SERVER_URL}"
-          echo "GCP_SERVICE_EMAIL: ${GCP_SERVICE_EMAIL}"
-          echo "----------------------------------------"
-          
           # gcloud 명령어용 환경 변수 문자열 생성
           ENV_VARS="HF_AUTH_TOKEN_VICKY=${HF_AUTH_TOKEN_VICKY}"
           ENV_VARS="${ENV_VARS},HF_AUTH_TOKEN=${HF_AUTH_TOKEN}"
           ENV_VARS="${ENV_VARS},HUGGING_FACE_HUB_TOKEN=${HF_AUTH_TOKEN}"
+          ENV_VARS="${ENV_VARS},HUGGINGFACE_HUB_TOKEN=${HF_AUTH_TOKEN_VICKY}"
           ENV_VARS="${ENV_VARS},GCP_PROJECT_ID=${GCP_PROJECT_ID}"
           ENV_VARS="${ENV_VARS},ARTIFACT_REGISTRY_LOCATION=${ARTIFACT_REGISTRY_LOCATION}"
           ENV_VARS="${ENV_VARS},GCP_QUEUE_NAME=${GCP_QUEUE_NAME}"
@@ -133,21 +131,22 @@ jobs:
           ENV_VARS="${ENV_VARS},BE_SERVER_URL=${BE_SERVER_URL}"
           ENV_VARS="${ENV_VARS},GCP_SERVICE_EMAIL=${GCP_SERVICE_EMAIL}"
           
-          # 환경 변수 문자열을 파일에 저장 (다음 스텝에서 사용)
+          # 캐시 디렉토리 환경 변수 추가
+          ENV_VARS="${ENV_VARS},HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface"
+          ENV_VARS="${ENV_VARS},TRANSFORMERS_CACHE=/app/.cache/transformers"
+          ENV_VARS="${ENV_VARS},HF_HOME=/app/.cache/huggingface"
+          
           echo "${ENV_VARS}" > env_vars_string
           
           echo "✅ 환경 변수 처리 완료!"
-          
-          # 임시 파일 정리
           rm temp_env
 
       # Cloud Run에 배포
       - name: Deploy to Cloud Run
         run: |
-          # 이전 스텝에서 준비된 환경 변수 문자열 읽기
           ENV_VARS=$(cat env_vars_string)
           
-          # Chrome 전용 환경 변수 추가 (Cloud Run 환경에 최적화)
+          # Chrome 전용 환경 변수 추가
           ENV_VARS="${ENV_VARS},DISPLAY=:99"
           ENV_VARS="${ENV_VARS},CHROME_NO_SANDBOX=1"
           ENV_VARS="${ENV_VARS},CHROME_BIN=/usr/bin/google-chrome"
@@ -185,8 +184,6 @@ jobs:
             --set-env-vars="${ENV_VARS}"
           
           echo "✅ Cloud Run 배포 완료!"
-          
-          # 환경 변수 파일 정리
           rm env_vars_string
 
       # 이미지 주소 출력
@@ -215,11 +212,11 @@ jobs:
           curl -H "Content-Type: application/json" -X POST -d '{
             "username": "🤖 PUMATI 인공지능 빌드 & 배포 봇",
             "avatar_url": "https://avatars.githubusercontent.com/u/583231",
-            "content": "🌟 **'"${COMMIT_AUTHOR}"'** 님이 새 빌드를 완료하고 Cloud Run에 배포했습니다! 🚀",
+            "content": "🌟 **'"${COMMIT_AUTHOR}"'** 님이 새 빌드를 완료하고 Cloud Run에 배포했습니다! 🚀\n\n📦 **모델 포함 빌드**: SDXL 모델이 Docker 이미지에 미리 포함되어 즉시 사용 가능합니다!",
             "embeds": [{
-              "title": "✅ AI 서비스 빌드 & 배포 성공! 🎉 🎊",
+              "title": "✅ AI 서비스 빌드 & 배포 성공! 🎉 (모델 포함)",
               "color": 3066993,
-              "description": "🔥 **'"${COMMIT_AUTHOR}"'** 님이 푸시한 코드의 Docker 이미지 빌드 및 Cloud Run 배포가 성공적으로 완료되었습니다! 🙌",
+              "description": "🔥 **'"${COMMIT_AUTHOR}"'** 님이 푸시한 코드의 Docker 이미지 빌드 및 Cloud Run 배포가 성공적으로 완료되었습니다! 🙌\n\n🚀 **SDXL 모델이 이미지에 포함되어 있어 즉시 실행 가능합니다!**",
               "fields": [
                 {
                   "name": "👨‍💻 푸시한 사람 👑",

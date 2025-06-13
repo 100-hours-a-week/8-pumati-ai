@@ -33,6 +33,12 @@ RUN apt-get update && apt-get install -y \
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# 캐시 디렉토리 미리 생성 및 환경 변수 설정
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface /app/.cache/transformers
+
 # requirements.txt 복사 및 설치
 COPY requirements.badge.txt .
 RUN pip install --upgrade pip
@@ -55,27 +61,90 @@ chmod +x /usr/bin/chromedriver && \
 rm -rf chromedriver-linux64* 
 
 
-# ARG HF_AUTH_TOKEN_VICKY
-# ENV HUGGINGFACE_HUB_TOKEN=${HF_AUTH_TOKEN_VICKY}
+# 🚀 모델 다운로드 스크립트 생성 및 실행
+ARG HUGGINGFACE_HUB_TOKEN
+ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
 
-# RUN python -c "\
-#     from diffusers import ControlNetModel, StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline; \
-#     from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_xl import StableDiffusionXLImg2ImgPipeline; \
-#     ControlNetModel.from_pretrained('diffusers/controlnet-canny-sdxl-1.0-small'); \
-#     StableDiffusionXLPipeline.from_pretrained('stabilityai/stable-diffusion-xl-base-1.0'); \
-#     StableDiffusionXLImg2ImgPipeline.from_pretrained('stabilityai/stable-diffusion-xl-refiner-1.0')"
+# 모델 다운로드 스크립트 생성
+RUN echo '#!/usr/bin/env python3\n\
+import os\n\
+import sys\n\
+from huggingface_hub import login\n\
+from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, DiffusionPipeline\n\
+import torch\n\
+\n\
+print("🚀 Docker 빌드 중 모델 다운로드 시작...")\n\
+\n\
+# HF 토큰 확인\n\
+token = os.getenv("HUGGINGFACE_HUB_TOKEN")\n\
+if not token:\n\
+    print("❌ HUGGINGFACE_HUB_TOKEN가 설정되지 않았습니다!")\n\
+    sys.exit(1)\n\
+\n\
+print(f"🔑 토큰 확인: {token[:10]}****")\n\
+\n\
+# Hugging Face 로그인\n\
+try:\n\
+    login(token=token)\n\
+    print("✅ Hugging Face 로그인 성공!")\n\
+except Exception as e:\n\
+    print(f"❌ Hugging Face 로그인 실패: {e}")\n\
+    sys.exit(1)\n\
+\n\
+# 캐시 디렉토리 확인\n\
+cache_dir = "/app/.cache/huggingface"\n\
+print(f"📁 캐시 디렉토리: {cache_dir}")\n\
+\n\
+try:\n\
+    # 1) ControlNet 다운로드\n\
+    print("📥 1/3 ControlNet 다운로드 중...")\n\
+    controlnet = ControlNetModel.from_pretrained(\n\
+        "diffusers/controlnet-canny-sdxl-1.0-small",\n\
+        torch_dtype=torch.float16,\n\
+        cache_dir=cache_dir\n\
+    )\n\
+    print("✅ ControlNet 다운로드 완료!")\n\
+    \n\
+    # 2) SDXL Base 모델 다운로드\n\
+    print("📥 2/3 SDXL Base 모델 다운로드 중...")\n\
+    base_pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(\n\
+        "stabilityai/stable-diffusion-xl-base-1.0",\n\
+        controlnet=controlnet,\n\
+        torch_dtype=torch.float16,\n\
+        cache_dir=cache_dir\n\
+    )\n\
+    print("✅ SDXL Base 모델 다운로드 완료!")\n\
+    \n\
+    # 3) Refiner 모델 다운로드\n\
+    print("📥 3/3 Refiner 모델 다운로드 중...")\n\
+    refiner_pipe = DiffusionPipeline.from_pretrained(\n\
+        "stabilityai/stable-diffusion-xl-refiner-1.0",\n\
+        torch_dtype=torch.float16,\n\
+        cache_dir=cache_dir\n\
+    )\n\
+    print("✅ Refiner 모델 다운로드 완료!")\n\
+    \n\
+    print("🎉 모든 모델 다운로드 성공!")\n\
+    \n\
+except Exception as e:\n\
+    print(f"❌ 모델 다운로드 실패: {e}")\n\
+    import traceback\n\
+    traceback.print_exc()\n\
+    sys.exit(1)\n\
+' > /app/download_models.py
 
+# 모델 다운로드 실행
+RUN chmod +x /app/download_models.py && python /app/download_models.py
+
+# 다운로드 스크립트 삭제 (이미지 크기 최적화)
+RUN rm /app/download_models.py
 
 # 앱 코드 복사
 COPY . .
 
-# 캐시 디렉토리 설정 (선택)
-ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
-ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+# Chrome 환경 변수 설정
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
-
 # FastAPI 앱 실행 (포트는 필요에 따라 조정)
-
 CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8080"]
