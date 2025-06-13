@@ -42,10 +42,11 @@ class StreamingLLMWrapper(Runnable):
         raise NotImplementedError("Only streaming is supported in this wrapper.")
 
     async def astream(self, input, config=None):
-        async for token in self.llm.astream(input, config=config):
-            for char in token:
+        async for token_chunk_from_llm in self.llm.astream(input, config=config):
+            
+            for char in token_chunk_from_llm:
                 if char == '\n':
-                    yield '\\n' # 줄바꿈 문자를 특정 문자열로 치환하여 yield
+                    yield '\\n'
                 else:
                     yield char
 
@@ -230,5 +231,5 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 응답 스트리밍 처리
-    async for chunk in chain.astream(prompt_input, config=config):
-        yield chunk
+    async for char_chunk in chain.astream(prompt_input, config=config):
+        yield char_chunk
