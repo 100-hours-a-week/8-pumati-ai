@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     git \
     curl \
+    libvulkan1 \
     chromium-browser \
     chromium-chromedriver \
     wget \
@@ -37,12 +38,30 @@ COPY requirements.badge.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.badge.txt
 
+# RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+#     apt-get install -y ./google-chrome-stable_current_amd64.deb && \
+#     rm google-chrome-stable_current_amd64.deb
+
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chrome-linux64.zip && \
+    unzip chrome-linux64.zip && \
+    mv chrome-linux64 /opt/chrome && \
+    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
+    rm chrome-linux64.zip
+
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chromedriver-linux64.zip && \
+unzip chromedriver-linux64.zip && \
+mv chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
+chmod +x /usr/bin/chromedriver && \
+rm -rf chromedriver-linux64* 
+
 # 앱 코드 복사
 COPY . .
 
 # 캐시 디렉토리 설정 (선택)
 ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 # FastAPI 앱 실행 (포트는 필요에 따라 조정)
 

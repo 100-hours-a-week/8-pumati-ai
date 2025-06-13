@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 
-import logging, os, stat, tempfile
+import logging, os, stat, tempfile, subprocess
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -119,7 +119,8 @@ class BadgePrompt:
         # options.add_argument("--no-sandbox")
         # options.add_argument("--disable-dev-shm-usage")
         options = Options()
-        options.binary_location = '/usr/bin/chronium-browser'
+        #options.binary_location = '/usr/bin/chronium-browser'
+        options.binary_location = "/usr/bin/google-chrome"
         options.add_argument("--headless")  # GUI 없이 실행
         options.add_argument("--no-sandbox")  # 권한 문제 회피
         options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
@@ -131,33 +132,36 @@ class BadgePrompt:
         # chrome_options.add_argument('--no-sandbox')
         # chrome_options.add_argument('--disable-dev-shm-usage')
 
-        user_data_dir = tempfile.mkdtemp()
-        options.add_argument(f'--user-data-dir={user_data_dir}')
-
         logger.info("4-5) 크롬 트라이버 생성중...")
-        driver_path = ChromeDriverManager(driver_version="137.0.7151.70").install()
-        os.chmod(driver_path, stat.S_IRWXU)
-        service = Service(driver_path)
+        with tempfile.TemporaryDirectory() as user_data_dir:
+            options.add_argument(f'--user-data-dir={user_data_dir}')
+            service = Service("/usr/bin/chromedriver")
+            driver = webdriver.Chrome(service=service, options=options)
 
-        import subprocess
-        def get_chromedriver_version(driver_path):
-            try:
-                result = subprocess.run(
-                    [driver_path, '--version'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                    text=True
-                )
-                version = result.stdout.strip()
-                return version
-            except Exception as e:
-                logging.error(f"chromedriver 버전 확인 실패: {e}")
-                return None
+        
+        # driver_path = #ChromeDriverManager(driver_version="137.0.7151.70").install()
+        # os.chmod(driver_path, stat.S_IRWXU)
+        # service = Service(driver_path)
 
-        version = get_chromedriver_version(driver_path)
-        logger.info(f"실제 사용 중인 chromedriver 버전: {version}")
-        driver = webdriver.Chrome(service=service, options=options)
+        # import subprocess
+        # def get_chromedriver_version(driver_path):
+        #     try:
+        #         result = subprocess.run(
+        #             [driver_path, '--version'],
+        #             stdout=subprocess.PIPE,
+        #             stderr=subprocess.PIPE,
+        #             check=True,
+        #             text=True
+        #         )
+        #         version = result.stdout.strip()
+        #         return version
+        #     except Exception as e:
+        #         logging.error(f"chromedriver 버전 확인 실패: {e}")
+        #         return None
+
+        # version = get_chromedriver_version(driver_path)
+        # logger.info(f"실제 사용 중인 chromedriver 버전: {version}")
+        # driver = webdriver.Chrome(service=service, options=options)
 
         #version = get_chromedriver_version(driver_path)
         #logger.info(f"사용 중인 chromedriver 버전: {version}")
@@ -220,6 +224,75 @@ class BadgePrompt:
 
         finally:
             driver.quit()
+    # def get_disquiet_exact_team_image(self, team_title: str):
+    #     logger.info("4-4) 각 팀의 로고 찾는 중...")
+    #     url = f"https://disquiet.io/product/{team_title}"
+    #     page_url = self.data.deploymentUrl 
+
+    #     # 1. 크롬 옵션 구성
+    #     options = Options()
+    #     options.binary_location = "/usr/bin/chromium-browser"
+    #     options.add_argument("--headless")
+    #     options.add_argument("--no-sandbox")
+    #     options.add_argument("--disable-dev-shm-usage")
+    #     options.add_argument("--disable-gpu")
+    #     options.add_argument("--single-process")
+    #     options.add_argument("--disable-software-rasterizer")
+    #     options.add_argument("--remote-debugging-port=9222")
+
+    #     # 2. 안전한 임시 유저 데이터 디렉토리
+    #     with tempfile.TemporaryDirectory() as user_data_dir:
+    #         options.add_argument(f'--user-data-dir={user_data_dir}')
+
+    #         options.binary_location = "/opt/homebrew/bin/chromium"
+    #         service = Service("/opt/homebrew/bin/chromedriver")
+    #         # 3. chromedriver 직접 명시
+    #         service = Service("/usr/bin/chromedriver")
+
+    #         # 4. 버전 로그 확인
+    #         try:
+    #             chrome_ver = subprocess.check_output(["/usr/bin/chromium-browser", "--version"]).decode().strip()
+    #             driver_ver = subprocess.check_output(["/usr/bin/chromedriver", "--version"]).decode().strip()
+    #             logger.info(f"🔧 Chromium 버전: {chrome_ver}")
+    #             logger.info(f"🔧 Chromedriver 버전: {driver_ver}")
+    #         except Exception as e:
+    #             logger.warning(f"버전 확인 실패: {e}")
+
+    #         # 5. 드라이버 실행
+    #         logger.info("4-5) 크롬 드라이버 실행")
+    #         driver = webdriver.Chrome(service=service, options=options)
+
+    #         try:
+    #             driver.get(page_url)
+    #             logger.info("4-6) 크롬 접속 성공")
+    #             time.sleep(3)
+
+    #             resp = requests.get(page_url)
+    #             soup = BeautifulSoup(resp.text, "html.parser")
+
+    #             icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
+    #             if icon_link and icon_link.get("href"):
+    #                 logger.info("4-7) 팀 파비콘 있음.")
+    #                 favicon_url = urljoin(page_url, icon_link["href"])
+    #                 return self.get_image(favicon_url)
+
+    #             else:
+    #                 logger.info("4-8) 크롤링 재시도 중..")
+    #                 driver.get(url=url)
+    #                 img = driver.find_element(
+    #                     "xpath",
+    #                     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+    #                 )
+    #                 img_url = img.get_attribute("src")
+    #                 if img_url:
+    #                     logger.info(f"4-9) 팀 이미지 확인. URL: {img_url}")
+    #                     return self.get_image(img_url)
+
+    #         except Exception as e:
+    #             logger.warning(f"4-10) 로고 크롤링 실패: {e}")
+
+    #         finally:
+    #             driver.quit()
 
     def insert_logo_on_badge(self, max_half_size=165):
         """
