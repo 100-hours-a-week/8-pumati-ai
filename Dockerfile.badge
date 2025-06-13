@@ -1,33 +1,14 @@
-# PyTorch 2.7.0 with CUDA 12.1 (공식 이미지)
-FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
-# syntax=docker/dockerfile:1.4
-#FROM --platform=linux/amd64 pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+# ==========================================
+# Stage 1: 모델 다운로드 및 빌드 스테이지
+# ==========================================
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS model-downloader
 
-#FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn8-devel
-#FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn8-runtime
-#2.7.0-cuda11.8-cudnn8-runtime
-
-# 기본 시스템 패키지 설치: libglib2.0-0, libgl1은 cv2라이브러리 실행을 위한 필수 패키지. 
+# 빌드 도구 설치 (이 스테이지에서만 사용)
 RUN apt-get update && apt-get install -y \
-    libglib2.0-0 \
-    libgl1 \
     git \
     curl \
-    libvulkan1 \
-    chromium-browser \
-    chromium-chromedriver \
     wget \
     unzip \
-    libnss3 \
-    libxss1 \
-    libappindicator3-1 \
-    libasound2 \
-    fonts-liberation \
-    xdg-utils \
-    libatk-bridge2.0-0 \
-    libgtk-3-0 \
-    libgbm1 \
-    #libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 # 작업 디렉토리 설정
@@ -39,26 +20,9 @@ ENV TRANSFORMERS_CACHE=/app/.cache/transformers
 ENV HF_HOME=/app/.cache/huggingface
 RUN mkdir -p /app/.cache/huggingface /app/.cache/transformers
 
-# requirements.txt 복사 및 설치
-COPY requirements.badge.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.badge.txt
-
-# RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-#     apt-get install -y ./google-chrome-stable_current_amd64.deb && \
-#     rm google-chrome-stable_current_amd64.deb
-
-RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chrome-linux64.zip && \
-    unzip chrome-linux64.zip && \
-    mv chrome-linux64 /opt/chrome && \
-    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
-    rm chrome-linux64.zip
-
-RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chromedriver-linux64.zip && \
-unzip chromedriver-linux64.zip && \
-mv chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
-chmod +x /usr/bin/chromedriver && \
-rm -rf chromedriver-linux64* 
+# Python 의존성 설치 (모델 다운로드용)
+RUN pip install --upgrade pip && \
+    pip install huggingface_hub transformers diffusers
 
 # 🚀 모델 다운로드 스크립트 생성 및 실행
 ARG HUGGINGFACE_HUB_TOKEN
@@ -151,6 +115,58 @@ RUN chmod +x /app/download_models.py && python /app/download_models.py
 
 # 다운로드 스크립트 삭제 (이미지 크기 최적화)
 RUN rm /app/download_models.py
+
+# ==========================================
+# Stage 2: 런타임 스테이지 (최종 이미지)
+# ==========================================
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS runtime
+
+# 런타임에 필요한 시스템 패키지만 설치
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libgl1 \
+    libvulkan1 \
+    chromium-browser \
+    chromium-chromedriver \
+    libnss3 \
+    libxss1 \
+    libappindicator3-1 \
+    libasound2 \
+    fonts-liberation \
+    xdg-utils \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libgbm1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# 캐시 디렉토리 환경 변수 설정
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+ENV HF_HOME=/app/.cache/huggingface
+
+# Stage 1에서 다운로드된 모델 캐시 복사
+COPY --from=model-downloader /app/.cache /app/.cache
+
+# requirements.txt 복사 및 설치
+COPY requirements.badge.txt .
+RUN pip install --upgrade pip && \
+    pip install -r requirements.badge.txt
+
+# Chrome 설치 (런타임용)
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chrome-linux64.zip && \
+    unzip chrome-linux64.zip && \
+    mv chrome-linux64 /opt/chrome && \
+    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
+    rm chrome-linux64.zip
+
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chromedriver-linux64.zip && \
+    unzip chromedriver-linux64.zip && \
+    mv chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
+    chmod +x /usr/bin/chromedriver && \
+    rm -rf chromedriver-linux64*
 
 # 앱 코드 복사
 COPY . .
