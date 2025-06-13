@@ -69,7 +69,7 @@ class BadgeService:
         else:
             total_angle = 180
 
-        font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 50)
+        font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 35)
         angle_step = total_angle / (len(chars) - 1) if len(chars) > 1 else 0
         base_angle = start_angle - total_angle / 2 #첫 글자의 위치(+는 시계방향, -는 반시계방향임.)
 
@@ -89,7 +89,7 @@ class BadgeService:
             else:
                 rotation = - base_rotation
 
-            char_img = Image.new("RGBA", (65, 65), (255, 255, 255, 0))  # 완전 투명 배경, text의 기본 틀
+            char_img = Image.new("RGBA", (50, 50), (255, 255, 255, 0))  # 완전 투명 배경, text의 기본 틀
             char_draw = ImageDraw.Draw(char_img)
             char_draw.text((25, 25), ch, font=font, fill=(0, 0, 0, 255), anchor="mm") #(255, 215, 0, 255)
 
@@ -108,7 +108,7 @@ class BadgeService:
 
         # 2) 팀 title 입력
         logger.info("7-1) teamtitle 붙여주기")
-        image_final = self.draw_rotated_text(image, (400, 400), 280, request_data.title)
+        image_final = self.draw_rotated_text(image, (256, 256), 180, request_data.title)
 
         logger.info("8-1) Presigned URL 가져오기")
         # 3) 이미지 메모리 스트림 변환

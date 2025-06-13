@@ -1,5 +1,5 @@
 import os
-from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, DiffusionPipeline
+from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, UniPCMultistepScheduler #DiffusionPipeline
 from dotenv import load_dotenv
 from huggingface_hub import login
 import torch
@@ -10,9 +10,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 # "Controlnet -> SDXL -> REFINEMODEL" 구조로, 모델 3개 사용예정.
-CONTROLNET_NAME = "diffusers/controlnet-canny-sdxl-1.0-small"
-MODEL_NAME = "stabilityai/stable-diffusion-xl-base-1.0"
-REFINEMODEL_NAME = "stabilityai/stable-diffusion-xl-refiner-1.0"
+CONTROLNET_NAME = "lllyasviel/control_v11p_sd15_canny" #"diffusers/controlnet-canny-sdxl-1.0-small"
+MODEL_NAME = "runwayml/stable-diffusion-v1-5" #"stabilityai/stable-diffusion-xl-base-1.0"
+#REFINEMODEL_NAME = "stabilityai/stable-diffusion-xl-refiner-1.0"
+LORA_PATH = "/content/Badge_M.safetensors"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class BadgeModel:
@@ -50,22 +51,22 @@ class BadgeModel:
                 torch_dtype=torch.float16
             ).to(DEVICE)
 
+            logger.info("6-1-2) LoRA 로드")
+            self.SDXL_pipe.scheduler = UniPCMultistepScheduler.from_config(self.SDXL_pipe.scheduler.config)
+            self.SDXL_pipe.load_lora_weights(LORA_PATH)
+            self.SDXL_pipe.fuse_lora()
+
             # 3) refine파이프라인 로드
-            logger.info("6-1-2) refine파이프라인 로드")
-            self.refine_pipe = DiffusionPipeline.from_pretrained(
-                "stabilityai/stable-diffusion-xl-refiner-1.0",
-                text_encoder_2=self.SDXL_pipe.text_encoder_2,
-                vae=self.SDXL_pipe.vae,
-                torch_dtype=torch.float16,
-                use_safetensors=True,
-                variant="fp16"
-            ).to(DEVICE)
+            
+            # self.refine_pipe = DiffusionPipeline.from_pretrained(
+            #     "stabilityai/stable-diffusion-xl-refiner-1.0",
+            #     text_encoder_2=self.SDXL_pipe.text_encoder_2,
+            #     vae=self.SDXL_pipe.vae,
+            #     torch_dtype=torch.float16,
+            #     use_safetensors=True,
+            #     variant="fp16"
+            # ).to(DEVICE)
 
             self.SDXL_pipe.safety_checker = lambda images, **kwargs: (images, [False] * len(images))
-            return self.SDXL_pipe, self.refine_pipe
-        else:
-            return self.SDXL_pipe, self.refine_pipe
     
 badge_loader_instance = BadgeModel()
-SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model()
-

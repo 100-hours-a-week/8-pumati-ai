@@ -1,6 +1,6 @@
 from app.fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
 from app.context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
-from app.model_inference.loaders.badge_loader import SDXL_pipe, refine_pipe #모델 파이프라인 로드
+from app.model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
 
 import torch
 from PIL import Image
@@ -32,7 +32,7 @@ def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, 
 
     # 4) 결과이미지 출력
     logger.info("6-2) 이미지 생성 시작: Controlnet + base 이미지 모델 동작 시작")
-    SDXL_result = SDXL_pipe(
+    SDXL_result = badge_loader_instance.SDXL_pipe(
         prompt=prompt,
         negative_prompt=negative_prompt,
         width=width,
@@ -43,14 +43,14 @@ def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, 
         generator=generator
     ).images[0]
 
-    logger.info("6-3) 이미지 생성 시작: Refiner 모델 동작 시작")
-    refined_image = refine_pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        image=SDXL_result,
-        num_inference_steps=20,
-        guidance_scale=7.5,
-        denoising_start=0.8
-    ).images[0]
+    # logger.info("6-3) 이미지 생성 시작: Refiner 모델 동작 시작")
+    # refined_image = badge_loader_instance.refine_pipe(
+    #     prompt=prompt,
+    #     negative_prompt=negative_prompt,
+    #     image=SDXL_result,
+    #     num_inference_steps=20,
+    #     guidance_scale=7.5,
+    #     denoising_start=0.8
+    # ).images[0]
 
-    return refined_image
+    return SDXL_result

@@ -246,7 +246,8 @@ class BadgePrompt:
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
         logger.info("4-13) 뱃지 이미지 생성 완료.")
-        cv_image_logo = np.array(badge.convert("L"))
+        cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
+        #cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
 
