@@ -136,13 +136,15 @@ class BadgePrompt:
         logger.info("4-6) 크롬 접속 가능함")
 
         try:
-            resp = requests.get(page_url)
-            soup = BeautifulSoup(resp.text, "html.parser")
-            logger.info(f"4-6-1) {resp}, {soup}")
+            #resp = requests.get(page_url)
+            html = driver.page_source
+            soup = BeautifulSoup(html, "html.parser")
+            logger.info(f"4-6-1) {html}")
+            logger.info(f"4-6-2) {soup.prettify()[:1000]}")
 
             # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
             icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-            logger.info(f"4-6-2) {icon_link}")
+            logger.info(f"4-6-3) {icon_link}")
 
             if icon_link and icon_link.get("href"):
                 logger.info("4-7) 팀 파비콘 있음.")
