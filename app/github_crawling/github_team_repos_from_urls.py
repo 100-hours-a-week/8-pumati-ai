@@ -9,7 +9,8 @@ load_dotenv()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 ORG_NAME = os.getenv("ORG_NAME")
 TEAM_LIST_API_URL = os.getenv("TEAM_LIST_API_URL")
-USE_BACKEND_API = os.getenv("USE_BACKEND_API", "true").lower() == "true"
+USE_BACKEND_API_RAW = os.getenv("USE_BACKEND_API")
+USE_BACKEND_API = USE_BACKEND_API_RAW and USE_BACKEND_API_RAW.lower() == "true"
 
 HEADERS = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -17,11 +18,22 @@ HEADERS = {
 }
 
 def fetch_team_meta():
+    print(f"🐛 USE_BACKEND_API 값: {USE_BACKEND_API}")
     if USE_BACKEND_API:
+        print("🌐 백엔드 API를 통해 팀 메타데이터를 가져옵니다.")
+        print(f"🔗 요청 URL: {TEAM_LIST_API_URL}")
         try:
             res = requests.get(TEAM_LIST_API_URL, timeout=10)
+            print(f"📥 응답 상태 코드: {res.status_code}")
             res.raise_for_status()
+
             result = res.json()
+
+            # 'data' 필드 유효성 검사 추가
+            if "data" not in result:
+                print(f"❌ API 응답에 'data' 필드가 없습니다. result: {result}")
+                return [], {}
+
             team_urls = []
             team_meta = {}
             for item in result["data"]:
