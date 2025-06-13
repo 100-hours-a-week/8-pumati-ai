@@ -121,16 +121,20 @@ class BadgePrompt:
         options = Options()
         #options.binary_location = '/usr/bin/chronium-browser'
         options.binary_location = "/usr/bin/google-chrome"
-        options.add_argument("--headless")  # GUI 없이 실행
-        options.add_argument("--no-sandbox")  # 권한 문제 회피
-        options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
-        options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
-        options.add_argument("--single-process")
-        options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
+        # options.add_argument("--headless")  # GUI 없이 실행
+        # options.add_argument("--no-sandbox")  # 권한 문제 회피
+        # options.add_argument("--disable-dev-shm-usage")  # 공유 메모리 문제 회피
+        # options.add_argument("--disable-gpu")  # GPU 비활성화 (optional)
+        # #options.add_argument("--single-process")
+        # options.add_argument("--remote-debugging-port=9222")  # DevToolsActivePort 에러 방지
         # chrome_options = webdriver.ChromeOptions()
         # chrome_options.add_argument('--headless')
         # chrome_options.add_argument('--no-sandbox')
         # chrome_options.add_argument('--disable-dev-shm-usage')
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
 
         logger.info("4-5) 크롬 트라이버 생성중...")
         with tempfile.TemporaryDirectory() as user_data_dir:
