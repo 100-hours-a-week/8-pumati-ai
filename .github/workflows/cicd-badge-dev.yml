@@ -4,7 +4,7 @@
 name: Build, Push and Deploy Badge Service to Cloud Run with GPU - Development
 
 # 워크플로우 트리거 조건 설정
-# 해당 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
+# 해당 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.  
 on:
   push:
     branches:
