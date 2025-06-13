@@ -23,39 +23,14 @@ class GeminiLangChainLLM(LLM):
         chat = self._model.start_chat()
         stream = chat.send_message(prompt, stream=True)
 
-        buffer = ""
-
         for chunk in stream:
             new_text = chunk.text or ""
-            buffer += new_text
+            yield new_text # LLM이 반환하는 원본 문자열 청크를 그대로 전달
 
-            # 문장 단위로 끊어서 보내기
-            while True:
-                match = re.search(r"(.+?[.?!])(\s+|$)", buffer)
-                if match:
-                    sentence = match.group(1)
-                    buffer = buffer[match.end():]
-                    print("🟢 Gemini sentence:", repr(sentence))
-                    yield sentence
-                else:
-                    break
-
-            # 문장이 없어도 일정 길이 넘으면 보내기 (단어 깨짐 방지)
-            if len(buffer) >= 20:
-                split_point = buffer.rfind(" ")
-                if split_point != -1:
-                    partial = buffer[:split_point + 1]
-                    buffer = buffer[split_point + 1:]
-                    print("✉️ Gemini buffer partial:", repr(partial))
-                    yield partial
-
-        # 남은 버퍼 처리
-        if buffer.strip():
-            print("🔚 Gemini buffer flush:", repr(buffer))
-            yield buffer
-
-
-
+        # 전체 결과 누적해서 한 번에 보기 (디버깅용)
+        final_full_response = chat.history[-1].parts[0].text if chat.history else ""
+        print("🧾 Gemini full response (for debug):", repr(final_full_response.replace('\n', '\\n')))
+            
     @property
     def streaming(self) -> bool:
         return True
