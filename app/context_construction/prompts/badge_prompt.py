@@ -149,10 +149,11 @@ class BadgePrompt:
         try:
             #resp = requests.get(page_url)
             #html = driver.page_source
-            try: 
+            try:
                 favicon_url = urljoin(page_url, "/favicon.ico")
                 resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
                 if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
+                    logger.info("4-7) 파비콘 ico 있음.")
                     canny_logo = self.get_image(favicon_url)
                     return canny_logo
             except:
@@ -162,20 +163,20 @@ class BadgePrompt:
 
             try:
                 resp = requests.get(page_url, timeout=3)
-                logger.info(f"4-8-1) {resp}")
+                #logger.info(f"4-8-1) {resp}")
                 soup = BeautifulSoup(resp.text, "html.parser")
-                logger.info(f"4-8-2) {soup.prettify()[:1000]}")
+                #logger.info(f"4-8-2) {soup.prettify()[:1000]}")
 
                 # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                 icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                logger.info(f"4-8-3) {icon_link}")
+                #logger.info(f"4-8-3) {icon_link}")
 
                 if icon_link and icon_link.get("href"):
                     logger.info("4-8-4) 팀 파비콘 있음.")
                     favicon_url = urljoin(page_url, icon_link["href"])
-                    logger.info(f"4-8-5) {favicon_url}")
+                    #logger.info(f"4-8-5) {favicon_url}")
                     canny_logo = self.get_image(favicon_url)
-                    logger.info(f"4-8-6) {len(canny_logo)}")
+                    #logger.info(f"4-8-6) {len(canny_logo)}")
                     return canny_logo
             except:
                 logger.info("4-9) 파비콘 ico 없음")
@@ -186,7 +187,9 @@ class BadgePrompt:
                 "xpath",
                 '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
             )
+            logger.info(f"4-10-1) {img_url}")
             img_url = img.get_attribute("src")
+            logger.info(f"4-10-2) {img_url}")
             if img_url:
                 logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
                 canny_logo = self.get_image(img_url)

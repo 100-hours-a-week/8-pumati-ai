@@ -1,6 +1,6 @@
 from app.fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
 from app.context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
-from app.model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
+from app.model_inference.loaders.badge_loader import SDXL_pipe, refine_pipe #모델 파이프라인 로드
 
 import torch
 from PIL import Image
@@ -23,7 +23,7 @@ def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, 
 
     # 2) pipline로드
     logger.info("6-1) 이미지 생성 시작: 모델 파이프라인 로드")
-    SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model()
+    #SDXL_pipe, refine_pipe = badge_loader_instance.load_diffusion_model()
 
     #3) Controlnet 이미지 로드
     #controlnet_path= f"./model_inference/Canny_image/badge_{team_number}.png"
