@@ -59,8 +59,8 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
 
-      # 🔧 HF 토큰 추출 및 Docker 빌드 인자 준비
-      - name: Extract HF Token and Build Docker image
+      # 🔧 HF 토큰 추출 및 GCP Storage 파일 다운로드
+      - name: Extract HF Token and Download GCP Storage files
         run: |
           echo "🔧 HF 토큰 추출 중..."
           
@@ -71,7 +71,34 @@ jobs:
           echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
           echo "🔄 HUGGINGFACE_HUB_TOKEN으로 사용 예정"
           
-          # Docker 빌드 (HF 토큰을 HUGGINGFACE_HUB_TOKEN으로 전달)
+          # 📁 모델 로더 디렉토리 생성
+          echo "📁 모델 로더 디렉토리 생성 중..."
+          mkdir -p model_inference/loaders
+          
+          # 🔽 GCP Storage에서 Badge_M.safetensors 다운로드
+          echo "📥 GCP Storage에서 Badge_M.safetensors 다운로드 중..."
+          if gsutil cp gs://ktb8team/dev/badge_images/Badge_M.safetensors model_inference/loaders/Badge_M.safetensors; then
+            echo "✅ Badge_M.safetensors 다운로드 성공!"
+            
+            # 파일 크기 확인
+            FILE_SIZE=$(stat -f%z model_inference/loaders/Badge_M.safetensors 2>/dev/null || stat -c%s model_inference/loaders/Badge_M.safetensors 2>/dev/null || echo "0")
+            echo "📊 파일 크기: $((FILE_SIZE / 1024 / 1024)) MB"
+            
+            # 파일 존재 확인
+            ls -la model_inference/loaders/
+          else
+            echo "⚠️  Badge_M.safetensors 다운로드 실패했지만 빌드는 계속 진행합니다."
+          fi
+          
+          # 환경 변수를 다음 단계로 전달
+          echo "HF_AUTH_TOKEN_VICKY=${HF_AUTH_TOKEN_VICKY}" >> $GITHUB_ENV
+          
+          # 임시 파일 정리
+          rm temp_env
+
+      # 🐳 Docker 이미지 빌드
+      - name: Build Docker image
+        run: |
           echo "🐳 Docker 이미지 빌드 시작..."
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
@@ -83,9 +110,6 @@ jobs:
             -f ${{ env.DOCKERFILE_PATH }} .
           
           echo "✅ Docker 이미지 빌드 완료!"
-          
-          # 임시 파일 정리
-          rm temp_env
 
       # 5. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
