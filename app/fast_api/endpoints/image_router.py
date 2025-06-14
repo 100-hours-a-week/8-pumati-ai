@@ -158,7 +158,7 @@ async def receive_badge_modi_request(badge_modi_body: BadgeModifyRequest):
     logger.info(f"1-1) 뱃지 수정 요청 수신. 수신된 데이터: {badge_modi_body}")
 
     # mod_tags, team_info로 미리 빼서 전달
-    mod_tags = badge_modi_body.modificationTags
+    mod_tags = badge_modi_body.modificationTags[0]
     team_info = badge_modi_body.projectSummary
 
     response = await prepare_response()

@@ -59,7 +59,7 @@ class BadgePrompt:
         draw_top_arc(draw, inner_radius)
 
         # 4. 숫자 텍스트 삽입
-        number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 100)
+        number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 120)
         number_text = str(number)
         bbox = draw.textbbox((0, 0), number_text, font=number_font)
         text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -264,35 +264,29 @@ class BadgePrompt:
         #cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
-
-    
-    def modi_mapping(self, mod_tags):
-        if mod_tags == "원본":
-            return " "
-        elif mod_tags == "몽환적인":
-            return "Watercolor"
-        elif mod_tags == "화려한":
-            return "glittery style with sparkling particles"
-        elif mod_tags == "80년대 개성적인":
-            return "in vaporwave aesthetic"
-        elif mod_tags == "십자수":
-            return "embroidered patch style"
-        elif mod_tags == "가죽":
-            return "Leather Patch Style"
-        elif mod_tags == "우드":
-            return "Wood Burned Badge"
     
 
     def build_badge_prompt(self, mod_tags: str, team_number: int) -> str:
-        if mod_tags == None:
-            return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient without any other color, soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows"""
-        #f"A kawaii badge with {self.data.title} on the top(it can be Hangul), number {team_number} on bottom and colored character on the middle of the image. Watercolor. Pixiv, Modernist. point {self.color} color with gradation inside the badge, iridescent gold. rimlighting, halo"
+        if mod_tags == "뉴스":
+            return f"NewspaperWorld, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background, Sunlight, Soft natural light"
+        elif mod_tags == "자연 풍경":
+            return f"hyrule, scenery, outdoors, no humans. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft blue Logo Icon, white background, Sunlight, Soft natural light"
+        elif mod_tags == "우드":
+            return f"woodcarvingcd, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background."
+        elif mod_tags == "픽셀":
+            return f"pixel world. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+        elif mod_tags == "게임":
+            return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         else:
-            return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient. {self.modi_mapping(mod_tags)}. soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows."""
+            return f"badge, logo. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
 
-    # 아래는 한국어 -> 영어로 변환.
-    def translate_korean_to_english(self, korean_prompt: str) -> str:
-        return GoogleTranslator(source='ko', target='en').translate(korean_prompt)
+
+        # if mod_tags == None:
+        #     return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient without any other color, soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows"""
+        # #f"A kawaii badge with {self.data.title} on the top(it can be Hangul), number {team_number} on bottom and colored character on the middle of the image. Watercolor. Pixiv, Modernist. point {self.color} color with gradation inside the badge, iridescent gold. rimlighting, halo"
+        # else:
+        #     return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient. {self.modi_mapping(mod_tags)}. soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows."""
+
 
 
 if __name__ == '__main__':
