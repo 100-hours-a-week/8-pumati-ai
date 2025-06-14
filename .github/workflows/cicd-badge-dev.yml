@@ -59,8 +59,8 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
 
-      # 🔧 HF 토큰 추출 및 GCP Storage 파일 다운로드
-      - name: Extract HF Token and Download GCP Storage files
+      # 🔧 HF 토큰 추출, GCP Storage 파일 다운로드 및 Docker 빌드 (통합)
+      - name: Extract HF Token, Download GCP files and Build Docker image
         run: |
           echo "🔧 HF 토큰 추출 중..."
           
@@ -69,7 +69,14 @@ jobs:
           export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           
           echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
-          echo "🔄 HUGGINGFACE_HUB_TOKEN으로 사용 예정"
+          
+          # HF 토큰 유효성 검증
+          if [ -z "$HF_AUTH_TOKEN_VICKY" ]; then
+            echo "❌ HF_AUTH_TOKEN_VICKY 추출 실패!"
+            exit 1
+          fi
+          
+          echo "✅ HF 토큰 추출 성공!"
           
           # 📁 모델 로더 디렉토리 생성
           echo "📁 모델 로더 디렉토리 생성 중..."
@@ -90,16 +97,10 @@ jobs:
             echo "⚠️  Badge_M.safetensors 다운로드 실패했지만 빌드는 계속 진행합니다."
           fi
           
-          # 환경 변수를 다음 단계로 전달
-          echo "HF_AUTH_TOKEN_VICKY=${HF_AUTH_TOKEN_VICKY}" >> $GITHUB_ENV
-          
-          # 임시 파일 정리
-          rm temp_env
-
-      # 🐳 Docker 이미지 빌드
-      - name: Build Docker image
-        run: |
+          # 🐳 Docker 이미지 빌드 (같은 스텝에서 실행하여 환경변수 유지)
           echo "🐳 Docker 이미지 빌드 시작..."
+          echo "🔑 Docker 빌드에 전달할 HF 토큰: ${HF_AUTH_TOKEN_VICKY:0:10}****"
+          
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -110,6 +111,9 @@ jobs:
             -f ${{ env.DOCKERFILE_PATH }} .
           
           echo "✅ Docker 이미지 빌드 완료!"
+          
+          # 임시 파일 정리
+          rm temp_env
 
       # 5. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
