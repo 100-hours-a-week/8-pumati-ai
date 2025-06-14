@@ -69,7 +69,7 @@ class BadgePrompt:
         # 5. Canny 엣지 적용 및 저장
         cv_image = np.array(base)
         canny_image = cv2.Canny(cv_image, 30, 100)
-        logger.info("4-3) Canny이미지 배경 생성 완료")
+        logger.info("3-3) Canny이미지 배경 생성 완료")
         return canny_image
 
 
@@ -124,7 +124,7 @@ class BadgePrompt:
         return canny_logo
 
     def get_disquiet_exact_team_image(self, team_title: str):
-        logger.info("4-4) 각 팀의 로고 찾는 중...")
+        logger.info("3-4) 각 팀의 로고를 크롤링...")
         url = f"https://disquiet.io/product/{team_title}"
         page_url = self.data.deploymentUrl
 
@@ -139,7 +139,7 @@ class BadgePrompt:
         options.add_argument('--remote-debugging-port=9222')
         options.add_argument('--no-zygote')
 
-        logger.info("4-5) 크롬 트라이버 생성중...")
+        logger.info("3-5) 크롬 트라이버 생성중...")
         with tempfile.TemporaryDirectory() as user_data_dir:
             options.add_argument(f'--user-data-dir={user_data_dir}')
             service = Service("/usr/bin/chromedriver")
@@ -147,7 +147,7 @@ class BadgePrompt:
 
         driver.get(page_url)
         time.sleep(3)  # JS 렌더링 대기
-        logger.info("4-6) 크롬 접속 가능함")
+        logger.info("3-6) 크롬 접속 가능함")
 
         try:
             #resp = requests.get(page_url)
@@ -156,13 +156,13 @@ class BadgePrompt:
                 favicon_url = urljoin(page_url, "/favicon.ico")
                 resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
                 if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
-                    logger.info("4-7) 파비콘 ico 있음.")
+                    logger.info("3-7) 파비콘 ico 있음.")
                     canny_logo = self.get_image(favicon_url)
                     return canny_logo
             except:
-                logger.info("4-7) 파비콘 ico 없음")
+                logger.info("3-7) 파비콘 ico 없음")
             
-            logger.info(f"4-8) 웹페이지 크롤링 시작")
+            logger.info(f"3-8) 웹페이지 크롤링 시작")
 
             try:
                 resp = requests.get(page_url, timeout=3)
@@ -175,16 +175,16 @@ class BadgePrompt:
                 #logger.info(f"4-8-3) {icon_link}")
 
                 if icon_link and icon_link.get("href"):
-                    logger.info("4-8-4) 팀 파비콘 있음.")
+                    logger.info("3-9) 팀 파비콘 있음.")
                     favicon_url = urljoin(page_url, icon_link["href"])
                     #logger.info(f"4-8-5) {favicon_url}")
                     canny_logo = self.get_image(favicon_url)
                     #logger.info(f"4-8-6) {len(canny_logo)}")
                     return canny_logo
             except:
-                logger.info("4-9) 파비콘 ico 없음")
+                logger.info("3-9) 파비콘 ico 없음")
             
-            logger.info("4-10) 크롤링 재시도 중..")
+            logger.info("3-10) 크롤링 재시도 중..")
             driver.get(url=url)
             # img = driver.find_element(
             #     "xpath",
@@ -204,16 +204,17 @@ class BadgePrompt:
                 #페이지가 켜질 때 까지 3초 기다림.
                 img = WebDriverWait(driver, 3).until(
                     EC.presence_of_element_located((
-                        By.XPATH, '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+                        By.XPATH, '//img[contains(@class, "h-24") and contains(@class, "w-24") and contains(@class, "object-cover")]'
                     ))
                 )
+                logger.info(f"3-10-1) img: {img}")
                 img_url = img.get_attribute("src")
-                logger.info(f"✅ 팀 이미지 URL: {img_url}")
+                logger.info(f"3-11) 팀 이미지 URL: {img_url}")
             except Exception as e:
-                logger.error(f"❌ 이미지 못 찾음: {e}")
+                logger.error(f"3-11) 이미지 못 찾음: {repr(e)}")
 
         except Exception as e:
-            logger.info("4-12) 팀 파비콘 없음.")
+            logger.info("3-12) 팀 파비콘 없음.")
 
         
 
@@ -233,6 +234,7 @@ class BadgePrompt:
         badge = Image.fromarray(self.generate_corrected_badge(self.data.teamNumber)).convert("L")
         logo = Image.fromarray(self.get_disquiet_exact_team_image(self.data.title)).convert("L")
 
+        logger.info("4-1) 로고 병합중...")
         # 중심점 및 삽입 가능 영역 크기
         center = (badge.width // 2, badge.height // 2)
         max_width = max_height = max_half_size * 2  # 240 x 240
@@ -259,8 +261,9 @@ class BadgePrompt:
 
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
-        logger.info("4-13) 뱃지 이미지 생성 완료.")
+        logger.info("4-2) 뱃지 이미지 생성 완료.")
         cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
+        logger.info("4-3) 이미지 해상도: 512 x 512")
         #cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
