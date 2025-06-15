@@ -99,7 +99,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 + GPU 사용 - 환경변수를 개별 빌드 인자로 전달
+      # 6. Docker 이미지 빌드 - SHA 태그로만 먼저 빌드
       - name: Build Docker image with GPU
         run: |
           DOCKER_BUILDKIT=1 docker build \
@@ -121,18 +121,19 @@ jobs:
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
 
-      # 빌드 후 이미지 태그 확인
-      - name: List Docker images
-        run: docker images
-
-      # 필요시 강제로 latest 태그 붙이기
-      - name: Retag image as latest
+      # 7. latest 태그 추가 (명시적으로 태그 생성)
+      - name: Tag image as latest
         run: |
           docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # 빌드 후 이미지 태그 확인
+      - name: List Docker images
+        run: |
+          echo "=== 로컬 Docker 이미지 목록 ==="
+          docker images | grep "${{ env.IMAGE_NAME }}" || echo "해당 이미지를 찾을 수 없습니다."
 
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
@@ -142,35 +143,41 @@ jobs:
             "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
-      # 7. Docker 이미지를 Artifact Registry에 푸시
+      # 8. Docker 이미지를 Artifact Registry에 푸시 (순차적으로)
       - name: Push Docker image to Artifact Registry
         run: |
-          echo "Pushing :sha tag (${{ github.sha }})..."
+          echo "=== SHA 태그 푸시 중... ==="
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           
-          echo "---------------------------------------------------------------------"
-          echo "Inspecting local 'latest' tag before pushing to registry:"
-          # 로컬에 태그된 latest 이미지의 상세 정보 (특히 Image ID 또는 Digest) 확인
-          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          echo "---------------------------------------------------------------------"
-          
-          echo "Attempting to push :latest tag..."
-          # latest 태그 푸시 시도. Actions는 기본적으로 명령어의 모든 출력을 로깅합니다.
+          echo "=== latest 태그 푸시 중... ==="
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
           
-          echo "---------------------------------------------------------------------"
-          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
-          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보(digest, 업데이트 시간 등)를 가져옵니다.
-          # 이를 통해 Docker 클라이언트의 보고나 UI 지연과 관계없이 실제 레지스트리 상태를 확인할 수 있습니다.
-          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe 'latest' tag from Artifact Registry, or it does not exist."
-          echo "---------------------------------------------------------------------"
-          echo "Verifying pushed :sha tag in Artifact Registry (via gcloud):"
-          # 비교를 위해 방금 푸시한 :sha 태그의 정보도 가져옵니다.
-          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe ':sha' tag from Artifact Registry."
-          echo "---------------------------------------------------------------------"
+          echo "=== 푸시 완료 후 레지스트리 상태 확인 ==="
+          
+          # latest 태그 확인
+          echo "--- latest 태그 정보 ---"
+          gcloud artifacts docker images describe \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
+            --format='value(image_summary.digest, update_time)' || echo "❌ latest 태그 조회 실패"
+          
+          # SHA 태그 확인
+          echo "--- SHA 태그 정보 ---"
+          gcloud artifacts docker images describe \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --format='value(image_summary.digest, update_time)' || echo "❌ SHA 태그 조회 실패"
+          
+          # 전체 태그 목록 확인
+          echo "--- 전체 태그 목록 ---"
+          gcloud artifacts docker images list \
+            --repository=${{ env.ARTIFACT_REGISTRY_REPO }} \
+            --location=${{ env.ARTIFACT_REGISTRY_LOCATION }} \
+            --filter="name:${{ env.IMAGE_NAME }}" \
+            --format='table(IMAGE, TAGS, DIGEST, CREATE_TIME)'
 
-      # 8. 이미지 주소 출력
-      - name: Output image URL
+      # 9. 이미지 주소 출력
+      - name: Output image URLs
         run: |
-          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "✅ 이미지 푸시 완료!"
+          echo "SHA 태그: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "latest 태그: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
