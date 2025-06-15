@@ -142,6 +142,12 @@ RUN apt-get update && apt-get install -y \
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# 🔑 빌드 시 HF 토큰을 ARG로 받아서 런타임 환경 변수로 설정
+ARG HUGGINGFACE_HUB_TOKEN
+ENV HF_AUTH_TOKEN_VICKY=${HUGGINGFACE_HUB_TOKEN}
+ENV HF_AUTH_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+
 # 캐시 디렉토리 환경 변수 설정
 ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/transformers
@@ -175,30 +181,34 @@ COPY . .
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
-# 🔐 안전한 엔트리포인트 스크립트 생성
-# 런타임에 환경 변수가 있으면 .env 파일을 생성하고 앱을 실행
+# 🔐 런타임 시작 스크립트 생성
+# 환경 변수를 .env 파일에 쓴 후 Python 앱 실행
 RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
 echo "🚀 배지 서비스 시작 중..."\n\
 \n\
-# 환경 변수가 있으면 .env 파일을 런타임에 생성 (보안상 안전)\n\
+# 런타임에 환경 변수를 .env 파일에 저장\n\
+echo "🔑 환경 변수를 .env 파일에 설정 중..."\n\
+\n\
 if [ ! -z "$HF_AUTH_TOKEN_VICKY" ]; then\n\
-    echo "🔑 런타임에 .env 파일 생성 중..."\n\
     echo "HF_AUTH_TOKEN_VICKY=$HF_AUTH_TOKEN_VICKY" > .env\n\
     echo "HF_AUTH_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
     echo "HUGGINGFACE_HUB_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
-    echo "✅ .env 파일 생성 완료"\n\
+    echo "✅ .env 파일 생성 완료 (토큰: ${HF_AUTH_TOKEN_VICKY:0:10}****)"\n\
 else\n\
-    echo "⚠️ HF_AUTH_TOKEN_VICKY 환경 변수가 없습니다. 캐시된 모델만 사용합니다."\n\
+    echo "❌ HF_AUTH_TOKEN_VICKY 환경 변수가 설정되지 않았습니다!"\n\
+    echo "💡 다음과 같이 환경 변수를 전달해주세요:"\n\
+    echo "   docker run -e HF_AUTH_TOKEN_VICKY=your_token ..."\n\
+    exit 1\n\
 fi\n\
 \n\
 echo "🎯 FastAPI 앱 실행 중..."\n\
 exec "$@"\n\
-' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+' > /app/start.sh && chmod +x /app/start.sh
 
 # 엔트리포인트 설정
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/start.sh"]
 
 # 배지 서비스 FastAPI 앱 실행
 CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8080"]
