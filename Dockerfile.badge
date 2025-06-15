@@ -175,5 +175,30 @@ COPY . .
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
+# 🔐 안전한 엔트리포인트 스크립트 생성
+# 런타임에 환경 변수가 있으면 .env 파일을 생성하고 앱을 실행
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "🚀 배지 서비스 시작 중..."\n\
+\n\
+# 환경 변수가 있으면 .env 파일을 런타임에 생성 (보안상 안전)\n\
+if [ ! -z "$HF_AUTH_TOKEN_VICKY" ]; then\n\
+    echo "🔑 런타임에 .env 파일 생성 중..."\n\
+    echo "HF_AUTH_TOKEN_VICKY=$HF_AUTH_TOKEN_VICKY" > .env\n\
+    echo "HF_AUTH_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
+    echo "HUGGINGFACE_HUB_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
+    echo "✅ .env 파일 생성 완료"\n\
+else\n\
+    echo "⚠️ HF_AUTH_TOKEN_VICKY 환경 변수가 없습니다. 캐시된 모델만 사용합니다."\n\
+fi\n\
+\n\
+echo "🎯 FastAPI 앱 실행 중..."\n\
+exec "$@"\n\
+' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# 엔트리포인트 설정
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 # 배지 서비스 FastAPI 앱 실행
 CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8080"]
