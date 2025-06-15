@@ -32,7 +32,7 @@ class BadgeModel:
         load_dotenv()
         token = os.getenv("HF_AUTH_TOKEN_VICKY")
         if not token:
-            raise EnvironmentError("HF_AUTH_TOKEN is not set in .env file.")
+            raise EnvironmentError("HF_AUTH_TOKEN_VICKY is not set in .env file.")
         login(token=token)
         BadgeModel._is_authenticated = True
 
@@ -105,4 +105,4 @@ class BadgeModel:
         
     
 badge_loader_instance = BadgeModel()
-badge_loader_instance.load_diffusion_model()
+#badge_loader_instance.load_diffusion_model()

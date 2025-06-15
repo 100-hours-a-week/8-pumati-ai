@@ -1,132 +1,131 @@
-# ==========================================
-# Stage 1: 모델 다운로드 및 빌드 스테이지
-# ==========================================
-FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS model-downloader
+# # ==========================================
+# # Stage 1: 모델 다운로드 및 빌드 스테이지
+# # ==========================================
+# FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS model-downloader
 
-# 빌드 도구 설치 (이 스테이지에서만 사용)
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    wget \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
+# # 빌드 도구 설치 (이 스테이지에서만 사용)
+# # RUN apt-get update && apt-get install -y \
+# #     git \
+# #     curl \
+# #     wget \
+# #     unzip \
+# #     && rm -rf /var/lib/apt/lists/*
 
-# 작업 디렉토리 설정
-WORKDIR /app
+# # 작업 디렉토리 설정
+# WORKDIR /app
 
-# 캐시 디렉토리 미리 생성 및 환경 변수 설정
-ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
-ENV TRANSFORMERS_CACHE=/app/.cache/transformers
-ENV HF_HOME=/app/.cache/huggingface
-RUN mkdir -p /app/.cache/huggingface /app/.cache/transformers
+# # 캐시 디렉토리 미리 생성 및 환경 변수 설정
+# ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+# ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+# ENV HF_HOME=/app/.cache/huggingface
+# RUN mkdir -p /app/.cache/huggingface /app/.cache/transformers
 
-# Python 의존성 설치 (모델 다운로드용)
-RUN pip install --upgrade pip && \
-    pip install huggingface_hub transformers diffusers
+# # Python 의존성 설치 (모델 다운로드용)
+# RUN pip install --upgrade pip && \
+#     pip install huggingface_hub transformers diffusers
 
-# 🚀 모델 다운로드 스크립트 생성 및 실행
-ARG HUGGINGFACE_HUB_TOKEN
-ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+# # 🚀 모델 다운로드 스크립트 생성 및 실행
+# ARG HUGGINGFACE_HUB_TOKEN
+# ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
 
-# 모델 다운로드 스크립트 생성
-RUN echo '#!/usr/bin/env python3\n\
-import os\n\
-import sys\n\
-import time\n\
-from huggingface_hub import login, snapshot_download\n\
-import torch\n\
-\n\
-print("🚀 Docker 빌드 중 모델 다운로드 시작 (메모리 최적화)")\n\
-\n\
-# HF 토큰 확인\n\
-token = os.getenv("HUGGINGFACE_HUB_TOKEN")\n\
-if not token:\n\
-    print("❌ HUGGINGFACE_HUB_TOKEN가 설정되지 않았습니다!")\n\
-    sys.exit(1)\n\
-\n\
-print(f"🔑 토큰 확인: {token[:10]}****")\n\
-\n\
-# Hugging Face 로그인\n\
-try:\n\
-    login(token=token)\n\
-    print("✅ Hugging Face 로그인 성공!")\n\
-except Exception as e:\n\
-    print(f"❌ Hugging Face 로그인 실패: {e}")\n\
-    sys.exit(1)\n\
-\n\
-# 캐시 디렉토리 확인\n\
-cache_dir = "/app/.cache/huggingface"\n\
-print(f"📁 캐시 디렉토리: {cache_dir}")\n\
-\n\
-def download_with_retry(repo_id, max_retries=3):\n\
-    """재시도 로직이 있는 다운로드 함수"""\n\
-    for attempt in range(max_retries):\n\
-        try:\n\
-            print(f"📥 {repo_id} 다운로드 시도 {attempt + 1}/{max_retries}...")\n\
-            snapshot_download(\n\
-                repo_id,\n\
-                cache_dir=cache_dir,\n\
-                local_files_only=False,\n\
-                resume_download=True,\n\
-                max_workers=2\n\
-            )\n\
-            print(f"✅ {repo_id} 다운로드 완료!")\n\
-            return True\n\
-        except Exception as e:\n\
-            print(f"❌ {repo_id} 다운로드 실패 (시도 {attempt + 1}): {e}")\n\
-            if attempt < max_retries - 1:\n\
-                wait_time = (attempt + 1) * 10\n\
-                print(f"⏳ {wait_time}초 후 재시도...")\n\
-                time.sleep(wait_time)\n\
-            else:\n\
-                print(f"💥 {repo_id} 최종 다운로드 실패!")\n\
-                return False\n\
-    return False\n\
-\n\
-try:\n\
-    # 🚀 메모리 효율적인 다운로드 방식 (재시도 포함)\n\
-    models = [\n\
-        ("lllyasviel/sd-controlnet-canny", "ControlNet SD 1.5"),\n\
-        ("runwayml/stable-diffusion-v1-5", "SD 1.5 Base")\n\
-    ]\n\
-    \n\
-    for i, (repo_id, name) in enumerate(models, 1):\n\
-        print(f"📥 {i}/2 {name} 모델 다운로드 중... (다운로드만)")\n\
-        if not download_with_retry(repo_id):\n\
-            print(f"💥 {name} 모델 다운로드 실패로 빌드 중단!")\n\
-            sys.exit(1)\n\
-        print(f"🎉 {name} 모델 다운로드 성공!")\n\
-        print("💾 메모리 정리 중...")\n\
-        time.sleep(2)  # 메모리 정리 시간\n\
-    \n\
-    print("🎉 모든 모델 다운로드 성공! (메모리 사용량 최소화)")\n\
-    print("💡 런타임에서 캐시된 모델을 로드하여 사용합니다.")\n\
-    \n\
-except Exception as e:\n\
-    print(f"❌ 모델 다운로드 실패: {e}")\n\
-    import traceback\n\
-    traceback.print_exc()\n\
-    sys.exit(1)\n\
-' > /app/download_models.py
+# # 모델 다운로드 스크립트 생성
+# RUN echo '#!/usr/bin/env python3\n\
+# import os\n\
+# import sys\n\
+# import time\n\
+# from huggingface_hub import login, snapshot_download\n\
+# import torch\n\
+# \n\
+# print("🚀 Docker 빌드 중 모델 다운로드 시작 (메모리 최적화)")\n\
+# \n\
+# # HF 토큰 확인\n\
+# token = os.getenv("HUGGINGFACE_HUB_TOKEN")\n\
+# if not token:\n\
+#     print("❌ HUGGINGFACE_HUB_TOKEN가 설정되지 않았습니다!")\n\
+#     sys.exit(1)\n\
+# \n\
+# print(f"🔑 토큰 확인: {token[:10]}****")\n\
+# \n\
+# # Hugging Face 로그인\n\
+# try:\n\
+#     login(token=token)\n\
+#     print("✅ Hugging Face 로그인 성공!")\n\
+# except Exception as e:\n\
+#     print(f"❌ Hugging Face 로그인 실패: {e}")\n\
+#     sys.exit(1)\n\
+# \n\
+# # 캐시 디렉토리 확인\n\
+# cache_dir = "/app/.cache/huggingface"\n\
+# print(f"📁 캐시 디렉토리: {cache_dir}")\n\
+# \n\
+# def download_with_retry(repo_id, max_retries=3):\n\
+#     """재시도 로직이 있는 다운로드 함수"""\n\
+#     for attempt in range(max_retries):\n\
+#         try:\n\
+#             print(f"📥 {repo_id} 다운로드 시도 {attempt + 1}/{max_retries}...")\n\
+#             snapshot_download(\n\
+#                 repo_id,\n\
+#                 cache_dir=cache_dir,\n\
+#                 local_files_only=False,\n\
+#                 resume_download=True,\n\
+#                 max_workers=2\n\
+#             )\n\
+#             print(f"✅ {repo_id} 다운로드 완료!")\n\
+#             return True\n\
+#         except Exception as e:\n\
+#             print(f"❌ {repo_id} 다운로드 실패 (시도 {attempt + 1}): {e}")\n\
+#             if attempt < max_retries - 1:\n\
+#                 wait_time = (attempt + 1) * 10\n\
+#                 print(f"⏳ {wait_time}초 후 재시도...")\n\
+#                 time.sleep(wait_time)\n\
+#             else:\n\
+#                 print(f"💥 {repo_id} 최종 다운로드 실패!")\n\
+#                 return False\n\
+#     return False\n\
+# \n\
+# try:\n\
+#     # 🚀 메모리 효율적인 다운로드 방식 (재시도 포함)\n\
+#     models = [\n\
+#         ("lllyasviel/sd-controlnet-canny", "ControlNet SD 1.5"),\n\
+#         ("runwayml/stable-diffusion-v1-5", "SD 1.5 Base")\n\
+#     ]\n\
+#     \n\
+#     for i, (repo_id, name) in enumerate(models, 1):\n\
+#         print(f"📥 {i}/2 {name} 모델 다운로드 중... (다운로드만)")\n\
+#         if not download_with_retry(repo_id):\n\
+#             print(f"💥 {name} 모델 다운로드 실패로 빌드 중단!")\n\
+#             sys.exit(1)\n\
+#         print(f"🎉 {name} 모델 다운로드 성공!")\n\
+#         print("💾 메모리 정리 중...")\n\
+#         time.sleep(2)  # 메모리 정리 시간\n\
+#     \n\
+#     print("🎉 모든 모델 다운로드 성공! (메모리 사용량 최소화)")\n\
+#     print("💡 런타임에서 캐시된 모델을 로드하여 사용합니다.")\n\
+#     \n\
+# except Exception as e:\n\
+#     print(f"❌ 모델 다운로드 실패: {e}")\n\
+#     import traceback\n\
+#     traceback.print_exc()\n\
+#     sys.exit(1)\n\
+# ' > /app/download_models.py
 
 # 모델 다운로드 실행
-RUN chmod +x /app/download_models.py && python /app/download_models.py
+# RUN chmod +x /app/download_models.py && python /app/download_models.py
 
 # 다운로드 스크립트 삭제 (이미지 크기 최적화)
-RUN rm /app/download_models.py
+# RUN rm /app/download_models.py
 
 # ==========================================
 # Stage 2: 런타임 스테이지 (최종 이미지)
 # ==========================================
-FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS runtime
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime 
+#AS runtime
 
 # 런타임에 필요한 시스템 패키지만 설치 (wget, unzip 추가)
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libgl1 \
     libvulkan1 \
-    chromium-browser \
-    chromium-chromedriver \
     libnss3 \
     libxss1 \
     libappindicator3-1 \
@@ -140,6 +139,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
+#chromium-browser \
+#chromium-chromedriver \
+
 # 작업 디렉토리 설정
 WORKDIR /app
 
@@ -148,8 +150,8 @@ ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/transformers
 ENV HF_HOME=/app/.cache/huggingface
 
-# Stage 1에서 다운로드된 모델 캐시 복사
-COPY --from=model-downloader /app/.cache /app/.cache
+# # Stage 1에서 다운로드된 모델 캐시 복사
+# COPY --from=model-downloader /app/.cache /app/.cache
 
 # requirements.txt 복사 및 설치
 COPY requirements.badge.txt .
@@ -173,7 +175,7 @@ RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.
 COPY . .
 
 # Chrome 환경 변수 설정
-ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 # FastAPI 앱 실행 (포트는 필요에 따라 조정)
