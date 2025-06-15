@@ -12,6 +12,7 @@ from google.cloud import tasks_v2
 
 from app.services.badge_service import BadgeService
 from app.fast_api.schemas.badge_schemas import BadgeRequest, BadgeModifyRequest
+from app.model_inference.loaders.badge_loader import badge_loader_instance
 
 load_dotenv()
 app_badge = APIRouter()
@@ -162,6 +163,15 @@ async def prepare_response():
         "message": "requestReceived",
         "status": "pending"
     }
+
+# @app_badge.on_event("startup")
+# async def load_model_on_startup():
+#     try:
+#         print("🚀 모델 로드 시작")
+#         badge_loader_instance.load_diffusion_model()
+#         print("✅ 모델 로드 성공")
+#     except Exception as e:
+#         print(f"❌ 모델 로드 실패: {e}")
 
 # BE -> AI 요청 수락
 @app_badge.post("/api/badges/image")
