@@ -1,3 +1,5 @@
+#badge_inference_runner.py
+
 from app.fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
 from app.context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
 from app.model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
@@ -14,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 512, height: int = 512):
     generator = torch.Generator("cuda").manual_seed(seed)
 
-    logger.info("4-2) Canny이미지 로드, 프롬프트 불러오기")
+    logger.info("3-2) Canny이미지 로드, 프롬프트 불러오기")
     # 1) Canny이미지, 프롬프트 로드
     badge_input_instance = BadgePrompt(request_data)
     badge_canny = badge_input_instance.insert_logo_on_badge()

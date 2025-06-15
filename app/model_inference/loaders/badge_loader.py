@@ -1,3 +1,5 @@
+# badge_loader.py
+
 import os
 from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, UniPCMultistepScheduler #DiffusionPipeline
 from huggingface_hub import hf_hub_download
@@ -49,9 +51,13 @@ class BadgeModel:
             self.base_pipe.load_lora_weights(lora_snow)
 
         elif mod_tags == "우드":
-            lora_wood = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_wood.safetensors")
+            lora_wood1 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_wood.safetensors")
+            lora_wood2 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="Second_Original.safetensors")
 
-            self.base_pipe.load_lora_weights(lora_wood)
+            self.base_pipe.load_lora_weights(lora_wood1, adapter_name="wood1")
+            self.base_pipe.load_lora_weights(lora_wood2, adapter_name="wood2")
+
+            self.base_pipe.load_lora_weights(["wood1", "wood2"], adapter_weights=[0.8, 0.2])
 
         elif mod_tags == "픽셀":
             lora_pixel1 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_pixel.safetensors")
@@ -76,6 +82,10 @@ class BadgeModel:
 
             self.base_pipe.set_adapters(["Original1", "Original2"], adapter_weights=[0.8, 0.2])
 
+        def dummy_checker(images, **kwargs):
+            return images, [False] * len(images)
+        
+        self.base_pipe.safety_checker = dummy_checker
 
     def load_diffusion_model(self) -> None:
         controlnet_pipe = ControlNetModel.from_pretrained(
@@ -91,10 +101,8 @@ class BadgeModel:
             torch_dtype=torch.float16
         ).to(DEVICE)
 
-        def dummy_checker(images, **kwargs):
-            return images, [False] * len(images)
 
-        self.base_pipe.safety_checker = dummy_checker
+        
     
 badge_loader_instance = BadgeModel()
 badge_loader_instance.load_diffusion_model()

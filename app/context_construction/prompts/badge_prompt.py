@@ -1,3 +1,5 @@
+#badge_prompt.py
+
 from app.fast_api.schemas.badge_schemas import BadgeRequest
 
 from deep_translator import GoogleTranslator
@@ -28,6 +30,7 @@ class BadgePrompt:
     def __init__(self, data: BadgeRequest):
         self.data = data
         self.color= None
+        self.scene_color = None
     
     def generate_corrected_badge(self, number: int, image_size: int = 800):
         center = (image_size // 2, image_size // 2)
@@ -113,11 +116,25 @@ class BadgePrompt:
 
         # 가장 많이 쓰인 색 찾기
         color_counts = Counter(pixels)
-        most_common_colors = color_counts.most_common(3)
+        most_common_colors = color_counts.most_common(2) or ["white"]
+
+        logger.info(f"3-7-1) 팀 로고 색을 추출합니다.")
+
+        if not most_common_colors:
+            # 흰색(RGB)과 가상의 count 값으로 대체
+            most_common_colors = [((255, 255, 255), 9999)]
+
         css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
         color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors]
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.color = ', '.join(color_names)
+
+        css3_BPB_colors = self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
+        BPB_color_names = [self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors]
+        # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
+        self.scene_color = ', '.join(BPB_color_names)
+
+        logger.info(f"3-7-2) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
 
         cv_image_logo = np.array(img)
         canny_logo = cv2.Canny(cv_image_logo, 50, 150)
@@ -145,81 +162,81 @@ class BadgePrompt:
             service = Service("/usr/bin/chromedriver")
             driver = webdriver.Chrome(service=service, options=options)
 
-        driver.get(page_url)
-        time.sleep(3)  # JS 렌더링 대기
-        logger.info("3-6) 크롬 접속 가능함")
-
-        try:
-            #resp = requests.get(page_url)
-            #html = driver.page_source
-            try:
-                favicon_url = urljoin(page_url, "/favicon.ico")
-                resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
-                if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
-                    logger.info("3-7) 파비콘 ico 있음.")
-                    canny_logo = self.get_image(favicon_url)
-                    return canny_logo
-            except:
-                logger.info("3-7) 파비콘 ico 없음")
-            
-            logger.info(f"3-8) 웹페이지 크롤링 시작")
+            driver.get(page_url)
+            time.sleep(3)  # JS 렌더링 대기
+            logger.info("3-6) 크롬 접속 가능함")
 
             try:
-                resp = requests.get(page_url, timeout=3)
-                #logger.info(f"4-8-1) {resp}")
-                soup = BeautifulSoup(resp.text, "html.parser")
-                #logger.info(f"4-8-2) {soup.prettify()[:1000]}")
-
-                # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
-                icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                #logger.info(f"4-8-3) {icon_link}")
-
-                if icon_link and icon_link.get("href"):
-                    logger.info("3-9) 팀 파비콘 있음.")
-                    favicon_url = urljoin(page_url, icon_link["href"])
-                    #logger.info(f"4-8-5) {favicon_url}")
-                    canny_logo = self.get_image(favicon_url)
-                    #logger.info(f"4-8-6) {len(canny_logo)}")
-                    return canny_logo
-            except:
-                logger.info("3-9) 파비콘 ico 없음")
-            
-            logger.info("3-10) 크롤링 재시도 중..")
-            driver.get(url=url)
-            # img = driver.find_element(
-            #     "xpath",
-            #     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
-            # )
-            # logger.info(f"4-10-1) {img_url}")
-            # img_url = img.get_attribute("src")
-            # logger.info(f"4-10-2) {img_url}")
-            # if img_url:
-            #     logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
-            #     canny_logo = self.get_image(img_url)
+                #resp = requests.get(page_url)
+                #html = driver.page_source
+                try:
+                    favicon_url = urljoin(page_url, "/favicon.ico")
+                    resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
+                    if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
+                        logger.info("3-7) 파비콘 ico 있음.")
+                        canny_logo = self.get_image(favicon_url)
+                        return canny_logo
+                except:
+                    logger.info("3-7) 파비콘 ico 없음")
                 
-            #     logger.info("4-12) 로고 생성 완료")
-            #     return canny_logo
+                logger.info(f"3-8) 웹페이지 크롤링 시작")
+
+                try:
+                    resp = requests.get(page_url, timeout=3)
+                    #logger.info(f"4-8-1) {resp}")
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    #logger.info(f"4-8-2) {soup.prettify()[:1000]}")
+
+                    # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
+                    icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
+                    #logger.info(f"4-8-3) {icon_link}")
+
+                    if icon_link and icon_link.get("href"):
+                        logger.info("3-9) 팀 파비콘 있음.")
+                        favicon_url = urljoin(page_url, icon_link["href"])
+                        #logger.info(f"4-8-5) {favicon_url}")
+                        canny_logo = self.get_image(favicon_url)
+                        #logger.info(f"4-8-6) {len(canny_logo)}")
+                        return canny_logo
+                except:
+                    logger.info("3-9) 파비콘 ico 없음")
                 
-            try:
-                #페이지가 켜질 때 까지 3초 기다림.
-                img = WebDriverWait(driver, 3).until(
-                    EC.presence_of_element_located((
-                        By.XPATH, '//img[contains(@class, "h-24") and contains(@class, "w-24") and contains(@class, "object-cover")]'
-                    ))
-                )
-                logger.info(f"3-10-1) img: {img}")
-                img_url = img.get_attribute("src")
-                logger.info(f"3-11) 팀 이미지 URL: {img_url}")
+                logger.info("3-10) 크롤링 재시도 중..")
+                driver.get(url=url)
+                # img = driver.find_element(
+                #     "xpath",
+                #     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
+                # )
+                # logger.info(f"4-10-1) {img_url}")
+                # img_url = img.get_attribute("src")
+                # logger.info(f"4-10-2) {img_url}")
+                # if img_url:
+                #     logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
+                #     canny_logo = self.get_image(img_url)
+                    
+                #     logger.info("4-12) 로고 생성 완료")
+                #     return canny_logo
+                    
+                try:
+                    #페이지가 켜질 때 까지 3초 기다림.
+                    img = WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((
+                            By.XPATH, '//img[contains(@class, "h-24") and contains(@class, "w-24") and contains(@class, "object-cover")]'
+                        ))
+                    )
+                    logger.info(f"3-10-1) img: {img}")
+                    img_url = img.get_attribute("src")
+                    logger.info(f"3-11) 팀 이미지 URL: {img_url}")
+                    canny_logo = self.get_image(img_url)
+                    return canny_logo
+                except Exception as e:
+                    logger.error(f"3-11) 이미지 못 찾음: {repr(e)}")
+
             except Exception as e:
-                logger.error(f"3-11) 이미지 못 찾음: {repr(e)}")
-
-        except Exception as e:
-            logger.info("3-12) 팀 파비콘 없음.")
-
+                logger.info("3-12) 팀 파비콘 없음.")
         
-
-        finally:
-            driver.quit()
+            finally:
+                driver.quit()
 
     def insert_logo_on_badge(self, max_half_size=165):
         """
@@ -272,10 +289,10 @@ class BadgePrompt:
     def build_badge_prompt(self, mod_tags: str, team_number: int) -> str:
         if mod_tags == "뉴스":
             return f"NewspaperWorld, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background, Sunlight, Soft natural light"
-        elif mod_tags == "자연 풍경":
-            return f"hyrule, scenery, outdoors, no humans. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft blue Logo Icon, white background, Sunlight, Soft natural light"
+        elif mod_tags == "자연 풍경": # 45개의 (파랑, 보랑, 검정 계열 색상을 입력으로 넣음.)
+            return f"hyrule, scenery, outdoors, no humans. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.scene_color} Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "우드":
-            return f"woodcarvingcd, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background."
+            return f"woodcarvingcd, logo. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background."
         elif mod_tags == "픽셀":
             return f"pixel world. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "게임":

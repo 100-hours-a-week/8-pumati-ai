@@ -1,3 +1,5 @@
+#badge_service.py
+
 import os, math
 import requests
 from io import BytesIO
@@ -104,7 +106,7 @@ class BadgeService:
         '''
         BadgeService의 메인 기능.
         '''
-        logger.info("4-1) badge 이미지 생성 시작")
+        logger.info("3-1) badge 이미지 생성 시작")
         # 1) 이미지 생성하기
         image = generate_image(mod_tags, team_number, request_data)
 
