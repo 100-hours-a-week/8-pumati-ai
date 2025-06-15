@@ -77,12 +77,12 @@ class BadgeModel:
 
         else:
             lora_original1 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_Original.safetensors")
-            lora_original2 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="Second_Original.safetensors")
+            lora_original2 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="Third_Original.safetensors")
 
             self.base_pipe.load_lora_weights(lora_original1, adapter_name="Original1")
             self.base_pipe.load_lora_weights(lora_original2, adapter_name="Original2")
 
-            self.base_pipe.set_adapters(["Original1", "Original2"], adapter_weights=[0.8, 0.2])
+            self.base_pipe.set_adapters(["Original1", "Original2"], adapter_weights=[0.1, 0.9])
 
         logger.info(f"5-4 LoRA 로드 완료")
         def dummy_checker(images, **kwargs):
