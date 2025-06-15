@@ -37,9 +37,11 @@ class BadgeModel:
         BadgeModel._is_authenticated = True
 
     def load_LoRA(self, mod_tags: str) -> None:
+        logger.info("5-2) LoRA 다운 설정중...")
         self.base_pipe.scheduler = UniPCMultistepScheduler.from_config(self.base_pipe.scheduler.config)
         self.base_pipe.unload_lora_weights()
 
+        logger.info(f"5-3 mod_tag: {mod_tags}에 해당하는 LoRA를 불러옵니다.")
         if mod_tags == "뉴스":
             lora_news = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_news.safetensors")
 
@@ -81,6 +83,8 @@ class BadgeModel:
             self.base_pipe.load_lora_weights(lora_original2, adapter_name="Original2")
 
             self.base_pipe.set_adapters(["Original1", "Original2"], adapter_weights=[0.8, 0.2])
+        
+        logger.info(f"5-4 LoRA 로드 완료")
 
         def dummy_checker(images, **kwargs):
             return images, [False] * len(images)
