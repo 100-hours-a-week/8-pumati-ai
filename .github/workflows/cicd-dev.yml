@@ -166,13 +166,11 @@ jobs:
             ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --format='value(image_summary.digest, update_time)' || echo "❌ SHA 태그 조회 실패"
           
-          # 전체 태그 목록 확인
+          # 전체 태그 목록 확인 - 올바른 형식으로 수정
           echo "--- 전체 태그 목록 ---"
           gcloud artifacts docker images list \
-            --repository=${{ env.ARTIFACT_REGISTRY_REPO }} \
-            --location=${{ env.ARTIFACT_REGISTRY_LOCATION }} \
-            --filter="name:${{ env.IMAGE_NAME }}" \
-            --format='table(IMAGE, TAGS, DIGEST, CREATE_TIME)'
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }} \
+            --format='table(IMAGE, TAGS, DIGEST, CREATE_TIME)' || echo "❌ 이미지 목록 조회 실패"
 
       # 9. 이미지 주소 출력
       - name: Output image URLs
