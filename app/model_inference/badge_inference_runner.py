@@ -26,11 +26,12 @@ def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, 
     negative_prompt = "dark colors, gray, brown, metallic shadows, english, watermark, distortion, blurry"
 
     # 2) pipline로드
-    logger.info("6-1) 이미지 생성 시작: 허깅페이스에서 LoRA 다운중...")
+    logger.info("5-1) 이미지 생성 시작: 허깅페이스에서 LoRA 다운중...")
+    badge_loader_instance.load_diffusion_model()
     badge_loader_instance.load_LoRA(mod_tags)
     
     # 3) 결과이미지 출력
-    logger.info("6-2) 이미지 생성중: Controlnet + base 이미지 모델 동작 시작")
+    logger.info("6-1) 이미지 생성중: Controlnet + base 이미지 모델 동작 시작")
     base_result = badge_loader_instance.base_pipe(
         prompt=prompt,
         negative_prompt=negative_prompt,

@@ -1,7 +1,7 @@
 # badge_loader.py
 
 import os
-from diffusers import ControlNetModel, StableDiffusionXLControlNetImg2ImgPipeline, UniPCMultistepScheduler #DiffusionPipeline
+from diffusers import ControlNetModel, UniPCMultistepScheduler, StableDiffusionControlNetPipeline #DiffusionPipeline, StableDiffusionXLControlNetImg2ImgPipeline
 from huggingface_hub import hf_hub_download
 from dotenv import load_dotenv
 from huggingface_hub import login
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 # "Controlnet -> SDXL -> REFINEMODEL" 구조로, 모델 3개 사용예정.
 CONTROLNET_NAME = "lllyasviel/control_v11p_sd15_canny" 
 MODEL_NAME = "runwayml/stable-diffusion-v1-5" 
-LORA_PATH = "/content/Badge_M.safetensors"
+# LORA_PATH = "/content/Badge_M.safetensors"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class BadgeModel:
@@ -37,9 +37,11 @@ class BadgeModel:
         BadgeModel._is_authenticated = True
 
     def load_LoRA(self, mod_tags: str) -> None:
+        logger.info("5-2) LoRA 다운 설정중...")
         self.base_pipe.scheduler = UniPCMultistepScheduler.from_config(self.base_pipe.scheduler.config)
         self.base_pipe.unload_lora_weights()
 
+        logger.info(f"5-3 mod_tag: {mod_tags}에 해당하는 LoRA를 불러옵니다.")
         if mod_tags == "뉴스":
             lora_news = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_news.safetensors")
 
@@ -82,27 +84,27 @@ class BadgeModel:
 
             self.base_pipe.set_adapters(["Original1", "Original2"], adapter_weights=[0.8, 0.2])
 
+        logger.info(f"5-4 LoRA 로드 완료")
         def dummy_checker(images, **kwargs):
             return images, [False] * len(images)
         
         self.base_pipe.safety_checker = dummy_checker
 
     def load_diffusion_model(self) -> None:
+        logger.info("6-1-1) Controlnet파이프라인 로드")
         controlnet_pipe = ControlNetModel.from_pretrained(
             CONTROLNET_NAME,
             torch_dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
         ).to(DEVICE)
 
         # 2) SDXL파이프라인 로드
-        logger.info("6-1-1) SDXL파이프라인 로드")
-        self.base_pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
+        logger.info("6-1-2) SDXL파이프라인 로드")
+        self.base_pipe = StableDiffusionControlNetPipeline.from_pretrained(
             MODEL_NAME,
             controlnet=controlnet_pipe,
             torch_dtype=torch.float16
         ).to(DEVICE)
 
-
-        
     
 badge_loader_instance = BadgeModel()
 badge_loader_instance.load_diffusion_model()

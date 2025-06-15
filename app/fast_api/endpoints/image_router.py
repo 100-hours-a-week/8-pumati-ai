@@ -1,12 +1,12 @@
 #image_router.py
 
-from fastapi import APIRouter,Request, HTTPException, responses
+from fastapi import APIRouter,responses #,Request, HTTPException, 
 import logging
 from dotenv import load_dotenv
 import os
 import asyncio
 import requests
-import json
+import json, time
 
 from google.cloud import tasks_v2
 
@@ -133,6 +133,7 @@ async def error_occured(team_info: dict):
 
 async def process_badge_task(mod_tags: str, team_info: dict) -> dict:
     logger.info("2-1) 비동기로 뱃지 생성을 시작중...")
+    start = time.perf_counter()
     try:
         badge_generate_instance = BadgeService()
         logger.info("2-2) 뱃지 생성 요청중...")
@@ -150,8 +151,10 @@ async def process_badge_task(mod_tags: str, team_info: dict) -> dict:
         response.raise_for_status()
         logger.info(f"9-3) 이미지 전송 성공: {endpoint}, {payload}")
         logger.info(f"9-4) 서버를 종료합니다.")
+        logger.info(f"9-5) 동작 시간: {time.perf_counter() - start}")
     except Exception as e:
         logger.error(f"이미지 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
+        logger.info(f"9-5) 동작 시간: {time.perf_counter() - start}")
         await error_occured(team_info)
 
     return responses.JSONResponse(status_code=200, content={"status": "ok"})
