@@ -9,7 +9,9 @@ on:
   push:
     branches:
       # 브랜치는 맞게 잘 바꿔서.
+      # feat 브랜치는 테스트용
       - main
+      - feat/99-chatbot-deploy
 
 
 jobs:
@@ -138,7 +140,7 @@ jobs:
         if: failure()
         run: |
           curl -H "Content-Type: application/json" -d '{
-            "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "content": "🚨 PROD 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_ALL }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시
