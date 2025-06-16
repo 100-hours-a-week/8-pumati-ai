@@ -22,7 +22,7 @@ class BadgeService:
 
     def create_url(self, image_bytes: BytesIO, team_number: int) -> str:
         # 0) 변수 정의
-        file_name = f"badge_image_{team_number}"
+        file_name = f"badge_image_{team_number}.png"
         content_type = "image/png"
 
         # 1) Pre-signed URL 요청
