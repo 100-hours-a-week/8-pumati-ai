@@ -31,6 +31,7 @@ class BadgeModel:
             return
         load_dotenv()
         token = os.getenv("HF_AUTH_TOKEN_VICKY")
+        logger.info(f"허깅페이스 토큰: {token}")
         if not token:
             raise EnvironmentError("HF_AUTH_TOKEN_VICKY is not set in .env file.")
         login(token=token)
