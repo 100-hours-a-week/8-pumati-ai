@@ -8,7 +8,7 @@ numpy==1.26.4
 opencv-python==4.11.0.86
 # io, os, logging, asyncio는 python 내장함수
 diffusers==0.33.1
-huggingface_hub==0.31.1
+huggingface_hub==0.31.1 
 torch==2.7.0
 uvicorn[standard]==0.34.2
 transformers==4.51.1
