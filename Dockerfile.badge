@@ -142,11 +142,23 @@ RUN apt-get update && apt-get install -y \
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 🔑 빌드 시 HF 토큰을 ARG로 받아서 런타임 환경 변수로 설정
+# 🔑 빌드 시 모든 환경 변수들을 ARG로 받아서 런타임 환경 변수로 설정
 ARG HUGGINGFACE_HUB_TOKEN
+ARG BE_SERVER_URL
+ARG AI_SERVER_URL
+ARG GCP_PROJECT_ID
+ARG ARTIFACT_REGISTRY_LOCATION
+ARG GCP_QUEUE_NAME
+ARG GCP_SERVICE_EMAIL
 ENV HF_AUTH_TOKEN_VICKY=${HUGGINGFACE_HUB_TOKEN}
 ENV HF_AUTH_TOKEN=${HUGGINGFACE_HUB_TOKEN}
 ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+ENV BE_SERVER_URL=${BE_SERVER_URL}
+ENV AI_SERVER_URL=${AI_SERVER_URL}
+ENV GCP_PROJECT_ID=${GCP_PROJECT_ID}
+ENV ARTIFACT_REGISTRY_LOCATION=${ARTIFACT_REGISTRY_LOCATION}
+ENV GCP_QUEUE_NAME=${GCP_QUEUE_NAME}
+ENV GCP_SERVICE_EMAIL=${GCP_SERVICE_EMAIL}
 
 # 캐시 디렉토리 환경 변수 설정
 ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
@@ -195,13 +207,21 @@ if [ ! -z "$HF_AUTH_TOKEN_VICKY" ]; then\n\
     echo "HF_AUTH_TOKEN_VICKY=$HF_AUTH_TOKEN_VICKY" > .env\n\
     echo "HF_AUTH_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
     echo "HUGGINGFACE_HUB_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
-    echo "✅ .env 파일 생성 완료 (토큰: ${HF_AUTH_TOKEN_VICKY:0:10}****)"\n\
+    echo "✅ HF 토큰 설정 완료 (토큰: ${HF_AUTH_TOKEN_VICKY:0:10}****)"\n\
 else\n\
     echo "❌ HF_AUTH_TOKEN_VICKY 환경 변수가 설정되지 않았습니다!"\n\
     echo "💡 다음과 같이 환경 변수를 전달해주세요:"\n\
     echo "   docker run -e HF_AUTH_TOKEN_VICKY=your_token ..."\n\
     exit 1\n\
 fi\n\
+\n\
+# 모든 환경 변수들을 .env 파일에 추가\n\
+[ ! -z "$BE_SERVER_URL" ] && echo "BE_SERVER_URL=$BE_SERVER_URL" >> .env && echo "✅ BE_SERVER_URL 설정: $BE_SERVER_URL"\n\
+[ ! -z "$AI_SERVER_URL" ] && echo "AI_SERVER_URL=$AI_SERVER_URL" >> .env && echo "✅ AI_SERVER_URL 설정: $AI_SERVER_URL"\n\
+[ ! -z "$GCP_PROJECT_ID" ] && echo "GCP_PROJECT_ID=$GCP_PROJECT_ID" >> .env && echo "✅ GCP_PROJECT_ID 설정: $GCP_PROJECT_ID"\n\
+[ ! -z "$ARTIFACT_REGISTRY_LOCATION" ] && echo "ARTIFACT_REGISTRY_LOCATION=$ARTIFACT_REGISTRY_LOCATION" >> .env && echo "✅ ARTIFACT_REGISTRY_LOCATION 설정: $ARTIFACT_REGISTRY_LOCATION"\n\
+[ ! -z "$GCP_QUEUE_NAME" ] && echo "GCP_QUEUE_NAME=$GCP_QUEUE_NAME" >> .env && echo "✅ GCP_QUEUE_NAME 설정: $GCP_QUEUE_NAME"\n\
+[ ! -z "$GCP_SERVICE_EMAIL" ] && echo "GCP_SERVICE_EMAIL=$GCP_SERVICE_EMAIL" >> .env && echo "✅ GCP_SERVICE_EMAIL 설정: $GCP_SERVICE_EMAIL"\n\
 \n\
 echo "🎯 FastAPI 앱 실행 중..."\n\
 exec "$@"\n\

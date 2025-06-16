@@ -63,11 +63,24 @@ jobs:
         run: |
           echo "🔧 HF 토큰 추출 중..."
           
-          # GitHub Secret에서 HF 토큰 추출
+          # GitHub Secret에서 모든 환경 변수들 추출
           echo '${{ secrets.ENV_BADGE_DEV }}' > temp_env
           export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export BE_SERVER_URL=$(grep "BE_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export AI_SERVER_URL=$(grep "AI_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_PROJECT_ID=$(grep "GCP_PROJECT_ID=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export ARTIFACT_REGISTRY_LOCATION=$(grep "ARTIFACT_REGISTRY_LOCATION=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_QUEUE_NAME=$(grep "GCP_QUEUE_NAME=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_SERVICE_EMAIL=$(grep "GCP_SERVICE_EMAIL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           
+          echo "🔑 환경 변수들 확인:"
           echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
+          echo "BE_SERVER_URL: $BE_SERVER_URL"
+          echo "AI_SERVER_URL: $AI_SERVER_URL"
+          echo "GCP_PROJECT_ID: $GCP_PROJECT_ID"
+          echo "ARTIFACT_REGISTRY_LOCATION: $ARTIFACT_REGISTRY_LOCATION"
+          echo "GCP_QUEUE_NAME: $GCP_QUEUE_NAME"
+          echo "GCP_SERVICE_EMAIL: $GCP_SERVICE_EMAIL"
           
           # HF 토큰 유효성 검증
           if [ -z "$HF_AUTH_TOKEN_VICKY" ]; then
@@ -90,6 +103,12 @@ jobs:
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
             --build-arg HUGGINGFACE_HUB_TOKEN="${HF_AUTH_TOKEN_VICKY}" \
+            --build-arg BE_SERVER_URL="${BE_SERVER_URL}" \
+            --build-arg AI_SERVER_URL="${AI_SERVER_URL}" \
+            --build-arg GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
+            --build-arg ARTIFACT_REGISTRY_LOCATION="${ARTIFACT_REGISTRY_LOCATION}" \
+            --build-arg GCP_QUEUE_NAME="${GCP_QUEUE_NAME}" \
+            --build-arg GCP_SERVICE_EMAIL="${GCP_SERVICE_EMAIL}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
@@ -128,7 +147,14 @@ jobs:
           echo ""
           echo "📝 환경 변수와 함께 Docker 컨테이너 실행:"
           echo ""
-          echo "docker run -e HF_AUTH_TOKEN_VICKY=\"your_hf_token_here\" \\"
+          echo "docker run \\"
+          echo "  -e HF_AUTH_TOKEN_VICKY=\"your_hf_token_here\" \\"
+          echo "  -e BE_SERVER_URL=\"https://dev.tebutebu.com/\" \\"
+          echo "  -e AI_SERVER_URL=\"https://badge-dev-325953343194.asia-southeast1.run.app/\" \\"
+          echo "  -e GCP_PROJECT_ID=\"ktb8team-458916\" \\"
+          echo "  -e ARTIFACT_REGISTRY_LOCATION=\"asia-southeast1\" \\"
+          echo "  -e GCP_QUEUE_NAME=\"badge-queue\" \\"
+          echo "  -e GCP_SERVICE_EMAIL=\"ai-task-invoker@ktb8team-458916.iam.gserviceaccount.com\" \\"
           echo "  -p 8080:8080 \\"
           echo "  --gpus all \\"
           echo "  ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
