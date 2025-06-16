@@ -11,6 +11,7 @@ on:
       # 브랜치는 맞게 잘 바꿔서.
       # feat 브랜치는 테스트용
       - main
+      - feat/99-chatbot-deploy
 
 
 jobs:
