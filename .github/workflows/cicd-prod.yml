@@ -43,11 +43,29 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
         
-
-      # 환경 변수 파일 생성 (.env)
+      # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
         run: |
-          echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" > .env
+          echo "${{ secrets.ENV_GPU }}" > .env
+
+      # 환경변수들을 GitHub Actions 환경변수로 추출
+      - name: Load environment variables
+        run: |
+          # .env 파일에서 환경변수들을 읽어서 GitHub Actions 환경변수로 설정
+          set -a
+          source .env
+          set +a
+          echo "BUILD_HF_AUTH_TOKEN=$HF_AUTH_TOKEN" >> $GITHUB_ENV
+          echo "BUILD_LANGSMITH_TRACING=$LANGSMITH_TRACING" >> $GITHUB_ENV
+          echo "BUILD_LANGSMITH_ENDPOINT=$LANGSMITH_ENDPOINT" >> $GITHUB_ENV
+          echo "BUILD_LANGSMITH_API_KEY=$LANGSMITH_API_KEY" >> $GITHUB_ENV
+          echo "BUILD_LANGCHAIN_PROJECT=$LANGCHAIN_PROJECT" >> $GITHUB_ENV
+          echo "BUILD_GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
+          echo "BUILD_USE_REMOTE_CHROMA=$USE_REMOTE_CHROMA" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_API_KEY=$QDRANT_API_KEY" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_URL=$QDRANT_URL" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_COLLECTION=$QDRANT_COLLECTION" >> $GITHUB_ENV
+          echo "BUILD_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
 
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
@@ -80,28 +98,48 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 + GPU 사용
+      # 6. Docker BuildKit 활성화 + GPU 사용 - 환경변수를 개별 빌드 인자로 전달
       - name: Build Docker image with GPU
         run: |
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
-            --build-arg HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }} \
+            --build-arg HF_AUTH_TOKEN="${{ env.BUILD_HF_AUTH_TOKEN }}" \
+            --build-arg LANGSMITH_TRACING="${{ env.BUILD_LANGSMITH_TRACING }}" \
+            --build-arg LANGSMITH_ENDPOINT="${{ env.BUILD_LANGSMITH_ENDPOINT }}" \
+            --build-arg LANGSMITH_API_KEY="${{ env.BUILD_LANGSMITH_API_KEY }}" \
+            --build-arg LANGCHAIN_PROJECT="${{ env.BUILD_LANGCHAIN_PROJECT }}" \
+            --build-arg GEMINI_API_KEY="${{ env.BUILD_GEMINI_API_KEY }}" \
+            --build-arg USE_REMOTE_CHROMA="${{ env.BUILD_USE_REMOTE_CHROMA }}" \
+            --build-arg QDRANT_API_KEY="${{ env.BUILD_QDRANT_API_KEY }}" \
+            --build-arg QDRANT_URL="${{ env.BUILD_QDRANT_URL }}" \
+            --build-arg QDRANT_COLLECTION="${{ env.BUILD_QDRANT_COLLECTION }}" \
+            --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
-      
+
+      # 빌드 후 이미지 태그 확인
+      - name: List Docker images
+        run: docker images
+
+      # 필요시 강제로 latest 태그 붙이기
+      - name: Retag image as latest
+        run: |
+          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
         if: failure()
         run: |
           curl -H "Content-Type: application/json" -d '{
             "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }' ${{ secrets.DISCORD_WEBHOOK_URL_ALL }}
+          }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
