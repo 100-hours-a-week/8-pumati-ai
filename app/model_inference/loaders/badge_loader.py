@@ -60,7 +60,7 @@ class BadgeModel:
             self.base_pipe.load_lora_weights(lora_wood1, adapter_name="wood1")
             self.base_pipe.load_lora_weights(lora_wood2, adapter_name="wood2")
 
-            self.base_pipe.load_lora_weights(["wood1", "wood2"], adapter_weights=[0.8, 0.2])
+            self.base_pipe.set_adapters(["wood1", "wood2"], adapter_weights=[0.8, 0.2])
 
         elif mod_tags == "픽셀":
             lora_pixel1 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_pixel.safetensors")
@@ -77,6 +77,7 @@ class BadgeModel:
             self.base_pipe.load_lora_weights(lora_game)
 
         else:
+            logger.info(f"mod_tags가 {mod_tags}이므로 원본 이미지 생성을 시작합니다.")
             lora_original1 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="First_Original.safetensors")
             lora_original2 = hf_hub_download(repo_id="HHBeen/badge_LoRA", filename="Third_Original.safetensors")
 
