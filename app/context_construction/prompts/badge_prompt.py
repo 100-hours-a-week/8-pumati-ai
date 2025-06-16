@@ -125,17 +125,17 @@ class BadgePrompt:
             most_common_colors = [((255, 255, 255), 9999)]
 
         css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
-        color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors]
-        if len(color_names) > 1 and "black" in color_names:
-            color_names.remove("black")
-            color_names = color_names[:2]
-        else:
-            color_names = color_names[:2]
+        color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:3]
+        # if len(color_names) > 1 and "black" in color_names:
+        #     color_names.remove("black")
+        #     color_names = color_names[:2]
+        # else:
+        #     color_names = color_names[:2]
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.color = ', '.join(color_names)
 
         css3_BPB_colors = self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
-        BPB_color_names = [self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors][:2]
+        BPB_color_names = [self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors][:3]
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.scene_color = ', '.join(BPB_color_names)
 
