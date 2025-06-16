@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+      args:
+        HF_AUTH_TOKEN: ${HF_AUTH_TOKEN}
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/workspace
+    depends_on:
+      - chroma
+    environment:
+      - HF_AUTH_TOKEN=${HF_AUTH_TOKEN}
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+    restart: always
+
+  chroma:
+    image: chromadb/chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_data:/chroma/chroma
+    restart: always

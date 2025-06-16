@@ -1,0 +1,41 @@
+# Dockerfile.crawling
+FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
+
+WORKDIR /app
+COPY . .
+
+# requirements 설치 (크롤링 전용 버전 사용)
+COPY requirements.crawling.txt requirements.crawling.txt
+RUN pip install --no-cache-dir -r requirements.crawling.txt
+
+# 빌드 인자 정의
+ARG ORG_NAME
+ARG TEAM_LIST_API_URL
+ARG USE_BACKEND_API
+
+ARG GITHUB_TOKEN
+ARG QDRANT_URL
+ARG QDRANT_API_KEY
+ARG QDRANT_COLLECTION
+
+# ENV로 설정
+ENV ORG_NAME=${ORG_NAME}
+ENV TEAM_LIST_API_URL=${TEAM_LIST_API_URL}
+ENV USE_BACKEND_API=${USE_BACKEND_API}
+
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+ENV QDRANT_URL=${QDRANT_URL}
+ENV QDRANT_API_KEY=${QDRANT_API_KEY}
+ENV QDRANT_COLLECTION=${QDRANT_COLLECTION}
+
+# .env 파일 생성
+RUN mkdir -p /workspace && \
+    echo "ORG_NAME=${ORG_NAME}" >> /workspace/.env && \
+    echo "TEAM_LIST_API_URL=${TEAM_LIST_API_URL}" >> /workspace/.env && \
+    echo "USE_BACKEND_API=${USE_BACKEND_API}" >> /workspace/.env && \
+    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> /workspace/.env && \
+    echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env && \
+    echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env && \
+    echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env
+
+CMD ["python", "-m", "app.github_crawling.scheduler"]
