@@ -38,7 +38,7 @@ class BadgeModel:
 
     def load_LoRA(self, mod_tags: str) -> None:
         logger.info("5-2) LoRA 다운 설정중...")
-        self.base_pipe.scheduler = UniPCMultistepScheduler.from_config(self.base_pipe.scheduler.config)
+        self.base_pipe.scheduler = UniPCMultistepScheduler.from_config(self.base_pipe.scheduler.config) 
         #self.base_pipe.unload_lora_weights()
 
         logger.info(f"5-3 mod_tag: {mod_tags}에 해당하는 LoRA를 불러옵니다.")
