@@ -21,7 +21,7 @@ selenium==4.33.0
 webdriver_manager==4.0.2
 beautifulsoup4==4.13.4
 google-cloud-tasks==2.19.2
-
+peft==0.15.2
 
 
 
