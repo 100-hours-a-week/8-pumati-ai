@@ -9,9 +9,6 @@ COPY requirements.crawling.txt requirements.crawling.txt
 RUN pip install --no-cache-dir -r requirements.crawling.txt
 
 # 빌드 인자 정의
-ARG USE_REMOTE_CHROMA
-ARG CHROMA_HOST
-ARG CHROMA_PORT
 ARG ORG_NAME
 ARG TEAM_LIST_API_URL
 ARG USE_BACKEND_API
@@ -22,9 +19,6 @@ ARG QDRANT_API_KEY
 ARG QDRANT_COLLECTION
 
 # ENV로 설정
-ENV USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}
-ENV CHROMA_HOST=${CHROMA_HOST}
-ENV CHROMA_PORT=${CHROMA_PORT}
 ENV ORG_NAME=${ORG_NAME}
 ENV TEAM_LIST_API_URL=${TEAM_LIST_API_URL}
 ENV USE_BACKEND_API=${USE_BACKEND_API}
@@ -36,9 +30,6 @@ ENV QDRANT_COLLECTION=${QDRANT_COLLECTION}
 
 # .env 파일 생성
 RUN mkdir -p /workspace && \
-    echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env && \
-    echo "CHROMA_HOST=${CHROMA_HOST}" >> /workspace/.env && \
-    echo "CHROMA_PORT=${CHROMA_PORT}" >> /workspace/.env && \
     echo "ORG_NAME=${ORG_NAME}" >> /workspace/.env && \
     echo "TEAM_LIST_API_URL=${TEAM_LIST_API_URL}" >> /workspace/.env && \
     echo "USE_BACKEND_API=${USE_BACKEND_API}" >> /workspace/.env && \
