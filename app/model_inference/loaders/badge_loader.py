@@ -98,7 +98,7 @@ class BadgeModel:
         ).to(DEVICE)
 
         # 2) SDXL파이프라인 로드
-        logger.info("6-1-2) SDXL파이프라인 로드")
+        logger.info("6-1-2) SD1.5파이프라인 로드")
         self.base_pipe = StableDiffusionControlNetPipeline.from_pretrained(
             MODEL_NAME,
             controlnet=controlnet_pipe,
