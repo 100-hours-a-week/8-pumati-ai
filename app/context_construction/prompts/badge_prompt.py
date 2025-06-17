@@ -5,7 +5,7 @@ from app.fast_api.schemas.badge_schemas import BadgeRequest
 from deep_translator import GoogleTranslator
 #from typing import List
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont #새로 추가됨.
+from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont #새로 추가됨.
 import math, json
 import cv2
 from selenium import webdriver
@@ -42,14 +42,18 @@ class BadgePrompt:
         draw = ImageDraw.Draw(base)
 
         # 2. 전체 외곽 원 (250px) - 삭제되지 않음
-        def draw_full_circle(draw_obj, radius, thickness=6):
-            for angle in range(0, 360):
-                theta = math.radians(angle)
-                x = center[0] + int(radius * math.cos(theta))
-                y = center[1] + int(radius * math.sin(theta))
-                draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
+        # def draw_full_circle(draw_obj, radius, thickness=6):
+        #     for angle in range(0, 360):
+        #         theta = math.radians(angle)
+        #         x = center[0] + int(radius * math.cos(theta))
+        #         y = center[1] + int(radius * math.sin(theta))
+        #         draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
 
-        draw_full_circle(draw, outer_radius)
+        # draw_full_circle(draw, outer_radius)
+        draw.ellipse([
+            center[0] - outer_radius, center[1] - outer_radius,
+            center[0] + outer_radius, center[1] + outer_radius
+        ], outline=0, width=6)
 
         # 3. 중간/내부 원 - 상단 90도만 그리기 (45도~135도)
         def draw_top_arc(draw_obj, radius, keep_start=-150 , keep_end=-30, thickness=1): #(-210, 30), (-245, 65), (-150,-30)
@@ -263,14 +267,17 @@ class BadgePrompt:
         )
 
         # 흰색 배경은 투명하게 처리할 마스크 생성
-        logo_mask = logo_resized.point(lambda p: 255 if p < 128 else 0)
+        #logo_mask = logo_resized.point(lambda p: 255 if p < 128 else 0)
+        logo_gray = logo_resized.convert("L")
+        logo_mask = ImageOps.invert(logo_gray).filter(ImageFilter.GaussianBlur(2))
 
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
         logger.info("4-2) 뱃지 이미지 생성 완료.")
         cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
+        #cv_image_logo = np.array(badge)
         logger.info("4-3) 이미지 해상도: 512 x 512")
-        #cv_image_logo = np.array(badge.convert("L"))
+        ##cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
     
