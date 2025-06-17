@@ -1,0 +1,27 @@
+deep_translator==1.11.4
+dotenv==0.9.9
+python-dotenv==1.1.0
+requests==2.32.3
+fastapi==0.115.12
+pillow==11.2.1
+numpy==1.26.4
+opencv-python==4.11.0.86
+# io, os, logging, asyncio는 python 내장함수
+diffusers==0.33.1
+huggingface_hub==0.31.1 
+torch==2.7.0
+uvicorn[standard]==0.34.2
+transformers==4.51.1
+fastapi==0.115.12
+cairosvg==2.8.2
+accelerate==1.7.0
+
+#크롤링
+selenium==4.33.0
+webdriver_manager==4.0.2
+beautifulsoup4==4.13.4
+google-cloud-tasks==2.19.2
+peft==0.15.2
+
+
+

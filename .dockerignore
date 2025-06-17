@@ -1,1 +1,59 @@
+# Git 관련
+.git/
+.gitignore
+*.md
+README*
 
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 로그 및 임시 파일
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 테스트 및 커버리지
+.coverage
+.pytest_cache/
+.tox/
+htmlcov/
+
+# 환경 변수 파일
+.env
+.env.local
+.env.*.local
+
+# 빌드 아티팩트
+build/
+dist/
+*.egg-info/
+
+# Docker 관련
+Dockerfile*
+.dockerignore
+docker-compose*
+
+# GitHub Actions
+.github/
+
+# 대용량 데이터 파일
+*.model
+*.bin
+*.safetensors
+*.ckpt
