@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 # "Controlnet -> SDXL -> REFINEMODEL" 구조로, 모델 3개 사용예정.
 CONTROLNET_NAME = "lllyasviel/control_v11p_sd15_canny" 
-MODEL_NAME = "runwayml/stable-diffusion-v1-5" 
+MODEL_NAME = "runwayml/stable-diffusion-v1-5"  
 # LORA_PATH = "/content/Badge_M.safetensors"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
