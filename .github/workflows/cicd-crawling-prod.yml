@@ -10,6 +10,7 @@ on:
     branches:
       # 프로덕션은 main 브랜치
       - main
+      - jacky
 
 
 jobs:
@@ -63,6 +64,10 @@ jobs:
           echo "BUILD_TEAM_LIST_API_URL=$TEAM_LIST_API_URL" >> $GITHUB_ENV
           echo "BUILD_USE_BACKEND_API=$USE_BACKEND_API" >> $GITHUB_ENV
           echo "BUILD_GITHUB_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
+          # QDRANT 관련 환경변수 추가
+          echo "BUILD_QDRANT_API_KEY=$QDRANT_API_KEY" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_URL=$QDRANT_URL" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_COLLECTION=$QDRANT_COLLECTION" >> $GITHUB_ENV
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
@@ -102,6 +107,9 @@ jobs:
             --build-arg TEAM_LIST_API_URL="${{ env.BUILD_TEAM_LIST_API_URL }}" \
             --build-arg USE_BACKEND_API="${{ env.BUILD_USE_BACKEND_API }}" \
             --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
+            --build-arg QDRANT_API_KEY="${{ env.BUILD_QDRANT_API_KEY }}" \
+            --build-arg QDRANT_URL="${{ env.BUILD_QDRANT_URL }}" \
+            --build-arg QDRANT_COLLECTION="${{ env.BUILD_QDRANT_COLLECTION }}" \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
