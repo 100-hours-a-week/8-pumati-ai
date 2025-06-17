@@ -140,22 +140,22 @@ async def process_badge_task(mod_tags: str, team_info: dict) -> dict:
         logger.info("2-2) 뱃지 생성 요청중...")
         badge_URL = badge_generate_instance.generate_and_save_badge(mod_tags = mod_tags, team_number = team_info["teamNumber"] ,request_data = BadgeRequest(**team_info)) #request_data를 BadgeRequest형태로 변경하여 모델에 전달.
 
-        logger.info(f"9-1) BE 서버에 전송할 payload작성중...")
+        logger.info(f"8-1) BE 서버에 전송할 payload작성중...")
         payload = {
             "badgeImageUrl" : badge_URL
         }
         teamId = team_info["teamId"]
 
         endpoint = f"{BE_URL}/api/teams/{teamId}/badge-image-url"
-        logger.info(f"9-2) {endpoint}으로 patch요청")
+        logger.info(f"8-2) {endpoint}으로 patch요청")
         response = requests.patch(endpoint, json=payload, headers={"Content-Type": "application/json"})
         response.raise_for_status()
-        logger.info(f"9-3) 이미지 전송 성공: {endpoint}, {payload}")
-        logger.info(f"9-4) 서버를 종료합니다.")
-        logger.info(f"9-5) 동작 시간: {time.perf_counter() - start}")
+        logger.info(f"8-3) 이미지 전송 성공: {endpoint}, {payload}")
+        logger.info(f"8-4) 서버를 종료합니다.")
+        logger.info(f"8-5) 동작 시간: {time.perf_counter() - start}")
     except Exception as e:
         logger.error(f"이미지 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
-        logger.info(f"9-5) 동작 시간: {time.perf_counter() - start}")
+        logger.info(f"8-5) 동작 시간: {time.perf_counter() - start}")
         await error_occured(team_info)
 
     return responses.JSONResponse(status_code=200, content={"status": "ok"})

@@ -26,8 +26,8 @@ class BadgeService:
         content_type = "image/png"
 
         # 1) Pre-signed URL 요청
-        logger.info("8-2) Presigned URL 요청")
-        logger.info(f"8-3) {BE_SERVER}/api/pre-signed-url으로 post요청중...")
+        logger.info("7-2) Presigned URL 요청")
+        logger.info(f"7-3) {BE_SERVER}/api/pre-signed-url으로 post요청중...")
         response = requests.post(f"{BE_SERVER}/api/pre-signed-url", json={
             "fileName": file_name,
             "contentType": content_type
@@ -37,13 +37,13 @@ class BadgeService:
         if response.status_code != 201:
             raise Exception(f"Pre-signed URL 발급 실패: {response.text}")
 
-        logger.info("8-4) S3에 이미지 업로드 중...")
+        logger.info("7-4) S3에 이미지 업로드 중...")
         upload_data = response.json()["data"]
         upload_url = upload_data["uploadUrl"]
         public_url = upload_data["publicUrl"]
 
         # 2. S3에 PUT으로 이미지 업로드
-        logger.info(f"8-5) {upload_url}에 put요청.")
+        logger.info(f"7-5) {upload_url}에 put요청.")
         upload_response = requests.put(
             upload_url,
             data=image_bytes.getvalue(),
@@ -57,7 +57,7 @@ class BadgeService:
         if upload_response.status_code != 200:
             raise Exception(f"S3 업로드 실패: {upload_response.text}")
 
-        logger.info(f"8-6) S3에 업로드 성공")
+        logger.info(f"7-6) S3에 업로드 성공")
         return public_url 
 
     def draw_rotated_text(self, base_image, draw_center, radius, text, total_angle=90, start_angle=-90):
@@ -111,13 +111,13 @@ class BadgeService:
         image = generate_image(mod_tags, team_number, request_data)
 
         # 2) 팀 title 입력
-        logger.info("7-1) teamtitle 붙여주기")
-        image_final = self.draw_rotated_text(image, (256, 256), 180, request_data.title)
+        #logger.info("7-1) teamtitle 붙여주기")
+        #image_final = self.draw_rotated_text(image, (256, 256), 180, request_data.title)
 
-        logger.info("8-1) Presigned URL 가져오기")
+        logger.info("7-1) Presigned URL 가져오기")
         # 3) 이미지 메모리 스트림 변환
         with BytesIO() as image_bytes:
-            image_final.save(image_bytes, format="PNG")
+            image.save(image_bytes, format="PNG")
             image_bytes.seek(0)
             # 4) S3에 저장 후 url 반환받기
             public_url = self.create_url(image_bytes, team_number)

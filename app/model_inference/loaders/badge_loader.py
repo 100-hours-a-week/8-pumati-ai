@@ -109,4 +109,4 @@ class BadgeModel:
 
     
 badge_loader_instance = BadgeModel()
-badge_loader_instance.load_diffusion_model()
+#badge_loader_instance.load_diffusion_model()

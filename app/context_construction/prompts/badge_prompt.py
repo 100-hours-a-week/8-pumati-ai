@@ -5,7 +5,7 @@ from app.fast_api.schemas.badge_schemas import BadgeRequest
 from deep_translator import GoogleTranslator
 #from typing import List
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont #새로 추가됨.
+from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont #새로 추가됨.
 import math, json
 import cv2
 from selenium import webdriver
@@ -42,22 +42,26 @@ class BadgePrompt:
         draw = ImageDraw.Draw(base)
 
         # 2. 전체 외곽 원 (250px) - 삭제되지 않음
-        def draw_full_circle(draw_obj, radius, thickness=6):
-            for angle in range(0, 360):
-                theta = math.radians(angle)
-                x = center[0] + int(radius * math.cos(theta))
-                y = center[1] + int(radius * math.sin(theta))
-                draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
+        # def draw_full_circle(draw_obj, radius, thickness=6):
+        #     for angle in range(0, 360):
+        #         theta = math.radians(angle)
+        #         x = center[0] + int(radius * math.cos(theta))
+        #         y = center[1] + int(radius * math.sin(theta))
+        #         draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
 
-        draw_full_circle(draw, outer_radius)
+        # draw_full_circle(draw, outer_radius)
+        draw.ellipse([
+            center[0] - outer_radius, center[1] - outer_radius,
+            center[0] - outer_radius, center[1] - outer_radius
+        ], outline=0, width=6)
 
         # 3. 중간/내부 원 - 상단 90도만 그리기 (45도~135도)
-        def draw_top_arc(draw_obj, radius, keep_start=-150 , keep_end=-30, thickness=1): #(-210, 30), (-245, 65), (-150,-30)
-            for angle in range(keep_start, keep_end):
-                theta = math.radians(angle)
-                x = center[0] + int(radius * math.cos(theta))
-                y = center[1] + int(radius * math.sin(theta))
-                draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
+        # def draw_top_arc(draw_obj, radius, keep_start=-150 , keep_end=-30, thickness=1): #(-210, 30), (-245, 65), (-150,-30)
+        #     for angle in range(keep_start, keep_end):
+        #         theta = math.radians(angle)
+        #         x = center[0] + int(radius * math.cos(theta))
+        #         y = center[1] + int(radius * math.sin(theta))
+        #         draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
 
         #draw_top_arc(draw, inner_radius)
 
@@ -276,7 +280,10 @@ class BadgePrompt:
         )
 
         # 흰색 배경은 투명하게 처리할 마스크 생성
-        logo_mask = logo_resized.point(lambda p: 255 if p < 128 else 0)
+        #logo_mask = logo_resized.point(lambda p: 255 if p < 128 else 0)
+
+        logo_gray = logo_resized.convert("L")
+        logo_mask = ImageOps.invert(logo_gray).filter(ImageFilter.GaussianBlur(2))
 
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
@@ -290,17 +297,17 @@ class BadgePrompt:
 
     def build_badge_prompt(self, mod_tags: str, team_number: int) -> str:
         if mod_tags == "뉴스":
-            return f"NewspaperWorld, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background, Sunlight, Soft natural light"
+            return f"NewspaperWorld, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "자연 풍경": # 45개의 (파랑, 보랑, 검정 계열 색상을 입력으로 넣음.)
-            return f"hyrule, scenery, outdoors, no humans. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.scene_color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"hyrule, scenery, outdoors, no humans. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.scene_color} Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "우드":
-            return f"woodcarvingcd, logo. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft Logo Icon, white background."
+            return f"woodcarvingcd, logo. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft Logo Icon, white background."
         elif mod_tags == "픽셀":
-            return f"pixel world. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"pixel world. beat quality, Masterpiece, detailed, captivating, Magnification.  Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "게임":
-            return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         else:
-            return f"badge, logo. beat quality, Masterpiece, detailed, captivating, Magnification. A round badge with number {team_number} and logo at the bottom, center. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"badge, logo. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
 
 
         # if mod_tags == None:
