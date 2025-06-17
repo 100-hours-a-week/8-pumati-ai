@@ -14,7 +14,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-# from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.chrome import ChromeDriverManager
 import requests, time
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -59,14 +59,14 @@ class BadgePrompt:
                 y = center[1] + int(radius * math.sin(theta))
                 draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
 
-        draw_top_arc(draw, inner_radius)
+        #draw_top_arc(draw, inner_radius)
 
         # 4. 숫자 텍스트 삽입
-        number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 120)
-        number_text = str(number)
-        bbox = draw.textbbox((0, 0), number_text, font=number_font)
-        text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font) 
+        # number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 120)
+        # number_text = str(number)
+        # bbox = draw.textbbox((0, 0), number_text, font=number_font)
+        # text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        # draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font) 
 
 
         # 5. Canny 엣지 적용 및 저장
@@ -126,12 +126,6 @@ class BadgePrompt:
 
         css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
         color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:3]
-        # if len(color_names) > 1 and "black" in color_names:
-        #     color_names.remove("black")
-        #     color_names = color_names[:2]
-        # else:
-        #     color_names = color_names[:2]
-        # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.color = ', '.join(color_names)
 
         css3_BPB_colors = self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
@@ -151,7 +145,7 @@ class BadgePrompt:
         page_url = self.data.deploymentUrl
 
         options = Options()
-        options.binary_location = "/usr/bin/google-chrome"
+        #options.binary_location = "/usr/bin/google-chrome"
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
@@ -163,17 +157,20 @@ class BadgePrompt:
 
         logger.info("3-5) 크롬 트라이버 생성중...")
         with tempfile.TemporaryDirectory() as user_data_dir:
-            options.add_argument(f'--user-data-dir={user_data_dir}')
-            service = Service("/usr/bin/chromedriver")
-            driver = webdriver.Chrome(service=service, options=options)
-
-            driver.get(page_url)
-            time.sleep(3)  # JS 렌더링 대기
-            logger.info("3-6) 크롬 접속 가능함")
-
             try:
-                #resp = requests.get(page_url)
-                #html = driver.page_source
+                try:
+                    options.add_argument(f'--user-data-dir={user_data_dir}')
+                    #service = Service("/usr/bin/chromedriver")
+                    service = Service(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=options)
+
+                    driver.get(page_url)
+                    time.sleep(3)  # JS 렌더링 대기
+                    logger.info("3-6) 크롬 접속 가능함")
+                except:
+                    logger.info("3-6) 크롬 접속 불가")
+
+            
                 try:
                     favicon_url = urljoin(page_url, "/favicon.ico")
                     resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
@@ -208,19 +205,6 @@ class BadgePrompt:
                 
                 logger.info("3-10) 크롤링 재시도 중..")
                 driver.get(url=url)
-                # img = driver.find_element(
-                #     "xpath",
-                #     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
-                # )
-                # logger.info(f"4-10-1) {img_url}")
-                # img_url = img.get_attribute("src")
-                # logger.info(f"4-10-2) {img_url}")
-                # if img_url:
-                #     logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
-                #     canny_logo = self.get_image(img_url)
-                    
-                #     logger.info("4-12) 로고 생성 완료")
-                #     return canny_logo
                     
                 try:
                     #페이지가 켜질 때 까지 3초 기다림.
@@ -243,7 +227,7 @@ class BadgePrompt:
             finally:
                 driver.quit()
 
-    def insert_logo_on_badge(self, max_half_size=165):
+    def insert_logo_on_badge(self, max_half_size=245):
         """
         배경 뱃지 이미지의 중심에 로고를 비율에 맞춰 삽입합니다.
         - 삽입 가능한 최대 크기는 중심 기준 ±120 영역 (즉 240x240)
@@ -324,12 +308,12 @@ if __name__ == '__main__':
 
 
     dummy_data = BadgeModifyRequest(
-        modificationTags="몽환적인",
+        modificationTags=["뉴스"],
         projectSummary=BadgeRequest(
-            title="품앗이",
+            title="탐나라",
             introduction="카카오테크 부트캠프를 위한 트래픽 품앗이 플랫폼",
             detailedDescription="품앗이(Pumati)는 카카오테크 부트캠프를 위한 트래픽 품앗이 플랫폼입니다.\n\n서로의 프로젝트를 사용해주는 선순환을 통해 성공적인 트래픽 시나리오를 만들어 함께 성장하는 것이 우리의 목표입니다.\n\n품앗이(Pumati)의 주요 기능이에요!\n- 프로젝트 홍보 게시판: 우리 팀의 프로젝트를 홍보하고, 다른 팀의 프로젝트도 사용해볼까?\n- 트래픽 품앗이 기능: 다른 팀의 프로젝트를 사용할수록 우리 팀의 홍보 게시글 순위가 상승!\n- 후기 작성: 서로의 프로젝트를 리뷰하며 함께 성장해요~\n- 출석 체크 기능: 출석만 하면 품앗이 포인트가 올라간다고?\n\n흩어진 파이널 프로젝트들의 정보를 매번 찾아보기 어렵고, 트래픽 하나하나가 소중한 카카오테크 부트캠프 교육생들에게\n\n디스콰이엇(disquiet)과 달리 '트래픽 품앗이'와 '크레딧' 개념을 활용하여 실시간으로 프로젝트 홍보 게시글의 순위가 변동된다는 차별점이 있고,\n\n외부인들이 프로젝트에 쉽게 접근할 수 있도록 돕고, 나아가 교육생들끼리 서로의 프로젝트를 방문하고 응원함으로써(품앗이) 모두의 성공적인 프로젝트 경험을 함께 만들어 가는 기능을 제공합니다.",
-            deploymentUrl="https://tebutebu.com/",
+            deploymentUrl="https://tam-nara.com",#"https://tebutebu.com/",
             githubUrl="https://github.com/orgs/100-hours-a-week/teams/8/repositories",
             tags=["품앗이"],
             teamId=4,
