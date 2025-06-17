@@ -59,14 +59,14 @@ class BadgePrompt:
                 y = center[1] + int(radius * math.sin(theta))
                 draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
 
-        draw_top_arc(draw, inner_radius)
+        #draw_top_arc(draw, inner_radius)
 
         # 4. 숫자 텍스트 삽입
-        number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 120)
-        number_text = str(number)
-        bbox = draw.textbbox((0, 0), number_text, font=number_font)
-        text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font) 
+        # number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 120)
+        # number_text = str(number)
+        # bbox = draw.textbbox((0, 0), number_text, font=number_font)
+        # text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        # draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font) 
 
 
         # 5. Canny 엣지 적용 및 저장
@@ -126,12 +126,6 @@ class BadgePrompt:
 
         css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
         color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:3]
-        # if len(color_names) > 1 and "black" in color_names:
-        #     color_names.remove("black")
-        #     color_names = color_names[:2]
-        # else:
-        #     color_names = color_names[:2]
-        # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.color = ', '.join(color_names)
 
         css3_BPB_colors = self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
@@ -163,15 +157,18 @@ class BadgePrompt:
 
         logger.info("3-5) 크롬 트라이버 생성중...")
         with tempfile.TemporaryDirectory() as user_data_dir:
-            options.add_argument(f'--user-data-dir={user_data_dir}')
-            service = Service("/usr/bin/chromedriver")
-            driver = webdriver.Chrome(service=service, options=options)
-
-            driver.get(page_url)
-            time.sleep(3)  # JS 렌더링 대기
-            logger.info("3-6) 크롬 접속 가능함")
-
             try:
+                try:
+                    options.add_argument(f'--user-data-dir={user_data_dir}')
+                    service = Service("/usr/bin/chromedriver")
+                    driver = webdriver.Chrome(service=service, options=options)
+
+                    driver.get(page_url)
+                    time.sleep(3)  # JS 렌더링 대기
+                    logger.info("3-6) 크롬 접속 가능함")
+                except:
+                    logger.info("3-6) 크롬 접속 불가")
+
                 #resp = requests.get(page_url)
                 #html = driver.page_source
                 try:
@@ -243,7 +240,7 @@ class BadgePrompt:
             finally:
                 driver.quit()
 
-    def insert_logo_on_badge(self, max_half_size=165):
+    def insert_logo_on_badge(self, max_half_size=245):
         """
         배경 뱃지 이미지의 중심에 로고를 비율에 맞춰 삽입합니다.
         - 삽입 가능한 최대 크기는 중심 기준 ±120 영역 (즉 240x240)
