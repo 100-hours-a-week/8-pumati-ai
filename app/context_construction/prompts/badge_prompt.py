@@ -1,6 +1,6 @@
 #badge_prompt.py
 
-from app.fast_api.schemas.badge_schemas import BadgeRequest
+from app.fast_api.schemas.badge_schemas import BadgeRequest  
 
 from deep_translator import GoogleTranslator
 #from typing import List
