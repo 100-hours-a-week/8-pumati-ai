@@ -197,8 +197,11 @@ async def run_rag_streaming(question: str, project_id: int):
                     "retrieved_docs": retrieved_doc_metadata
                 }
             )
-
-    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.25:
+        
+    adjusted_scores = [doc.metadata.get("adjusted_score", 0.0) for doc in docs[:20]]
+    avg_adjusted_scores = sum(adjusted_scores) / max(len(adjusted_scores), 1)
+    print(f"➗ avg_adjusted_scores: {avg_adjusted_scores}")
+    if not docs or avg_adjusted_scores < 0.25:
         # FILTERED_RESPONSE의 각 글자를 순회하며 yield하되, 줄바꿈은 치환
         for char in FILTERED_RESPONSE:
             if char == '\n':
