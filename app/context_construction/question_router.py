@@ -12,7 +12,9 @@ def classify_question_type(question: str) -> str:
         return "owner"
     elif "이번주" in question or "언제" in question:
         return "timeline"
-    elif "어떤 프로젝트" in question or "무슨 기능" or "어떤 기능":
+    elif "어떤 프로젝트" in question:
         return "project"
+    elif "어떤 기능" in question or "무슨 기능" in question:
+        return "function"
     else:
         return "summary"
