@@ -30,8 +30,9 @@ if not client.collection_exists(collection_name=QDRANT_COLLECTION):
     )
 
     # 필드별 인덱스 생성
+    # payload_schema 인자를 sync client가 허용하지 않아서 필드별 인덱스 수동 생성
     client.create_payload_index(QDRANT_COLLECTION, field_name="project_id", field_schema=PayloadSchemaType.INTEGER)
-    client.create_payload_index(QDRANT_COLLECTION, field_name="team_id", field_schema=PayloadSchemaType.KEYWORD)
+    client.create_payload_index(QDRANT_COLLECTION, field_name="team_id", field_schema=PayloadSchemaType.INTEGER)
     client.create_payload_index(QDRANT_COLLECTION, field_name="repo", field_schema=PayloadSchemaType.KEYWORD)
     client.create_payload_index(QDRANT_COLLECTION, field_name="type", field_schema=PayloadSchemaType.KEYWORD)
     client.create_payload_index(QDRANT_COLLECTION, field_name="weight", field_schema=PayloadSchemaType.FLOAT)
@@ -39,16 +40,6 @@ if not client.collection_exists(collection_name=QDRANT_COLLECTION):
 
 else:
     print(f"➡️ '{QDRANT_COLLECTION}' 컬렉션이 이미 존재합니다. 생성을 생략합니다.")
-
-# 3. 필드별 인덱스 생성
-# payload_schema 인자를 sync client가 허용하지 않아서 필드별 인덱스 수동 생성
-
-client.create_payload_index(QDRANT_COLLECTION, field_name="project_id", field_schema=PayloadSchemaType.INTEGER)
-client.create_payload_index(QDRANT_COLLECTION, field_name="team_id", field_schema=PayloadSchemaType.KEYWORD)
-client.create_payload_index(QDRANT_COLLECTION, field_name="repo", field_schema=PayloadSchemaType.KEYWORD)
-client.create_payload_index(QDRANT_COLLECTION, field_name="type", field_schema=PayloadSchemaType.KEYWORD)
-client.create_payload_index(QDRANT_COLLECTION, field_name="weight", field_schema=PayloadSchemaType.FLOAT)
-client.create_payload_index(QDRANT_COLLECTION, field_name="date", field_schema=PayloadSchemaType.TEXT)
 
 def is_id_exists(doc_id: str) -> bool:
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일 방식으로 변환

@@ -12,7 +12,7 @@ class ProjectSummary(BaseModel):
     teamId: int
 
 class CommentRequest(BaseModel):
-    commentType: str
+    commentType: List[str]
     projectSummary: ProjectSummary
 
 

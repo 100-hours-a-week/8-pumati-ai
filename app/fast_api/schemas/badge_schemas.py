@@ -1,3 +1,5 @@
+# badge_schemas.py
+
 from pydantic import BaseModel
 from typing import List
 
@@ -11,3 +13,7 @@ class BadgeRequest(BaseModel):
     teamId: int
     term: int
     teamNumber: int
+
+class BadgeModifyRequest(BaseModel):
+    modificationTags: List[str]
+    projectSummary: BadgeRequest
