@@ -138,7 +138,7 @@ async def process_badge_task(mod_tags: str, team_info: dict) -> dict:
     try:
         badge_generate_instance = BadgeService()
         logger.info("2-2) 뱃지 생성 요청중...")
-        badge_URL = badge_generate_instance.generate_and_save_badge(mod_tags = mod_tags, team_number = team_info["teamNumber"] ,request_data = BadgeRequest(**team_info)) #request_data를 BadgeRequest형태로 변경하여 모델에 전달.
+        badge_URL = await badge_generate_instance.generate_and_save_badge(mod_tags = mod_tags, team_number = team_info["teamNumber"] ,request_data = BadgeRequest(**team_info)) #request_data를 BadgeRequest형태로 변경하여 모델에 전달.
 
         logger.info(f"8-1) BE 서버에 전송할 payload작성중...")
         payload = {

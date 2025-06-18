@@ -37,7 +37,7 @@ class BadgeModel:
         login(token=token)
         BadgeModel._is_authenticated = True
 
-    def load_LoRA(self, mod_tags: str) -> None:
+    async def load_LoRA(self, mod_tags: str) -> None:
         logger.info("5-2) LoRA 다운 설정중...")
         self.base_pipe.scheduler = UniPCMultistepScheduler.from_config(self.base_pipe.scheduler.config) 
         #self.base_pipe.unload_lora_weights()
@@ -92,7 +92,7 @@ class BadgeModel:
         
         self.base_pipe.safety_checker = dummy_checker
 
-    def load_diffusion_model(self) -> None:
+    async def load_diffusion_model(self) -> None:
         logger.info("6-1-1) Controlnet파이프라인 로드")
         controlnet_pipe = ControlNetModel.from_pretrained(
             CONTROLNET_NAME,
