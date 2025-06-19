@@ -5,7 +5,7 @@ from app.fast_api.schemas.badge_schemas import BadgeRequest
 from deep_translator import GoogleTranslator
 #from typing import List
 import numpy as np
-from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont #새로 추가됨.
+from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageEnhance, ImageFont #새로 추가됨.
 import math, json
 import cv2
 from selenium import webdriver
@@ -107,9 +107,19 @@ class BadgePrompt:
         self.scene_color = ', '.join(BPB_color_names)
 
         logger.info(f"3-7-2) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
-
-        cv_image_logo = np.array(img)
-        canny_logo = cv2.Canny(cv_image_logo, 50, 150)
+        
+        #해상도 높이기 
+        logger.info(f"3-7-3) 이미지의 해상도를 높입니다.")
+        
+        np_img = np.array(img) #np에서 512x512로 확장
+        upscaled = cv2.resize(np_img, (512, 512), interpolation=cv2.INTER_LANCZOS4)
+        logger.info(f"3-7-4) PIL에서 명암 강화")
+        pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
+        contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
+        sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
+        logger.info(f"3-7-5) np에서 canny이미지 획득")
+        cv_image_logo = np.array(sharp) #np에서 canny이미지 획득
+        canny_logo = cv2.Canny(cv_image_logo, 100, 200) #50, 150)
         return canny_logo
 
     async def find_logo_image_url(soup, page_url):
