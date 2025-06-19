@@ -295,15 +295,15 @@ class BadgePrompt:
 
     def build_badge_prompt(self, mod_tags: str, team_number: int) -> str:
         if mod_tags == "뉴스":
-            return f"NewspaperWorld, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft Logo Icon, white background, Sunlight, Soft natural light"
+            return f"NewspaperWorld, high resolution, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "자연 풍경": # 45개의 (파랑, 보랑, 검정 계열 색상을 입력으로 넣음.)
-            return f"hyrule, scenery, outdoors, no humans. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.scene_color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"hyrule, scenery, outdoors, no humans. high resolution, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.scene_color} Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "우드":
-            return f"woodcarvingcd, logo. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft Logo Icon, white background."
+            return f"woodcarvingcd, logo. high resolution, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft Logo Icon, white background."
         elif mod_tags == "픽셀":
             return f"pixel world. beat quality, Masterpiece, detailed, captivating, Magnification.  Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         elif mod_tags == "게임":
-            return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, high resolution, clean lines, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         else:
             return f"badge, logo. high resolution, clean lines, vector style, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
 
