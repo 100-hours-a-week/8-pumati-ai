@@ -112,15 +112,15 @@ class BadgePrompt:
         logger.info(f"3-7-3) 이미지의 해상도를 높입니다.")
         
         np_img = np.array(img) #np에서 512x512로 확장
-        upscaled = cv2.resize(np_img, (512, 512), interpolation=cv2.INTER_LANCZOS4)
+        #upscaled = cv2.resize(np_img, (256, 256), interpolation=cv2.INTER_LANCZOS4)
         logger.info(f"3-7-4) PIL에서 명암 강화")
-        pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
+        #pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
         #blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=1.2))
-        contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
-        sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
+        #contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
+        #sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
         logger.info(f"3-7-5) np에서 canny이미지 획득")
-        cv_image_logo = np.array(sharp) #np에서 canny이미지 획득
-        canny_logo = cv2.Canny(cv_image_logo, 40, 200) #50, 150)
+        cv_image_logo = np.array(np_img) #np에서 canny이미지 획득
+        canny_logo = cv2.Canny(cv_image_logo, 50, 150) #50, 150)
         return canny_logo
 
     async def find_logo_image_url(soup, page_url):
