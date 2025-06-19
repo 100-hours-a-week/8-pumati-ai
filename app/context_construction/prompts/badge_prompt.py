@@ -88,7 +88,7 @@ class BadgePrompt:
 
         # 가장 많이 쓰인 색 찾기
         color_counts = Counter(pixels)
-        most_common_colors = color_counts.most_common(2) or ["white"]
+        most_common_colors = color_counts.most_common(3) #or ["white"]
 
         logger.info(f"3-7-1) 팀 로고 색을 추출합니다.")
 
@@ -97,11 +97,11 @@ class BadgePrompt:
             most_common_colors = [((255, 255, 255), 9999)]
 
         css3_colors = await self.load_css3_colors("./app/utils/css3_colors.json")
-        color_names = [await self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:3]
+        color_names = [await self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:4]
         self.color = ', '.join(color_names)
 
         css3_BPB_colors = await self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
-        BPB_color_names = [await self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors][:3]
+        BPB_color_names = [await self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors][:4]
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.scene_color = ', '.join(BPB_color_names)
 
