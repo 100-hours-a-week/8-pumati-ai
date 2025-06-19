@@ -305,7 +305,7 @@ class BadgePrompt:
         elif mod_tags == "게임":
             return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         else:
-            return f"badge, logo. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"badge, logo. high resolution, clean lines, smooth edges, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
 
 
 if __name__ == '__main__':
