@@ -3,7 +3,7 @@
 # ▶ Core AI 추론 관련
 # torch==2.1.0+cu121
 # CPU-only용 PyTorch
-torch==2.1.0
+torch==2.7.1
 #gpu용
 # torch @ https://download.pytorch.org/whl/cu121/torch-2.1.0%2Bcu121-cp310-cp310-linux_x86_64.whl #torch==2.1.0+cu121은 pip에서 직접 설치할 수 없으므로 @ URL 방식으로 명시.
 

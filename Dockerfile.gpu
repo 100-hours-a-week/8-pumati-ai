@@ -15,6 +15,10 @@ ARG LANGSMITH_ENDPOINT
 ARG LANGSMITH_API_KEY
 ARG LANGCHAIN_PROJECT
 ARG GEMINI_API_KEY
+ARG USE_REMOTE_CHROMA
+ARG QDRANT_API_KEY
+ARG QDRANT_URL
+ARG QDRANT_COLLECTION
 
 # ──────────────────────────────────────────────────
 # 2. 환경변수 설정 (한번에 설정하여 레이어 최소화)
@@ -26,6 +30,10 @@ ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
     LANGSMITH_API_KEY=${LANGSMITH_API_KEY} \
     LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT} \
     GEMINI_API_KEY=${GEMINI_API_KEY} \
+    USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA} \
+    QDRANT_API_KEY=${QDRANT_API_KEY} \
+    QDRANT_URL=${QDRANT_URL} \
+    QDRANT_COLLECTION=${QDRANT_COLLECTION} \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
@@ -71,7 +79,11 @@ RUN echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env && \
     echo "LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}" >> /workspace/.env && \
     echo "LANGSMITH_API_KEY=${LANGSMITH_API_KEY}" >> /workspace/.env && \
     echo "LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}" >> /workspace/.env && \
-    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env
+    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env && \
+    echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env && \
+    echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env && \
+    echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env && \
+    echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env
 
 # 소스 코드 복사
 COPY . /workspace/
