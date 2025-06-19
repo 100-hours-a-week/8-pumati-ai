@@ -11,6 +11,7 @@ from collections import defaultdict
 import hashlib
 from app.github_crawling.github_api import fetch_wiki_md_files
 from uuid import uuid5, NAMESPACE_DNS
+from app.model_inference.rag_chat_runner import embedding_model
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,7 +24,6 @@ def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, 
             print(f"➡️ 이미 저장된 ID: {chunk_id} → 생략")
             continue
         try:
-            embedding = get_embedding(chunk)
             store_document(
                 text=chunk,
                 metadata={
@@ -32,8 +32,8 @@ def save_vector_entry(raw: str, doc_id_prefix: str, repo: str, project_id: int, 
                     "project_id": project_id,
                     "team_id": team_id
                 },
-                embedding=embedding,
-                doc_id=chunk_id
+                embedding_model=embedding_model,
+                doc_id=chunk_id,
             )
             print(f"📥 저장 완료: {chunk_id}")
         except Exception as e:

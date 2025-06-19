@@ -46,30 +46,35 @@ def is_id_exists(doc_id: str) -> bool:
     result = client.retrieve(collection_name=QDRANT_COLLECTION, ids=[uuid_id])
     return len(result) > 0
 
-def store_document(text: str, metadata: dict, embedding: list, doc_id: str):
+def store_document(text, metadata, embedding_model, doc_id):
     doc_type = metadata.get("type", "other").lower()
     filename = metadata.get("filename", "").lower()
 
     default_weights = {
-        "commit": 0.1,
-        "pr": 1.2,
-        "issue": 1.0,
-        "readme": 1.0,
+        "commit": 0.9,
+        "pr": 1.7,
+        "issue": 1.5,
+        "readme": 1.3,
         "contents": 0.8,
-        "contributor": 0.5,
-        "stats": 0.5,
-        "wiki": 0.7,
+        "contributor": 0.7,
+        "stats": 0.7,
+        "wiki": 1.7,
     }
     weight = default_weights.get(doc_type, 1.0)
     if "Home" in filename or "Vision" in filename:
         weight += 1.0
     if "프로젝트" in text or "서비스" in text:
         weight += 1.0
+    if "기능" in text:
+        weight += 1.0
     metadata["weight"] = weight
 
     print("✅  저장 직전 metadata:", metadata)
 
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 문자열 doc_id → UUID 변환
+
+    # prefix 붙여서 임베딩 생성
+    embedding = embedding_model.embed_documents([f"passage: {text}"])[0]
 
     client.upsert(
         collection_name=QDRANT_COLLECTION,
