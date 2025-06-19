@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from app.fast_api.endpoints.fortune_router import router as fortune_router
 from app.fast_api.endpoints.chat_router import router as chat_router
 import uvicorn
+import warnings
+
+warnings.filterwarnings("ignore", message="TypedStorage is deprecated")
 
 #FastAPI 태그설정
 app = FastAPI()
