@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
+from urllib.parse import quote
 
 import logging, os, tempfile,cairosvg #subprocess, stat
 
@@ -135,7 +136,8 @@ class BadgePrompt:
     
     async def get_disquiet_exact_team_image(self, team_title: str):
         logger.info("3-4) 각 팀의 로고를 크롤링...")
-        url = f"https://disquiet.io/product/{team_title}"
+        encoded_title = quote(team_title.lower())
+        url = f"https://disquiet.io/product/{encoded_title}"
         page_url = self.data.deploymentUrl
 
         options = Options()
