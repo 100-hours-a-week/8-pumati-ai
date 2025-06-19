@@ -120,7 +120,7 @@ class BadgePrompt:
         sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
         logger.info(f"3-7-5) np에서 canny이미지 획득")
         cv_image_logo = np.array(sharp) #np에서 canny이미지 획득
-        canny_logo = cv2.Canny(cv_image_logo, 100, 200) #50, 150)
+        canny_logo = cv2.Canny(cv_image_logo, 60, 200) #50, 150)
         return canny_logo
 
     async def find_logo_image_url(soup, page_url):
@@ -305,7 +305,7 @@ class BadgePrompt:
         elif mod_tags == "게임":
             return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         else:
-            return f"badge, logo. high resolution, clean lines, smooth edges, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
+            return f"badge, logo. high resolution, clean lines, vector style, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
 
 
 if __name__ == '__main__':
