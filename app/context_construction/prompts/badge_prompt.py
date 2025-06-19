@@ -115,7 +115,8 @@ class BadgePrompt:
         upscaled = cv2.resize(np_img, (1024, 1024), interpolation=cv2.INTER_LANCZOS4)
         logger.info(f"3-7-4) PIL에서 명암 강화")
         pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
-        contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
+        blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=1.2))
+        contrast = ImageEnhance.Contrast(blurred).enhance(1.5)   # 대비 ↑
         sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
         logger.info(f"3-7-5) np에서 canny이미지 획득")
         cv_image_logo = np.array(sharp) #np에서 canny이미지 획득
