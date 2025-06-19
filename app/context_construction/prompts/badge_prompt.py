@@ -32,46 +32,18 @@ class BadgePrompt:
         self.color= None
         self.scene_color = None
     
-    def generate_corrected_badge(self, number: int, image_size: int = 800):
+    async def generate_corrected_badge(self, number: int, image_size: int = 800):
         center = (image_size // 2, image_size // 2)
         outer_radius = 350
-        inner_radius = 240
 
         # 1. 흰 배경 생성
         base = Image.new("L", (image_size, image_size), 255)
         draw = ImageDraw.Draw(base)
 
-        # 2. 전체 외곽 원 (250px) - 삭제되지 않음
-        # def draw_full_circle(draw_obj, radius, thickness=6):
-        #     for angle in range(0, 360):
-        #         theta = math.radians(angle)
-        #         x = center[0] + int(radius * math.cos(theta))
-        #         y = center[1] + int(radius * math.sin(theta))
-        #         draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
-
-        # draw_full_circle(draw, outer_radius)
         draw.ellipse([
             center[0] - outer_radius, center[1] - outer_radius,
             center[0] - outer_radius, center[1] - outer_radius
         ], outline=0, width=6)
-
-        # 3. 중간/내부 원 - 상단 90도만 그리기 (45도~135도)
-        # def draw_top_arc(draw_obj, radius, keep_start=-150 , keep_end=-30, thickness=1): #(-210, 30), (-245, 65), (-150,-30)
-        #     for angle in range(keep_start, keep_end):
-        #         theta = math.radians(angle)
-        #         x = center[0] + int(radius * math.cos(theta))
-        #         y = center[1] + int(radius * math.sin(theta))
-        #         draw_obj.ellipse((x - thickness, y - thickness, x + thickness, y + thickness), fill=0)
-
-        #draw_top_arc(draw, inner_radius)
-
-        # 4. 숫자 텍스트 삽입
-        # number_font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", 120)
-        # number_text = str(number)
-        # bbox = draw.textbbox((0, 0), number_text, font=number_font)
-        # text_width, _ = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        # draw.text((center[0] - text_width // 2, center[1] + outer_radius - 130), number_text, fill=0, font=number_font) 
-
 
         # 5. Canny 엣지 적용 및 저장
         cv_image = np.array(base)
@@ -80,11 +52,11 @@ class BadgePrompt:
         return canny_image
 
 
-    def load_css3_colors(self, path="css3_colors.json"):
+    async def load_css3_colors(self, path="css3_colors.json"):
         with open(path, "r") as f:
             return json.load(f)
 
-    def closest_css3_color_name(self, rgb, css3_colors):
+    async def closest_css3_color_name(self, rgb, css3_colors):
         min_dist = float('inf')
         closest_name = None
 
@@ -97,7 +69,7 @@ class BadgePrompt:
 
         return closest_name
     
-    def get_image(self, url):
+    async def get_image(self, url):
         response = requests.get(url)
         content_type = response.headers.get("Content-Type", "")
 
@@ -109,10 +81,6 @@ class BadgePrompt:
             # 일반 이미지 처리
             img = Image.open(BytesIO(response.content)).convert("RGB")
 
-        
-        #img = Image.open(BytesIO(response.content)).convert("RGB")
-        # plt.imshow(img)  
-        # plt.show()
         small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
 
         # 색상 목록 추출 (flatten)
@@ -128,12 +96,12 @@ class BadgePrompt:
             # 흰색(RGB)과 가상의 count 값으로 대체
             most_common_colors = [((255, 255, 255), 9999)]
 
-        css3_colors = self.load_css3_colors("./app/utils/css3_colors.json")
-        color_names = [self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:3]
+        css3_colors = await self.load_css3_colors("./app/utils/css3_colors.json")
+        color_names = [await self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:3]
         self.color = ', '.join(color_names)
 
-        css3_BPB_colors = self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
-        BPB_color_names = [self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors][:3]
+        css3_BPB_colors = await self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
+        BPB_color_names = [await self.closest_css3_color_name(rgb, css3_BPB_colors) for rgb, _ in most_common_colors][:3]
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.scene_color = ', '.join(BPB_color_names)
 
@@ -143,7 +111,7 @@ class BadgePrompt:
         canny_logo = cv2.Canny(cv_image_logo, 50, 150)
         return canny_logo
 
-    def get_disquiet_exact_team_image(self, team_title: str):
+    async def get_disquiet_exact_team_image(self, team_title: str):
         logger.info("3-4) 각 팀의 로고를 크롤링...")
         url = f"https://disquiet.io/product/{team_title}"
         page_url = self.data.deploymentUrl
@@ -173,14 +141,12 @@ class BadgePrompt:
                 except:
                     logger.info("3-6) 크롬 접속 불가")
 
-                #resp = requests.get(page_url)
-                #html = driver.page_source
                 try:
                     favicon_url = urljoin(page_url, "/favicon.ico")
                     resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
                     if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
                         logger.info("3-7) 파비콘 ico 있음.")
-                        canny_logo = self.get_image(favicon_url)
+                        canny_logo = await self.get_image(favicon_url)
                         return canny_logo
                 except:
                     logger.info("3-7) 파비콘 ico 없음")
@@ -189,39 +155,21 @@ class BadgePrompt:
 
                 try:
                     resp = requests.get(page_url, timeout=3)
-                    #logger.info(f"4-8-1) {resp}")
                     soup = BeautifulSoup(resp.text, "html.parser")
-                    #logger.info(f"4-8-2) {soup.prettify()[:1000]}")
 
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                     icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                    #logger.info(f"4-8-3) {icon_link}")
 
                     if icon_link and icon_link.get("href"):
                         logger.info("3-9) 팀 파비콘 있음.")
                         favicon_url = urljoin(page_url, icon_link["href"])
-                        #logger.info(f"4-8-5) {favicon_url}")
-                        canny_logo = self.get_image(favicon_url)
-                        #logger.info(f"4-8-6) {len(canny_logo)}")
+                        canny_logo = await self.get_image(favicon_url)
                         return canny_logo
                 except:
                     logger.info("3-9) 파비콘 ico 없음")
                 
                 logger.info("3-10) 크롤링 재시도 중..")
                 driver.get(url=url)
-                # img = driver.find_element(
-                #     "xpath",
-                #     '//img[contains(@class, "h-16") and contains(@class, "w-16") and contains(@class, "object-cover")]'
-                # )
-                # logger.info(f"4-10-1) {img_url}")
-                # img_url = img.get_attribute("src")
-                # logger.info(f"4-10-2) {img_url}")
-                # if img_url:
-                #     logger.info(f"4-11) 팀 이미지 확인. URL: {img_url}")
-                #     canny_logo = self.get_image(img_url)
-                    
-                #     logger.info("4-12) 로고 생성 완료")
-                #     return canny_logo
                     
                 try:
                     #페이지가 켜질 때 까지 3초 기다림.
@@ -233,7 +181,7 @@ class BadgePrompt:
                     logger.info(f"3-10-1) img: {img}")
                     img_url = img.get_attribute("src")
                     logger.info(f"3-11) 팀 이미지 URL: {img_url}")
-                    canny_logo = self.get_image(img_url)
+                    canny_logo = await self.get_image(img_url)
                     return canny_logo
                 except Exception as e:
                     logger.error(f"3-11) 이미지 못 찾음: {repr(e)}")
@@ -244,7 +192,7 @@ class BadgePrompt:
             finally:
                 driver.quit()
 
-    def insert_logo_on_badge(self, max_half_size=245):
+    async def insert_logo_on_badge(self, max_half_size=245):
         """
         배경 뱃지 이미지의 중심에 로고를 비율에 맞춰 삽입합니다.
         - 삽입 가능한 최대 크기는 중심 기준 ±120 영역 (즉 240x240)
@@ -254,8 +202,8 @@ class BadgePrompt:
             max_half_size (int): 중심 기준 최대 절반 크기 (기본: 120)
         """
         # 이미지 열기
-        badge = Image.fromarray(self.generate_corrected_badge(self.data.teamNumber)).convert("L")
-        logo = Image.fromarray(self.get_disquiet_exact_team_image(self.data.title)).convert("L")
+        badge = Image.fromarray(await self.generate_corrected_badge(self.data.teamNumber)).convert("L")
+        logo = Image.fromarray(await self.get_disquiet_exact_team_image(self.data.title)).convert("L")
 
         logger.info("4-1) 로고 병합중...")
         # 중심점 및 삽입 가능 영역 크기
@@ -279,9 +227,6 @@ class BadgePrompt:
             center[1] - new_height // 2
         )
 
-        # 흰색 배경은 투명하게 처리할 마스크 생성
-        #logo_mask = logo_resized.point(lambda p: 255 if p < 128 else 0)
-
         logo_gray = logo_resized.convert("L")
         logo_mask = ImageOps.invert(logo_gray).filter(ImageFilter.GaussianBlur(2))
 
@@ -290,7 +235,6 @@ class BadgePrompt:
         logger.info("4-2) 뱃지 이미지 생성 완료.")
         cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
         logger.info("4-3) 이미지 해상도: 512 x 512")
-        #cv_image_logo = np.array(badge.convert("L"))
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
         return canny_badge
     
@@ -308,14 +252,6 @@ class BadgePrompt:
             return f"lol_splash, League of Legends Splash Art, dynamic, lolstyle, beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
         else:
             return f"badge, logo. beat quality, Masterpiece, detailed, captivating, Magnification. Simple soft {self.color} Logo Icon, white background, Sunlight, Soft natural light"
-
-
-        # if mod_tags == None:
-        #     return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient without any other color, soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows"""
-        # #f"A kawaii badge with {self.data.title} on the top(it can be Hangul), number {team_number} on bottom and colored character on the middle of the image. Watercolor. Pixiv, Modernist. point {self.color} color with gradation inside the badge, iridescent gold. rimlighting, halo"
-        # else:
-        #     return f"""A circular badge with a bright gold center and pastel {self.color} full-surface gradient. {self.modi_mapping(mod_tags)}. soft baby color palette, rim lighting, halo, iridescent gold, clean and elegant design, gold number "{team_number}" at the bottom. Highlight the logo, number more clearly. No dark colors, no gray, no brown, no metallic shadows."""
-
 
 
 if __name__ == '__main__':

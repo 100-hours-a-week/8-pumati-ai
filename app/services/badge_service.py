@@ -102,13 +102,13 @@ class BadgeService:
 
         return base_image
 
-    def generate_and_save_badge(self, mod_tags: str, team_number: int, request_data: BadgeRequest):
+    async def generate_and_save_badge(self, mod_tags: str, team_number: int, request_data: BadgeRequest):
         '''
         BadgeService의 메인 기능.
         '''
         logger.info("3-1) badge 이미지 생성 시작")
         # 1) 이미지 생성하기
-        image = generate_image(mod_tags, team_number, request_data)
+        image = await generate_image(mod_tags, team_number, request_data)
 
         # 2) 팀 title 입력
         #logger.info("7-1) teamtitle 붙여주기")
