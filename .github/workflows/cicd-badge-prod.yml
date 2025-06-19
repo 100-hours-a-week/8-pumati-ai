@@ -9,7 +9,7 @@ on:
   push:
     branches:
       - main
-      - feat/125-badge-regularInstance
+      # - feat/125-badge-regularInstance
 
 jobs:
   build-push:

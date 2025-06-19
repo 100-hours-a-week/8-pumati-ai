@@ -33,14 +33,17 @@ async def error_occured(team_info: dict):
     try:
         payload = {}
         teamId = team_info["teamId"]
-        logger.info(f"AI 서버 오류로 이미지 생성이 중단됩니다: {endpoint}")
         endpoint = f"{BE_URL}/api/teams/{teamId}/ai-badge-status"
+        logger.info(f"AI 서버 오류로 이미지 생성이 중단됩니다: {endpoint}")
         response = requests.patch(endpoint, json=payload, headers={"Content-Type": "application/json"})
         response.raise_for_status()
         logger.info(f"BE 서버에 patch 요청 완료.")
 
     except Exception as e:
         logger.error(f"이미지 생성/전송 중 에러 발생: {e}", exc_info=True)
+        endpoint = f"{BE_URL}/api/teams/{teamId}/ai-badge-status"
+        logger.info(f"AI 서버 오류로 이미지 생성이 중단됩니다: {endpoint}")
+        response = requests.patch(endpoint, json=payload, headers={"Content-Type": "application/json"})
 
 # async def enqueue_badge_task(mod_tags: str, team_info: dict) -> None:
 #     '''
