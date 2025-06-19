@@ -57,8 +57,8 @@ class WeightedQdrantRetriever(BaseRetriever):
 
     def _get_relevant_documents(self, query: str, *, config=None) -> List[Document]:
         # 쿼리 임베딩 생성
-        query_embedding = self.vectorstore.embeddings.embed_query(query) 
-        
+        query_embedding = self.vectorstore.embeddings.embed_query(query)
+
         results = self.vectorstore.client.search(
             collection_name=self.vectorstore.collection_name,
             query_vector=query_embedding,
@@ -83,11 +83,12 @@ class WeightedQdrantRetriever(BaseRetriever):
                 "adjusted_score": adjusted_score
             }
             docs.append(Document(page_content=payload.get("document", ""), metadata=metadata))
+        docs = sorted(docs, key=lambda d: d.metadata.get("cosine_score", 0.0), reverse=True)
         return docs
 
 # 임베딩 모델 및 벡터스토어 로딩
 embedding_model = HuggingFaceEmbeddings(
-    model_name="intfloat/multilingual-e5-large",
+    model_name="BAAI/bge-m3",
     encode_kwargs={"normalize_embeddings": True}
 )
 
@@ -197,8 +198,11 @@ async def run_rag_streaming(question: str, project_id: int):
                     "retrieved_docs": retrieved_doc_metadata
                 }
             )
-
-    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.25:
+        
+    adjusted_scores = [doc.metadata.get("adjusted_score", 0.0) for doc in docs[:3]]
+    avg_adjusted_scores = sum(adjusted_scores) / max(len(adjusted_scores), 1)
+    print(f"➗ avg_adjusted_scores: {avg_adjusted_scores}")
+    if not docs or avg_adjusted_scores < 0.7:
         # FILTERED_RESPONSE의 각 글자를 순회하며 yield하되, 줄바꿈은 치환
         for char in FILTERED_RESPONSE:
             if char == '\n':

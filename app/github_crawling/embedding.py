@@ -5,7 +5,7 @@ import torch
 import numpy as np
 
 # 사용할 임베딩 모델 지정
-MODEL_NAME = "intfloat/multilingual-e5-large"
+MODEL_NAME = "BAAI/bge-m3"
 
 # 토크나이저와 모델 로딩
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
