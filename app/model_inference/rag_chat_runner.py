@@ -199,7 +199,7 @@ async def run_rag_streaming(question: str, project_id: int):
                 }
             )
         
-    adjusted_scores = [doc.metadata.get("adjusted_score", 0.0) for doc in docs[:5]]
+    adjusted_scores = [doc.metadata.get("adjusted_score", 0.0) for doc in docs[:3]]
     avg_adjusted_scores = sum(adjusted_scores) / max(len(adjusted_scores), 1)
     print(f"➗ avg_adjusted_scores: {avg_adjusted_scores}")
     if not docs or avg_adjusted_scores < 0.7:
