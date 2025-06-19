@@ -112,7 +112,7 @@ class BadgePrompt:
         logger.info(f"3-7-3) 이미지의 해상도를 높입니다.")
         
         np_img = np.array(img) #np에서 512x512로 확장
-        upscaled = cv2.resize(np_img, (1024, 1024), interpolation=cv2.INTER_LANCZOS4)
+        upscaled = cv2.resize(np_img, (512, 512), interpolation=cv2.INTER_LANCZOS4)
         logger.info(f"3-7-4) PIL에서 명암 강화")
         pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
         #blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=1.2))
