@@ -96,6 +96,41 @@ class BadgePrompt:
                 closest_name = name
 
         return closest_name
+
+    def image_to_highres_png(self, image_bytes, size=(1024, 1024)) -> Image.Image:
+        """
+        다양한 이미지(PNG, JPG)를 SVG로 벡터화한 후, 고해상도 PNG 이미지로 변환
+        :param image_bytes: 이미지 파일 (bytes, 예: requests.get(url).content)
+        :param size: 최종 PNG 해상도 (width, height)
+        :return: PIL.Image 객체 (1024x1024 PNG)
+        """
+        # 1. 이미지 로딩 및 흑백 변환
+        image = Image.open(BytesIO(image_bytes)).convert("L")
+        image = image.resize((256, 256), Image.Resampling.LANCZOS)
+        np_img = np.array(image)
+
+        # 2. Threshold로 윤곽 추출
+        _, thresh = cv2.threshold(np_img, 240, 255, cv2.THRESH_BINARY_INV)
+
+        # 3. 윤곽선 검출
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # 4. SVG path 생성
+        svg_path = f'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">\n'
+        for contour in contours:
+            if len(contour) < 3:
+                continue  # 무의미한 점은 생략
+            path_data = "M " + " L ".join(f"{pt[0][0]} {pt[0][1]}" for pt in contour) + " Z"
+            svg_path += f'<path d="{path_data}" fill="black"/>\n'
+        svg_path += "</svg>"
+
+        # 5. SVG → PNG 변환 (고해상도)
+        png_data = cairosvg.svg2png(bytestring=svg_path.encode("utf-8"),
+                                    output_width=size[0], output_height=size[1])
+
+        # 6. PIL Image로 반환
+        return Image.open(BytesIO(png_data)).convert("RGB")
+
     
     def get_image(self, url):
         response = requests.get(url)
@@ -107,7 +142,10 @@ class BadgePrompt:
             img = Image.open(BytesIO(png_data)).convert("RGB")
         else:
             # 일반 이미지 처리
+            img = self.image_to_highres_png(response.content, size=(1024, 1024))
+            #cairosvg.svg2png(bytestring=response.content, output_width=1024, output_height=1024)
             img = Image.open(BytesIO(response.content)).convert("RGB")
+
 
         
         #img = Image.open(BytesIO(response.content)).convert("RGB")
@@ -138,9 +176,11 @@ class BadgePrompt:
         self.scene_color = ', '.join(BPB_color_names)
 
         logger.info(f"3-7-2) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
+        #intermediate = img.resize((1024, 1024), Image.Resampling.LANCZOS)
+        up_then_down = img.resize((512, 512), Image.Resampling.LANCZOS)
 
-        cv_image_logo = np.array(img)
-        canny_logo = cv2.Canny(cv_image_logo, 50, 150)
+        cv_image_logo = np.array(up_then_down)
+        canny_logo = cv2.Canny(cv_image_logo, 10, 200)#50, 150)
         return canny_logo
 
     def get_disquiet_exact_team_image(self, team_title: str):
@@ -169,7 +209,7 @@ class BadgePrompt:
                     driver = webdriver.Chrome(service=service, options=options)
 
                     driver.get(page_url)
-                    time.sleep(3)  # JS 렌더링 대기
+                    time.sleep(2)  # JS 렌더링 대기
                     logger.info("3-6) 크롬 접속 가능함")
                 except:
                     logger.info("3-6) 크롬 접속 불가")
@@ -177,7 +217,9 @@ class BadgePrompt:
             
                 try:
                     favicon_url = urljoin(page_url, "/favicon.ico")
+                    logger.info("3-7) 파비콘 ico 있음.")
                     resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
+                    logger.info("3-7) 파비콘 ico 있음.")
                     if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
                         logger.info("3-7) 파비콘 ico 있음.")
                         canny_logo = self.get_image(favicon_url)
@@ -188,14 +230,19 @@ class BadgePrompt:
                 logger.info(f"3-8) 웹페이지 크롤링 시작")
 
                 try:
-                    resp = requests.get(page_url, timeout=3)
+                    #resp = requests.get(page_url, timeout=3)
+                    html = driver.page_source
                     #logger.info(f"4-8-1) {resp}")
-                    soup = BeautifulSoup(resp.text, "html.parser")
+                    #soup = BeautifulSoup(resp.text, "html.parser")
+                    soup = BeautifulSoup(html, "html.parser")
                     #logger.info(f"4-8-2) {soup.prettify()[:1000]}")
 
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
-                    icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
+                    #icon_link = soup.find("link", rel=lambda x: x and "favicon" in x)
+                    icon_link = soup.find("link", rel=lambda x: x and "icon" in x.lower())
+                    icon_link2 = soup.find("link", rel=lambda x: x and "logo" in x.lower())
                     #logger.info(f"4-8-3) {icon_link}")
+                    logger.info(f"4-8-3) {icon_link2}")
 
                     if icon_link and icon_link.get("href"):
                         logger.info("3-9) 팀 파비콘 있음.")
@@ -204,6 +251,7 @@ class BadgePrompt:
                         canny_logo = self.get_image(favicon_url)
                         #logger.info(f"4-8-6) {len(canny_logo)}")
                         return canny_logo
+                    
                 except:
                     logger.info("3-9) 파비콘 ico 없음")
                 
@@ -224,6 +272,45 @@ class BadgePrompt:
                     return canny_logo
                 except Exception as e:
                     logger.error(f"3-11) 이미지 못 찾음: {repr(e)}")
+
+                #def extract_logo_url(page_url: str) -> str:
+                try:
+                    # 1. HTML 파싱
+                    logger.info(f"3-12) 마지막 로고 찾기")
+                    resp = requests.get(page_url, timeout=5)
+                    soup = BeautifulSoup(resp.text, "html.parser")
+
+                    # 2. 가장 흔한 로고 후보들
+                    candidate_imgs = soup.find_all("img", src=True)
+                    logger.info(f"3-12) 마지막 로고 찾기: {candidate_imgs}")
+                    logo_candidates = []
+
+                    for img in candidate_imgs:
+                        src = img["src"]
+                        logger.info(f"3-12) 마지막 로고 찾기: {src}")
+
+                        if any(kw in src.lower() for kw in ["logo", "brand", "header"]):
+                            logo_candidates.append(src)
+
+                    if not logo_candidates and candidate_imgs:
+                        # fallback: 가장 첫 번째 이미지
+                        logo_candidates.append(candidate_imgs[0]["src"])
+                    logger.info(f"3-12) 마지막 로고 찾기: {logo_candidates}")
+                    # 절대경로로 변환해서 리턴
+                    for src in logo_candidates:
+                        full_url = urljoin(page_url, src)
+                        logger.error(f"3-12) 마지막 로고 찾기, {full_url}")
+                        try:
+                            check = requests.get(full_url, timeout=5)
+                            if check.status_code == 200 and "image" in check.headers.get("Content-Type", ""):
+                                return full_url
+                        except:
+                            continue
+
+                except Exception as e:
+                    print(f"[ERROR] {e}")
+
+                return None
 
             except Exception as e:
                 logger.info("3-12) 팀 파비콘 없음.")
@@ -258,7 +345,10 @@ class BadgePrompt:
             new_height = max_height
             new_width = int(max_height * logo_ratio)
 
-        logo_resized = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        logo_resized = logo.resize((new_width, new_height), resample=Image.Resampling.LANCZOS)
+        #intermediate = logo.resize((4096, 4096), Image.Resampling.LANCZOS)
+        #up_then_down = intermediate.resize((512, 512), Image.Resampling.LANCZOS)
+        #logo_resized = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         # 삽입 좌표 계산 (중앙 정렬)
         top_left = (
@@ -271,14 +361,19 @@ class BadgePrompt:
         logo_gray = logo_resized.convert("L")
         logo_mask = ImageOps.invert(logo_gray).filter(ImageFilter.GaussianBlur(2))
 
+        #logo_arr = np.array(logo_resized.convert("L"))
+       
+        #canny_logo = cv2.Canny(blurred_logo, 50, 150)
+
         # 배경에 로고 삽입
         badge.paste(logo_resized, top_left, logo_mask)
         logger.info("4-2) 뱃지 이미지 생성 완료.")
-        cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
+        blurred_logo = cv2.GaussianBlur(np.array(badge), (5, 5), 0)
+        cv_image_logo = cv2.resize(np.array(blurred_logo), (512, 512)) #blurred_logo.convert("L")
         #cv_image_logo = np.array(badge)
         logger.info("4-3) 이미지 해상도: 512 x 512")
         ##cv_image_logo = np.array(badge.convert("L"))
-        canny_badge = cv2.Canny(cv_image_logo, 50, 150)
+        canny_badge = cv2.Canny(cv_image_logo, 80,200)#50, 150)
         return canny_badge
     
 
@@ -317,10 +412,10 @@ if __name__ == '__main__':
     dummy_data = BadgeModifyRequest(
         modificationTags=["뉴스"],
         projectSummary=BadgeRequest(
-            title="탐나라",
+            title="춘이네비서실",
             introduction="카카오테크 부트캠프를 위한 트래픽 품앗이 플랫폼",
             detailedDescription="품앗이(Pumati)는 카카오테크 부트캠프를 위한 트래픽 품앗이 플랫폼입니다.\n\n서로의 프로젝트를 사용해주는 선순환을 통해 성공적인 트래픽 시나리오를 만들어 함께 성장하는 것이 우리의 목표입니다.\n\n품앗이(Pumati)의 주요 기능이에요!\n- 프로젝트 홍보 게시판: 우리 팀의 프로젝트를 홍보하고, 다른 팀의 프로젝트도 사용해볼까?\n- 트래픽 품앗이 기능: 다른 팀의 프로젝트를 사용할수록 우리 팀의 홍보 게시글 순위가 상승!\n- 후기 작성: 서로의 프로젝트를 리뷰하며 함께 성장해요~\n- 출석 체크 기능: 출석만 하면 품앗이 포인트가 올라간다고?\n\n흩어진 파이널 프로젝트들의 정보를 매번 찾아보기 어렵고, 트래픽 하나하나가 소중한 카카오테크 부트캠프 교육생들에게\n\n디스콰이엇(disquiet)과 달리 '트래픽 품앗이'와 '크레딧' 개념을 활용하여 실시간으로 프로젝트 홍보 게시글의 순위가 변동된다는 차별점이 있고,\n\n외부인들이 프로젝트에 쉽게 접근할 수 있도록 돕고, 나아가 교육생들끼리 서로의 프로젝트를 방문하고 응원함으로써(품앗이) 모두의 성공적인 프로젝트 경험을 함께 만들어 가는 기능을 제공합니다.",
-            deploymentUrl="https://tam-nara.com",#"https://tebutebu.com/",
+            deploymentUrl="https://www.careerbee.co.kr/",#"https://dolpin.site",#"https://kakaotech.com",#"https://www.careerbee.co.kr/",#"https://hertz-tuning.com/", #"https://kakaotech.com", #"https://tebutebu.com/",
             githubUrl="https://github.com/orgs/100-hours-a-week/teams/8/repositories",
             tags=["품앗이"],
             teamId=4,
