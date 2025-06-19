@@ -1,0 +1,228 @@
+# cicd-badge-dev.yml
+
+# GitHub Actions 워크플로우 이름
+name: Build and Push Badge Service to Artifact Registry - Development
+
+# 워크플로우 트리거 조건 설정
+# 해당 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.  
+on:
+  push:
+    branches:
+      - main
+      - feat/125-badge-regularInstance
+
+jobs:
+  build-push:
+    # 커밋 메시지에 [badge]가 포함된 경우에만 실행
+    if: ${{ contains(github.event.head_commit.message, '[badge]') }}
+    name: Build and Push to Artifact Registry
+    runs-on: self-hosted
+    # id-token 권한은 WIF를 사용하지 않으므로 제거해도 됩니다. (선택 사항)
+    # permissions:
+    #   contents: 'read'
+
+    # 환경 변수 설정  
+    env:
+      GCP_PROJECT_ID: ktb8team-458916 
+      ARTIFACT_REGISTRY_LOCATION: "asia-east1"
+      ARTIFACT_REGISTRY_REPO: "ktb8team"
+      IMAGE_NAME: "prod/badge"
+      DOCKERFILE_PATH: "Dockerfile.badge"
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # NVIDIA Container Toolkit 상태 확인
+      - name: Verify NVIDIA Container Toolkit
+        run: |
+          nvidia-smi || true
+          docker info | grep -i nvidia || true
+
+      # 2. Google Cloud 인증 (서비스 계정 키 사용)
+      # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 3. Google Cloud SDK (gcloud CLI) 설정 (선택 사항, auth 단계에서 이미 gcloud가 설정될 수 있음)
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      # 4. Artifact Registry에 Docker 인증 설정
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
+
+      # 🔧 HF 토큰 추출 및 Docker 빌드 (배지 서비스용)
+      - name: Extract HF Token and Build Docker image
+        run: |
+          echo "🔧 HF 토큰 추출 중..."
+          
+          # GitHub Secret에서 모든 환경 변수들 추출
+          echo '${{ secrets.ENV_BADGE_PROD }}' > temp_env
+          export HF_AUTH_TOKEN_VICKY=$(grep "HF_AUTH_TOKEN_VICKY=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export BE_SERVER_URL=$(grep "BE_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export AI_SERVER_URL=$(grep "AI_SERVER_URL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_PROJECT_ID=$(grep "GCP_PROJECT_ID=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export ARTIFACT_REGISTRY_LOCATION=$(grep "ARTIFACT_REGISTRY_LOCATION=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_QUEUE_NAME=$(grep "GCP_QUEUE_NAME=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GCP_SERVICE_EMAIL=$(grep "GCP_SERVICE_EMAIL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          
+          echo "🔑 환경 변수들 확인:"
+          echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
+          echo "BE_SERVER_URL: $BE_SERVER_URL"
+          echo "AI_SERVER_URL: $AI_SERVER_URL"
+          echo "GCP_PROJECT_ID: $GCP_PROJECT_ID"
+          echo "ARTIFACT_REGISTRY_LOCATION: $ARTIFACT_REGISTRY_LOCATION"
+          echo "GCP_QUEUE_NAME: $GCP_QUEUE_NAME"
+          echo "GCP_SERVICE_EMAIL: $GCP_SERVICE_EMAIL"
+          
+          # HF 토큰 유효성 검증
+          if [ -z "$HF_AUTH_TOKEN_VICKY" ]; then
+            echo "❌ HF_AUTH_TOKEN_VICKY 추출 실패!"
+            exit 1
+          fi
+          
+          echo "✅ HF 토큰 추출 성공!"
+          
+          # 🐳 Docker 이미지 빌드 (배지 모델 포함)
+          echo "🐳 배지 서비스 Docker 이미지 빌드 시작..."
+          echo "📦 빌드 중 다음 모델들이 다운로드됩니다:"
+          echo "  - ControlNet Canny (lllyasviel/control_v11p_sd15_canny)"
+          echo "  - SD 1.5 Base (runwayml/stable-diffusion-v1-5)"
+          echo "  - Badge LoRA Models (HHBeen/badge_LoRA)"
+          echo "🔑 Docker 빌드에 전달할 HF 토큰: ${HF_AUTH_TOKEN_VICKY:0:10}****"
+          
+          DOCKER_BUILDKIT=1 docker build \
+            --platform=linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg CUDA_VISIBLE_DEVICES=all \
+            --build-arg HUGGINGFACE_HUB_TOKEN="${HF_AUTH_TOKEN_VICKY}" \
+            --build-arg BE_SERVER_URL="${BE_SERVER_URL}" \
+            --build-arg AI_SERVER_URL="${AI_SERVER_URL}" \
+            --build-arg GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
+            --build-arg ARTIFACT_REGISTRY_LOCATION="${ARTIFACT_REGISTRY_LOCATION}" \
+            --build-arg GCP_QUEUE_NAME="${GCP_QUEUE_NAME}" \
+            --build-arg GCP_SERVICE_EMAIL="${GCP_SERVICE_EMAIL}" \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
+            -f ${{ env.DOCKERFILE_PATH }} .
+          
+          echo "✅ 배지 서비스 Docker 이미지 빌드 완료!"
+          
+          # 임시 파일 정리
+          rm temp_env
+
+      # 5. Docker 이미지를 Artifact Registry에 푸시
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # 6. Docker 레이어 캐싱
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # 이미지 주소 출력
+      - name: Output image URL
+        run: |
+          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+      # 🔐 안전한 Docker 실행 가이드 출력
+      - name: Output secure Docker run command
+        run: |
+          echo ""
+          echo "🔐 보안 Docker 실행 가이드:"
+          echo "================================="
+          echo ""
+          echo "📝 환경 변수와 함께 Docker 컨테이너 실행:"
+          echo ""
+          echo "docker run \\"
+          echo "  -e HF_AUTH_TOKEN_VICKY=\"your_hf_token_here\" \\"
+          echo "  -e BE_SERVER_URL=\"https://tebutebu.com/\" \\"
+          echo "  -e AI_SERVER_URL=\"https://badge-prod-325953343194.asia-east1.run.app/\" \\"
+          echo "  -e GCP_PROJECT_ID=\"ktb8team-458916\" \\"
+          echo "  -e ARTIFACT_REGISTRY_LOCATION=\"asia-east1\" \\"
+          echo "  -e GCP_QUEUE_NAME=\"badge-queue\" \\"
+          echo "  -e GCP_SERVICE_EMAIL=\"ai-task-invoker@ktb8team-458916.iam.gserviceaccount.com\" \\"
+          echo "  -p 8080:8080 \\"
+          echo "  --gpus all \\"
+          echo "  ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo ""
+          echo "🔒 보안 참고사항:"
+          echo "- HF 토큰은 이미지에 포함되지 않습니다"
+          echo "- 런타임에만 환경 변수로 전달됩니다"
+          echo "- 컨테이너 종료 시 .env 파일도 함께 제거됩니다"
+          echo ""
+          
+      # Discord로 빌드 성공 알림 보내기
+      - name: Send Discord notification
+        if: success()
+        run: |
+          # 현재 시간 (KST)
+          CURRENT_TIME=$(TZ='Asia/Seoul' date '+%Y년 %m월 %d일 %H:%M:%S')
+          
+          # 이미지 URL
+          IMAGE_URL="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+          # 커밋 작성자와 메시지
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
+          
+          # Discord 웹훅 페이로드
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "username": "🤖 PUMATI 인공지능 빌드 봇",
+            "avatar_url": "https://avatars.githubusercontent.com/u/583231",
+            "content": "🌟 **'"${COMMIT_AUTHOR}"'** 님이 배지 서비스 빌드를 완료하고 Artifact Registry에 푸시했습니다! 🏅📦\n\n📦 **배지 모델 포함 빌드**: ControlNet, SD 1.5, LoRA 모델이 Docker 이미지에 미리 포함되어 즉시 사용 가능합니다!\n\n🔐 **보안 강화**: HF 토큰이 이미지에 포함되지 않고 런타임에만 전달됩니다!",
+            "embeds": [{
+                              "title": "✅ 배지 서비스 빌드 & 푸시 성공! 🏅🎉 (보안 강화)",
+                "color": 3066993,
+                "description": "🔥 **'"${COMMIT_AUTHOR}"'** 님이 푸시한 배지 서비스 코드의 Docker 이미지 빌드 및 Artifact Registry 푸시가 성공적으로 완료되었습니다! 🙌\n\n🚀 **배지 생성에 필요한 모든 AI 모델이 이미지에 포함되어 있어 즉시 실행 가능합니다!**\n\n🔐 **보안**: HF 토큰은 런타임에만 환경 변수로 전달되어 안전합니다!",
+              "fields": [
+                {
+                  "name": "👨‍💻 푸시한 사람 👑",
+                  "value": "```fix\n'"${COMMIT_AUTHOR}"'\n```",
+                  "inline": false
+                },
+                {
+                  "name": "📝 커밋 메시지 💬",
+                  "value": "📌 '"${COMMIT_MESSAGE}"' 📎",
+                  "inline": false
+                },
+                {
+                  "name": "🕒 빌드 시간 ⏰",
+                  "value": "🗓️ '"${CURRENT_TIME}"' 🕰️",
+                  "inline": true
+                },
+                {
+                  "name": "🖼️ 이미지 URL 📦",
+                  "value": "```'"${IMAGE_URL}"'```",
+                  "inline": false
+                },
+                {
+                  "name": "🔐 보안 실행 가이드 🛡️",
+                  "value": "```bash\ndocker run -e HF_AUTH_TOKEN_VICKY=\"your_token\" -p 8080:8080 --gpus all \\\n  '"${IMAGE_URL}"'\n```",
+                  "inline": false
+                },
+                {
+                  "name": "🔄 GitHub Actions 🔍",
+                  "value": "[워크플로우 실행 결과 보기](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                  "inline": false
+                }
+              ],
+              "thumbnail": {
+                "url": "https://robohash.org/'"${COMMIT_AUTHOR}"'?set=set3&size=128x128"
+              },
+                                "footer": {
+                    "text": "🏆 ktb8team 보안 강화 배지 서비스 빌드 시스템 - '"${COMMIT_AUTHOR}"' 님의 작업 🛠️"
+                  }
+            }]
+          }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
