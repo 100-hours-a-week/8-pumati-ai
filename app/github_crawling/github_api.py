@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import subprocess
+import base64
 
 load_dotenv()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -48,7 +49,6 @@ def fetch_readme(repo: str):
     url = f"https://api.github.com/repos/{repo}/readme"
     res = requests.get(url, headers=HEADERS)
     if res.status_code != 200: return None
-    import base64
     return base64.b64decode(res.json()["content"]).decode("utf-8")
 
 def fetch_closed_issues(repo: str):

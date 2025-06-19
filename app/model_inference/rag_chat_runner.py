@@ -198,7 +198,7 @@ async def run_rag_streaming(question: str, project_id: int):
                 }
             )
 
-    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.2:
+    if not docs or docs[0].metadata.get("adjusted_score", 0) < 0.25:
         # FILTERED_RESPONSE의 각 글자를 순회하며 yield하되, 줄바꿈은 치환
         for char in FILTERED_RESPONSE:
             if char == '\n':
