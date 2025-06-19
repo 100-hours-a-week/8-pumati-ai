@@ -111,6 +111,28 @@ class BadgePrompt:
         canny_logo = cv2.Canny(cv_image_logo, 50, 150)
         return canny_logo
 
+    async def find_logo_image_url(soup, page_url):
+        # 1. alt에 'logo'가 포함된 이미지 찾기
+        img_tag = soup.find("img", alt=lambda x: x and "logo" in x.lower())
+        if img_tag and img_tag.get("src"):
+            return urljoin(page_url, img_tag["src"])
+
+        # 2. src에 'logo'가 포함된 이미지 찾기
+        for img in soup.find_all("img"):
+            src = img.get("src", "")
+            if "logo" in src.lower():
+                return urljoin(page_url, src)
+
+        # 3. class에 'logo'가 포함된 이미지 찾기
+        for img in soup.find_all("img"):
+            classes = img.get("class", [])
+            if any("logo" in cls.lower() for cls in classes):
+                src = img.get("src")
+                if src:
+                    return urljoin(page_url, src)
+
+        return None 
+    
     async def get_disquiet_exact_team_image(self, team_title: str):
         logger.info("3-4) 각 팀의 로고를 크롤링...")
         url = f"https://disquiet.io/product/{team_title}"
@@ -136,58 +158,76 @@ class BadgePrompt:
                     driver = webdriver.Chrome(service=service, options=options)
 
                     driver.get(page_url)
-                    time.sleep(3)  # JS 렌더링 대기
-                    logger.info("3-6) 크롬 접속 가능함")
+                    #time.sleep(2)  # JS 렌더링 대기
+                    logger.info("3-6) 크롤링 준비 완료")
                 except:
-                    logger.info("3-6) 크롬 접속 불가")
+                    logger.info("3-6) 크롤링 불가")
 
+                # 정적 페이지 파비콘 크롤링
                 try:
+                    logger.info("3-7) 정적 크롤링 시작")
                     favicon_url = urljoin(page_url, "/favicon.ico")
+                    logger.info(f"3-7-1){favicon_url}에 파비콘을 요청합니다.")
                     resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
                     if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
-                        logger.info("3-7) 파비콘 ico 있음.")
+                        logger.info("3-7-2) 파비콘 ico 있음.")
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
                 except:
-                    logger.info("3-7) 파비콘 ico 없음")
+                    logger.info("3-7-e) 파비콘 ico 없음")
                 
-                logger.info(f"3-8) 웹페이지 크롤링 시작")
-
+                # 동적 페이지 파비콘 크롤링
                 try:
-                    resp = requests.get(page_url, timeout=3)
-                    soup = BeautifulSoup(resp.text, "html.parser")
-
+                    logger.info(f"3-8) 웹페이지 동적 크롤링 시작")
+                    html = driver.page_source
+                    current_url = driver.current_url
+                    #resp = requests.get(page_url, timeout=3)
+                    logger.info(f"3-8-1) {current_url}에서 파비콘 주소를 찾습니다.")
+                    soup = BeautifulSoup(html, "html.parser")
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                     icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-
                     if icon_link and icon_link.get("href"):
-                        logger.info("3-9) 팀 파비콘 있음.")
-                        favicon_url = urljoin(page_url, icon_link["href"])
+                        logger.info("3-8-2) 팀 파비콘 있음.")
+                        favicon_url = urljoin(current_url, icon_link["href"])
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
                 except:
-                    logger.info("3-9) 파비콘 ico 없음")
+                    logger.info("3-8-e) 파비콘 ico 없음")
                 
-                logger.info("3-10) 크롤링 재시도 중..")
-                driver.get(url=url)
-                    
+                #디스콰이엇 크롤링
                 try:
+                    logger.info("3-9) 디스콰이엇에서 팀 이미지를 크롤링 해 옵니다.")
+                    driver.get(url=url)
                     #페이지가 켜질 때 까지 3초 기다림.
                     img = WebDriverWait(driver, 3).until(
                         EC.presence_of_element_located((
                             By.XPATH, '//img[contains(@class, "h-24") and contains(@class, "w-24") and contains(@class, "object-cover")]'
                         ))
                     )
-                    logger.info(f"3-10-1) img: {img}")
+                    logger.info(f"3-9-1) 이미지: {img}")
                     img_url = img.get_attribute("src")
-                    logger.info(f"3-11) 팀 이미지 URL: {img_url}")
+                    logger.info(f"3-9-2) 팀 이미지 URL: {img_url}")
                     canny_logo = await self.get_image(img_url)
                     return canny_logo
                 except Exception as e:
-                    logger.error(f"3-11) 이미지 못 찾음: {repr(e)}")
+                    logger.error(f"3-9-e) 이미지 못 찾음: {repr(e)}")
+
+                #로고 크롤링
+                try:
+                    logger.error(f"3-10) favicon이 없어, logo를 크롤링 합니다.")
+                    driver.get(page_url)
+                    logger.error(f"3-10-1) JS 랜더링을 기다립니다.")
+                    time.sleep(2)
+                    current_url = driver.current_url
+                    html = driver.page_source
+                    soup = BeautifulSoup(html, "html.parser")
+                    logo_url = await self.find_logo_image_url(soup, current_url)
+                    logger.info(f"3-10-2) 팀 로고 URL: {logo_url}")
+                except Exception as e:
+                    logger.error(f"3-10-e) 파비콘 못 찾음: {repr(e)}")
 
             except Exception as e:
-                logger.info("3-12) 팀 파비콘 없음.")
+                logger.info("3-e) 팀 파비콘 없음.")
         
             finally:
                 driver.quit()
@@ -219,6 +259,7 @@ class BadgePrompt:
             new_height = max_height
             new_width = int(max_height * logo_ratio)
 
+        logo_resized = logo.resize((1024, 1024), Image.Resampling.LANCZOS)
         logo_resized = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         # 삽입 좌표 계산 (중앙 정렬)
