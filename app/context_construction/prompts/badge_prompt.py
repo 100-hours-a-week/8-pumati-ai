@@ -186,7 +186,7 @@ class BadgePrompt:
                     if "https://kakaotech.com" in page_url:
                         page_url = "https://kakaotech.com/images"
                     
-                    favicon_url = urljoin(page_url, "/favicon.ico")
+                    favicon_url = urljoin(page_url, "favicon.ico")
                     logger.info(f"3-7-1){favicon_url}에 파비콘을 요청합니다.")
                     resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
                     if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
