@@ -257,43 +257,47 @@ class BadgePrompt:
 
     async def create_letter_logo_canny(team_title: str, image_size: int = 490):
         # 1. 흰 배경 이미지 생성
-        logger.error(f"3-11-1) 배경 생성")
-        image = Image.new("RGB", (image_size, image_size), color="white")
-        draw = ImageDraw.Draw(image)
-
-        # 2. 글자 설정
-        logger.error(f"3-11-2) 글자 생성")
-        letter = team_title.strip()[0].upper()  # 첫 글자 (공백 제거 + 대문자)
-        
         try:
-            logger.error(f"3-11-3) 폰트 설정")
-            font = ImageFont.truetype("/app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
-        except:
-            font = ImageFont.load_default()
+            logger.error(f"3-11-1) 배경 생성")
+            image = Image.new("RGB", (image_size, image_size), color="white")
+            draw = ImageDraw.Draw(image)
 
-        text_size = draw.textbbox((0, 0), letter, font=font)
-        text_w = text_size[2] - text_size[0]
-        text_h = text_size[3] - text_size[1]
-        text_x = (image_size - text_w) // 2
-        text_y = (image_size - text_h) // 2
+            # 2. 글자 설정
+            logger.error(f"3-11-2) 글자 생성")
+            letter = team_title.strip()[0].upper()  # 첫 글자 (공백 제거 + 대문자)
+            
+            try:
+                logger.error(f"3-11-3) 폰트 설정")
+                font = ImageFont.truetype("/app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
+            except:
+                font = ImageFont.load_default()
 
-        # 3. 글자 그림
-        logger.error(f"3-11-4) 글자 삽입")
-        draw.text((text_x, text_y), letter, fill="black", font=font)
+            text_size = draw.textbbox((0, 0), letter, font=font)
+            text_w = text_size[2] - text_size[0]
+            text_h = text_size[3] - text_size[1]
+            text_x = (image_size - text_w) // 2
+            text_y = (image_size - text_h) // 2
 
-        # 4. PIL → NumPy로 변환
-        np_img = np.array(image)
+            # 3. 글자 그림
+            logger.error(f"3-11-4) 글자 삽입")
+            draw.text((text_x, text_y), letter, fill="black", font=font)
 
-        # 5. OpenCV: 그레이 + Canny
-        logger.error(f"3-11-5) canny이미지 생성")
-        gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, threshold1=100, threshold2=200)
+            # 4. PIL → NumPy로 변환
+            np_img = np.array(image)
 
-        # 6. 엣지 이미지 → Pillow 이미지로 복원 (mode="L")
-        logger.error(f"3-11-6) 로고 생성 완료")
-        canny_image = Image.fromarray(edges)
+            # 5. OpenCV: 그레이 + Canny
+            logger.error(f"3-11-5) canny이미지 생성")
+            gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+            edges = cv2.Canny(gray, threshold1=100, threshold2=200)
 
-        return canny_image
+            # 6. 엣지 이미지 → Pillow 이미지로 복원 (mode="L")
+            logger.error(f"3-11-6) 로고 생성 완료")
+            canny_image = Image.fromarray(edges)
+
+            return canny_image
+        except Exception as e:
+            logger.info(f"3-11-e) 로고 생성 불가. : {e}")
+
 
 
     async def insert_logo_on_badge(self, max_half_size=245):
