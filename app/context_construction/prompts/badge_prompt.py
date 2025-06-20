@@ -259,6 +259,7 @@ class BadgePrompt:
         # 1. 흰 배경 이미지 생성
         try:
             logger.error(f"3-11-1) 배경 생성")
+            image_size = int(image_size)
             image = Image.new("RGB", (image_size, image_size), color="white")
             draw = ImageDraw.Draw(image)
 
