@@ -182,9 +182,6 @@ class BadgePrompt:
                 # 정적 페이지 파비콘 크롤링
                 try:
                     logger.info("3-7) 정적 크롤링 시작")
-                    # 해당 사이트 보안으로 추후 보안 우회코드 필요함.
-                    if "https://kakaotech.com" in page_url:
-                        page_url = "https://kakaotech.com/images/"
                     
                     favicon_url = urljoin(page_url, "favicon.ico")
                     logger.info(f"3-7-1){favicon_url}에 파비콘을 요청합니다.")
@@ -193,8 +190,8 @@ class BadgePrompt:
                         logger.info("3-7-2) 파비콘 ico 있음.")
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
-                except:
-                    logger.info("3-7-e) 파비콘 ico 없음")
+                except Exception as e:
+                    logger.info(f"3-7-e) 파비콘 ico 없음: {e}")
                 
                 # 동적 페이지 파비콘 크롤링
                 try:
@@ -250,11 +247,48 @@ class BadgePrompt:
                 except Exception as e:
                     logger.error(f"3-10-e) 파비콘 못 찾음: {repr(e)}")
 
+
+
             except Exception as e:
                 logger.info("3-e) 팀 파비콘 없음.")
         
             finally:
                 driver.quit()
+
+    async def create_letter_logo_canny(team_title: str, image_size: int = 490):
+        # 1. 흰 배경 이미지 생성
+        image = Image.new("RGB", (image_size, image_size), color="white")
+        draw = ImageDraw.Draw(image)
+
+        # 2. 글자 설정
+        letter = team_title.strip()[0].upper()  # 첫 글자 (공백 제거 + 대문자)
+        
+        try:
+            font = ImageFont.truetype("/app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
+        except:
+            font = ImageFont.load_default()
+
+        text_size = draw.textbbox((0, 0), letter, font=font)
+        text_w = text_size[2] - text_size[0]
+        text_h = text_size[3] - text_size[1]
+        text_x = (image_size - text_w) // 2
+        text_y = (image_size - text_h) // 2
+
+        # 3. 글자 그림
+        draw.text((text_x, text_y), letter, fill="black", font=font)
+
+        # 4. PIL → NumPy로 변환
+        np_img = np.array(image)
+
+        # 5. OpenCV: 그레이 + Canny
+        gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, threshold1=100, threshold2=200)
+
+        # 6. 엣지 이미지 → Pillow 이미지로 복원 (mode="L")
+        canny_image = Image.fromarray(edges)
+
+        return canny_image
+
 
     async def insert_logo_on_badge(self, max_half_size=245):
         """
@@ -267,7 +301,15 @@ class BadgePrompt:
         """
         # 이미지 열기
         badge = Image.fromarray(await self.generate_corrected_badge(self.data.teamNumber)).convert("L")
-        logo = Image.fromarray(await self.get_disquiet_exact_team_image(self.data.title)).convert("L")
+        #logo = Image.fromarray(await self.get_disquiet_exact_team_image(self.data.title)).convert("L")
+        logo_array = await self.get_disquiet_exact_team_image(self.data.title)
+
+        if logo_array is None:
+            logo = await self.create_letter_logo_canny(self.data.title)  # PIL.Image
+        else:
+            logo = Image.fromarray(logo_array).convert("L")  # NumPy → PIL.Image
+
+
 
         logger.info("4-1) 로고 병합중...")
         # 중심점 및 삽입 가능 영역 크기
