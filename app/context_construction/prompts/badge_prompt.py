@@ -183,7 +183,7 @@ class BadgePrompt:
                 try:
                     logger.info("3-7) 정적 크롤링 시작")
                     # 해당 사이트 보안으로 추후 보안 우회코드 필요함.
-                    if page_url == "https://kakaotech.com":
+                    if "https://kakaotech.com" in page_url:
                         page_url = "https://kakaotech.com/images"
                     
                     favicon_url = urljoin(page_url, "/favicon.ico")
