@@ -171,6 +171,9 @@ class BadgePrompt:
                     driver = webdriver.Chrome(service=service, options=options)
 
                     driver.get(page_url)
+                    WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'link[rel*="icon"]'))
+                    )
                     #time.sleep(2)  # JS 렌더링 대기
                     logger.info("3-6) 크롤링 준비 완료")
                 except:
@@ -230,7 +233,9 @@ class BadgePrompt:
                     logger.error(f"3-10) favicon이 없어, logo를 크롤링 합니다.")
                     driver.get(page_url)
                     logger.error(f"3-10-1) JS 랜더링을 기다립니다.")
-                    time.sleep(2)
+                    WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'link[rel*="icon"]'))
+                    )
                     current_url = driver.current_url
                     html = driver.page_source
                     soup = BeautifulSoup(html, "html.parser")
