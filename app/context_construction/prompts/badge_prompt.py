@@ -184,7 +184,7 @@ class BadgePrompt:
                     logger.info("3-7) 정적 크롤링 시작")
                     # 해당 사이트 보안으로 추후 보안 우회코드 필요함.
                     if "https://kakaotech.com" in page_url:
-                        page_url = "https://kakaotech.com/images"
+                        page_url = "https://kakaotech.com/images/"
                     
                     favicon_url = urljoin(page_url, "favicon.ico")
                     logger.info(f"3-7-1){favicon_url}에 파비콘을 요청합니다.")
