@@ -202,7 +202,7 @@ class BadgePrompt:
                     soup = BeautifulSoup(html, "html.parser")
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                     icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                    logger.info(f"3-8-2) {icon_link}를 찾았으며, {icon_link.get("href")}입니다.")
+                    logger.info(f"3-8-2) {icon_link}를 찾았으며, {icon_link.get('href')}입니다.")
                     if icon_link and icon_link.get("href"):
                         logger.info("3-8-3) 팀 파비콘 있음.")
                         favicon_url = urljoin(current_url, icon_link["href"])
