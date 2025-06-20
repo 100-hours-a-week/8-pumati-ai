@@ -200,16 +200,17 @@ class BadgePrompt:
                     #resp = requests.get(page_url, timeout=3)
                     logger.info(f"3-8-1) {current_url}에서 파비콘 주소를 찾습니다.")
                     soup = BeautifulSoup(html, "html.parser")
+                    logger.info(f"3-8-2) {soup}")
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                     icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                    logger.info(f"3-8-2) {icon_link}를 찾았으며, {icon_link.get('href')}입니다.")
+                    logger.info(f"3-8-3) {icon_link}를 찾았으며, {icon_link.get('href')}입니다.")
                     if icon_link and icon_link.get("href"):
-                        logger.info("3-8-3) 팀 파비콘 있음.")
+                        logger.info("3-8-4) 팀 파비콘 있음.")
                         favicon_url = urljoin(current_url, icon_link["href"])
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
-                except:
-                    logger.info("3-8-e) 파비콘 ico 없음")
+                except Exception as e:
+                    logger.info(f"3-8-e) 파비콘 ico 없음: {e}")
                 
                 #디스콰이엇 크롤링
                 try:
