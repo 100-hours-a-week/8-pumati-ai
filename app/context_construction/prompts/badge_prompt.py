@@ -171,6 +171,9 @@ class BadgePrompt:
                     driver = webdriver.Chrome(service=service, options=options)
 
                     driver.get(page_url)
+                    WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'link[rel*="icon"]'))
+                    )
                     #time.sleep(2)  # JS 렌더링 대기
                     logger.info("3-6) 크롤링 준비 완료")
                 except:
@@ -179,15 +182,16 @@ class BadgePrompt:
                 # 정적 페이지 파비콘 크롤링
                 try:
                     logger.info("3-7) 정적 크롤링 시작")
-                    favicon_url = urljoin(page_url, "/favicon.ico")
+                    
+                    favicon_url = urljoin(page_url, "favicon.ico")
                     logger.info(f"3-7-1){favicon_url}에 파비콘을 요청합니다.")
                     resp = requests.get(favicon_url, timeout=3, allow_redirects=True)
                     if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("image"):
                         logger.info("3-7-2) 파비콘 ico 있음.")
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
-                except:
-                    logger.info("3-7-e) 파비콘 ico 없음")
+                except Exception as e:
+                    logger.info(f"3-7-e) 파비콘 ico 없음: {e}")
                 
                 # 동적 페이지 파비콘 크롤링
                 try:
@@ -197,15 +201,17 @@ class BadgePrompt:
                     #resp = requests.get(page_url, timeout=3)
                     logger.info(f"3-8-1) {current_url}에서 파비콘 주소를 찾습니다.")
                     soup = BeautifulSoup(html, "html.parser")
+                    #logger.info(f"3-8-2) {soup}")
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                     icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
+                    logger.info(f"3-8-2) {icon_link}를 찾았으며, {icon_link.get('href')}입니다.")
                     if icon_link and icon_link.get("href"):
-                        logger.info("3-8-2) 팀 파비콘 있음.")
+                        logger.info("3-8-3) 팀 파비콘 있음.")
                         favicon_url = urljoin(current_url, icon_link["href"])
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
-                except:
-                    logger.info("3-8-e) 파비콘 ico 없음")
+                except Exception as e:
+                    logger.info(f"3-8-e) 파비콘 ico 없음: {e}")
                 
                 #디스콰이엇 크롤링
                 try:
@@ -230,7 +236,9 @@ class BadgePrompt:
                     logger.error(f"3-10) favicon이 없어, logo를 크롤링 합니다.")
                     driver.get(page_url)
                     logger.error(f"3-10-1) JS 랜더링을 기다립니다.")
-                    time.sleep(2)
+                    WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'link[rel*="icon"]'))
+                    )
                     current_url = driver.current_url
                     html = driver.page_source
                     soup = BeautifulSoup(html, "html.parser")
@@ -239,11 +247,59 @@ class BadgePrompt:
                 except Exception as e:
                     logger.error(f"3-10-e) 파비콘 못 찾음: {repr(e)}")
 
+
+
             except Exception as e:
                 logger.info("3-e) 팀 파비콘 없음.")
         
             finally:
                 driver.quit()
+
+    async def create_letter_logo_canny(self, team_title: str, image_size: int = 490):
+        # 1. 흰 배경 이미지 생성
+        try:
+            logger.error(f"3-11-1) 배경 생성")
+            image_size = int(image_size)
+            image = Image.new("RGB", (image_size, image_size), color="white")
+            draw = ImageDraw.Draw(image)
+
+            # 2. 글자 설정
+            logger.error(f"3-11-2) 글자 생성")
+            letter = team_title.strip()[0].upper()  # 첫 글자 (공백 제거 + 대문자)
+            
+            try:
+                logger.error(f"3-11-3) 폰트 설정")
+                font = ImageFont.truetype("/app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
+            except:
+                font = ImageFont.load_default()
+
+            text_size = draw.textbbox((0, 0), letter, font=font)
+            text_w = text_size[2] - text_size[0]
+            text_h = text_size[3] - text_size[1]
+            text_x = (image_size - text_w) // 2
+            text_y = (image_size - text_h) // 2
+
+            # 3. 글자 그림
+            logger.error(f"3-11-4) 글자 삽입")
+            draw.text((text_x, text_y), letter, fill="black", font=font)
+
+            # 4. PIL → NumPy로 변환
+            np_img = np.array(image)
+
+            # 5. OpenCV: 그레이 + Canny
+            logger.error(f"3-11-5) canny이미지 생성")
+            gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+            edges = cv2.Canny(gray, threshold1=100, threshold2=200)
+
+            # 6. 엣지 이미지 → Pillow 이미지로 복원 (mode="L")
+            logger.error(f"3-11-6) 로고 생성 완료")
+            canny_image = Image.fromarray(edges)
+
+            return canny_image
+        except Exception as e:
+            logger.info(f"3-11-e) 로고 생성 불가. : {e}")
+
+
 
     async def insert_logo_on_badge(self, max_half_size=245):
         """
@@ -256,7 +312,18 @@ class BadgePrompt:
         """
         # 이미지 열기
         badge = Image.fromarray(await self.generate_corrected_badge(self.data.teamNumber)).convert("L")
-        logo = Image.fromarray(await self.get_disquiet_exact_team_image(self.data.title)).convert("L")
+        #logo = Image.fromarray(await self.get_disquiet_exact_team_image(self.data.title)).convert("L")
+        logo_array = await self.get_disquiet_exact_team_image(self.data.title)
+
+        if logo_array is None:
+            logger.error(f"3-11) logo가 None이므로 로고를 생성합니다.")
+            logo = await self.create_letter_logo_canny(team_title = self.data.title)  # PIL.Image
+            self.color = "blue"
+            self.scene_color = "blue"
+        else:
+            logo = Image.fromarray(logo_array).convert("L")  # NumPy → PIL.Image
+
+
 
         logger.info("4-1) 로고 병합중...")
         # 중심점 및 삽입 가능 영역 크기
