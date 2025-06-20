@@ -201,12 +201,12 @@ class BadgePrompt:
                     #resp = requests.get(page_url, timeout=3)
                     logger.info(f"3-8-1) {current_url}에서 파비콘 주소를 찾습니다.")
                     soup = BeautifulSoup(html, "html.parser")
-                    logger.info(f"3-8-2) {soup}")
+                    #logger.info(f"3-8-2) {soup}")
                     # 1. <link rel="icon"> 또는 <link rel="shortcut icon">
                     icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                    logger.info(f"3-8-3) {icon_link}를 찾았으며, {icon_link.get('href')}입니다.")
+                    logger.info(f"3-8-2) {icon_link}를 찾았으며, {icon_link.get('href')}입니다.")
                     if icon_link and icon_link.get("href"):
-                        logger.info("3-8-4) 팀 파비콘 있음.")
+                        logger.info("3-8-3) 팀 파비콘 있음.")
                         favicon_url = urljoin(current_url, icon_link["href"])
                         canny_logo = await self.get_image(favicon_url)
                         return canny_logo
@@ -255,7 +255,7 @@ class BadgePrompt:
             finally:
                 driver.quit()
 
-    async def create_letter_logo_canny(team_title: str, image_size: int = 490):
+    async def create_letter_logo_canny(self, team_title: str, image_size: int = 490):
         # 1. 흰 배경 이미지 생성
         try:
             logger.error(f"3-11-1) 배경 생성")
@@ -317,7 +317,7 @@ class BadgePrompt:
 
         if logo_array is None:
             logger.error(f"3-11) logo가 None이므로 로고를 생성합니다.")
-            logo = await self.create_letter_logo_canny(self.data.title)  # PIL.Image
+            logo = await self.create_letter_logo_canny(team_title = self.data.title)  # PIL.Image
             self.color = "blue"
             self.scene_color = "blue"
         else:
