@@ -8,8 +8,9 @@ name: Build and Push Badge Service to Artifact Registry - Development
 on:
   push:
     branches:
-      - feat/125-badge-regularInstance
-      - dev
+      - main
+      #- feat/125-badge-regularInstance
+      
 
 jobs:
   build-push:
