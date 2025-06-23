@@ -21,6 +21,9 @@ from langsmith import traceable, client
 from app.context_construction.question_router import is_structured_question, classify_question_type
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
+from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
+from app.model_inference.embedding_runner import embedding_model, vectorstore
+
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -86,26 +89,6 @@ class WeightedQdrantRetriever(BaseRetriever):
         docs = sorted(docs, key=lambda d: d.metadata.get("cosine_score", 0.0), reverse=True)
         return docs
 
-# 임베딩 모델 및 벡터스토어 로딩
-embedding_model = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-m3",
-    encode_kwargs={"normalize_embeddings": True}
-)
-
-# Qdrant client 및 LangChain vectorstore 래퍼
-qdrant_client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY
-)
-
-vectorstore = QdrantVectorStore(
-    client=qdrant_client,
-    collection_name=QDRANT_COLLECTION,
-    embedding=embedding_model,
-    content_payload_key="document",
-)
-
-# LLM (HyperCLOVA)
 # llm = HyperClovaLangChainLLM()
 llm = GeminiLangChainLLM()
 
@@ -163,7 +146,7 @@ async def run_rag_streaming(question: str, project_id: int):
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
         project_id=project_id,
-        top_k=40
+        top_k=5
     )
 
     # 관련 문서 검색
