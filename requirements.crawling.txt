@@ -1,5 +1,6 @@
 # crawling
-sentence-transformers==2.6.1
+sentence-transformers>=2.7.0
 langchain==0.3.25
 qdrant-client==1.14.2
 langchain_qdrant>=0.1.4,<0.2
+langchain-huggingface>=0.1.0,<0.2
