@@ -6,3 +6,4 @@ qdrant-client==1.14.2
 langchain_qdrant>=0.1.4,<0.2
 langchain-huggingface>=0.1.0,<0.2
 python-dotenv==1.1.0
+google-generativeai>=0.3.0
