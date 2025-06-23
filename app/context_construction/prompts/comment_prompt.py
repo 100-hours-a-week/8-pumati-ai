@@ -30,8 +30,12 @@ class GemmaPrompt:
     
     def _clean(self, text: str) -> str:
         try:
+            logger.info(f"5-2) detailed Description의 문자열을 최소화 하기 위해 cleaning작업을 진행합니다.")
+            logger.info(f"5-2-1) 특수문자 제거 완료.")
             text = re.sub(r"[#\-]", " ", text)       # 특수문자 제거
+            logger.info(f"5-2-2) 개행 문자를 마침표와 공백으로 변환 완료.")
             text = re.sub(r"\n+", "\n ", text)        # 줄바꿈을 마침표+공백으로
+            logger.info(f"5-2-3) 연속된 공백은 하나의 공백으로 변환 완료.")
             text = re.sub(r"\s+", " ", text)         # 연속된 공백을 하나로
             return text.strip() # 앞뒤 공백 제거
         
@@ -57,6 +61,7 @@ class GemmaPrompt:
         **출력 예시 (Json)**
         {{ "comment": "React로 직관적이어서 유지보수도 쉬울듯!🤗💕}} 
         {{ "comment": FastAPI와 React 조합 덕분에 속도와 UI 모두 잡았네요. 😍" }}
-        """
-        return gemma_prompt.strip()
+        """.strip()
+        logger.info(f"prompt: {gemma_prompt}")
+        return gemma_prompt
     
