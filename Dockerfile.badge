@@ -28,6 +28,8 @@ RUN pip install --upgrade pip && \
 ARG HUGGINGFACE_HUB_TOKEN
 ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
 
+RUN wget https://huggingface.co/qualcomm/Real-ESRGAN-General-x4v3/resolve/main/Real-ESRGAN-General-x4v3.onnx -O /app/utils/realesrgan-general-x4v3.onnx
+
 # 모델 다운로드 스크립트 생성
 RUN echo '#!/usr/bin/env python3\n\
 import os\n\
