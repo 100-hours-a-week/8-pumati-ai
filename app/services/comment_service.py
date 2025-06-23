@@ -38,34 +38,53 @@ class GenerateComment:
         logger.info(f"의미 유사도: {similarity:.4f}")
         return similarity >= threshold
     
-    def detail_summary(self, detail_Description: str, ratio_summ: float = 0.6) -> str:
-        summary = summarize(detail_Description, ratio=ratio_summ) or detail_Description
-        summary = summarize(summary, ratio=ratio_summ) or summary
+    def detail_summary(self, detail_Description: str) -> str:
+        detailed_length = len(detail_Description)
+        if detailed_length < 180:
+            ratio = 1
+
+        elif detailed_length < 500:
+            ratio = 0.7
+
+        else:
+            ratio = 0.6
+        
+        summary = summarize(detail_Description, ratio=ratio) or detail_Description
+        summary = summarize(summary, ratio=ratio) or summary
+
         return summary
 
     def generate_comment(self, request_data: CommentRequest) -> str:
+        logger.info(f"5-1) 프롬프트 생성을 위한 데이터 전처리를 진행합니다.")
         prompt_builder = GemmaPrompt(request_data)
-        prompt = prompt_builder.generate_prompt()
 
+        logger.info(f"6-1) 유사도기반 검열 로직을 위해 context를 생성합니다.")
         context_text = " ".join([
             "서비스 이름은", prompt_builder.title,
             "이다. 프로젝트 슬로건은", prompt_builder.introduction,
             "이다.", prompt_builder.detailedDescription
         ])
 
-        if len(prompt_builder.detailedDescription) < 180:
-            pass
+        logger.info(f"6-2) 입력 문자의 길이가 긴 경우, 각 경우에 맞도록 요약합니다.")
+        prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription)
+        logger.info(f"6-3) 주어진 정보를 바탕으로 프롬프트를 생성합니다.")
+        gemma_prompt = prompt_builder.generate_prompt()
 
-        elif len(prompt_builder.detailedDescription) < 500:
-            prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.7)
-        else:
-            prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.6)
-            #print(summary)
+        # if len(prompt_builder.detailedDescription) < 180:
+        #     pass
 
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        # elif len(prompt_builder.detailedDescription) < 500:
+        #     prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.7)
+        # else:
+        #     prompt_builder.detailedDescription = self.detail_summary(prompt_builder.detailedDescription, 0.6)
+        #     #print(summary)
+
+        logger.info(f"6-4) 프롬프트를 토큰ID로 변환합니다.")
+        inputs = self.tokenizer(gemma_prompt, return_tensors="pt").to(self.model.device)
 
         for attempt in range(1, MAX_RETRY + 1):
             logger.info(f"댓글 생성 시도 {attempt}회")
+            logger.info(f"6-5-1) 댓글을 생성합니다.")
             with torch.inference_mode():
                 outputs = self.model.generate(
                     **inputs,
@@ -75,23 +94,31 @@ class GenerateComment:
                     repetition_penalty=1.1,
                     do_sample=True
                 )
+
+            logger.info(f"6-5-2) 생성된 토큰ID를 문자열로 변환합니다.")
             output_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
-            output_text = output_text[len(prompt):].strip()
+            logger.info(f"6-5-3) 생성된 댓글에서 프롬프트 부분을 제거합니다.")
+            output_text = output_text[len(gemma_prompt):].strip()
 
             try:
+                logger.info(f"6-5-4) 생성된 댓글 검열을 시작합니다.")
                 find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
                 generated_comment_dict = json.loads(find_comment[0].strip())
 
                 if self.validate_generated_comment(generated_comment_dict):
+                    logger.info(f"6-5-5) JSON 형태로 출력 성공.")
                     comment = generated_comment_dict.get("comment", "").strip()
+                    logger.info(f"6-5-6) JSON에서 {comment}를 출력하였습니다.")
                     if any(word in comment for word in (prompt_builder.tags +["디자인", "UI", "UX", "좋아요", "인터페이스"])):
-                        logger.info(f"댓글 생성 성공: {comment}")
+                        logger.info(f"6-5-7) tags 기반의 댓글생성에 성공하였습니다.")
+                        #logger.info(f"댓글 생성 성공: {comment}")
                         return comment
                     if self.is_semantically_relevant(comment, context_text):
+                        logger.info(f"6-5-7) 상세내용과 유사도 측정하여, 댓글생성에 성공하였습니다.")
                         logger.info(f"댓글 생성 성공: {comment}")
                         return comment
                     raise ValueError("의미 검열 불통과")
-                raise ValueError("형식 검열 실패")
+                raise ValueError("JSON 형태 아님.")
             except Exception as e:
                 logger.warning(f"댓글 생성 실패 (시도 {attempt}회): {e}")
 
