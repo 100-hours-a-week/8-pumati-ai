@@ -6,4 +6,4 @@ qdrant-client==1.14.2
 torch==2.3.1
 torchvision==0.18.1
 langchain-qdrant==0.1.4
-langchain-huggingface==0.0.3
+langchain-huggingface==0.2.0
