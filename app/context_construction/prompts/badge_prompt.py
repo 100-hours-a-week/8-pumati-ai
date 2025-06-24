@@ -49,7 +49,7 @@ class BadgePrompt:
 
         # 5. Canny 엣지 적용 및 저장
         cv_image = np.array(base)
-        canny_image = cv2.Canny(cv_image, 100, 200)
+        canny_image = cv2.Canny(cv_image, 150, 250)
         logger.info("3-3) Canny이미지 배경 생성 완료")
         
         del base, draw, cv_image
@@ -147,7 +147,7 @@ class BadgePrompt:
         #sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
         
         #cv_image_logo = np.array(resized) #np에서 canny이미지 획득
-        canny_logo = cv2.Canny(resized, 100, 200) #50, 150)
+        canny_logo = cv2.Canny(resized, 150, 250) #50, 150)
 
         del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized
         gc.collect()
@@ -321,7 +321,7 @@ class BadgePrompt:
             # 5. OpenCV: 그레이 + Canny
             logger.error(f"3-11-5) canny이미지 생성")
             gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
-            edges = cv2.Canny(gray, threshold1=100, threshold2=200)
+            edges = cv2.Canny(gray, threshold1=150, threshold2=250)
 
             # 6. 엣지 이미지 → Pillow 이미지로 복원 (mode="L")
             logger.error(f"3-11-6) 로고 생성 완료")
@@ -391,7 +391,7 @@ class BadgePrompt:
         logger.info("4-2) 뱃지 이미지 생성 완료.")
         cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
         logger.info("4-3) 이미지 해상도: 512 x 512")
-        canny_badge = cv2.Canny(cv_image_logo, 100, 200)
+        canny_badge = cv2.Canny(cv_image_logo, 150, 250)
 
         del badge, logo_array, logo, logo_resized, logo_gray, logo_mask, cv_image_logo
         gc.collect()
@@ -442,7 +442,7 @@ if __name__ == '__main__':
     badge_canny = Badge_test_instance.insert_logo_on_badge()
 
     cv_image_logo = np.array(badge_canny)
-    canny_badge = cv2.Canny(cv_image_logo, 100, 200)
+    canny_badge = cv2.Canny(cv_image_logo, 150, 250)
     cv2.imwrite("logo_canny.png", canny_badge)
 
 
