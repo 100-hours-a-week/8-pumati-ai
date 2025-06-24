@@ -393,7 +393,7 @@ class BadgePrompt:
         logger.info("4-3) 이미지 해상도: 512 x 512")
         canny_badge = cv2.Canny(cv_image_logo, 50, 150)
 
-        del badge, logo_array, logo, logo_resized, logo_gray, logo_mask, badge, cv_image_logo
+        del badge, logo_array, logo, logo_resized, logo_gray, logo_mask, cv_image_logo
         gc.collect()
 
         return canny_badge

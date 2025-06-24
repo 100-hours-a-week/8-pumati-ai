@@ -113,6 +113,7 @@ except Exception as e:\n\
 # 모델 다운로드 실행
 RUN chmod +x /app/download_models.py && python /app/download_models.py
 
+COPY app/ /app/
 RUN wget https://huggingface.co/qualcomm/Real-ESRGAN-General-x4v3/resolve/main/Real-ESRGAN-General-x4v3.onnx -O /app/utils/realesrgan-general-x4v3.onnx
 
 # 다운로드 스크립트 삭제 (이미지 크기 최적화)
