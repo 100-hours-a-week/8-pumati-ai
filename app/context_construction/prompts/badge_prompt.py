@@ -136,7 +136,7 @@ class BadgePrompt:
         logger.info(f"3-7-4) 128x128로 보간.")
         input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
         logger.info(f"3-7-5) upscailing모델을 사용합니다.")
-        upscaled = await self.upscale_with_onnx(input_logo_resized, "/app/utils/realesrgan-general-x4v3.onnx")
+        upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
         #upscaled = cv2.resize(np_img, (256, 256), interpolation=cv2.INTER_LANCZOS4)
