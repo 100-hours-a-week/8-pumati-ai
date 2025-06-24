@@ -154,7 +154,7 @@ class BadgePrompt:
 
         return canny_logo
 
-    async def find_logo_image_url(soup, page_url):
+    async def find_logo_image_url(self, soup, page_url):
         # 1. alt에 'logo'가 포함된 이미지 찾기
         img_tag = soup.find("img", alt=lambda x: x and "logo" in x.lower())
         if img_tag and img_tag.get("src"):
@@ -301,7 +301,7 @@ class BadgePrompt:
             
             try:
                 logger.error(f"3-11-3) 폰트 설정")
-                font = ImageFont.truetype("/app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
+                font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
             except:
                 font = ImageFont.load_default()
 
