@@ -149,7 +149,7 @@ class BadgePrompt:
         #cv_image_logo = np.array(resized) #np에서 canny이미지 획득
         canny_logo = cv2.Canny(resized, 70, 150) #50, 150)
 
-        del response, img, small_img, pixels, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized
+        del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized
         gc.collect()
 
         return canny_logo
