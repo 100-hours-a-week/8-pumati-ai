@@ -1,5 +1,8 @@
 # Dockerfile.crawling
-FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
+# FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
+
+# 순수 파이썬 이미지로 변경
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
 
 WORKDIR /app
 COPY . .
