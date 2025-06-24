@@ -101,7 +101,7 @@ class BadgePrompt:
 
         resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
         # 3채널짜리 128x128 배경 생성 (흰색)
-        background = np.ones((128, 128, 3), dtype=np.uint8) * 255
+        background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
 
         # 중앙에 배치하기 위해 시작점 계산
         y_offset = (128 - new_h) // 2
@@ -114,7 +114,6 @@ class BadgePrompt:
         gc.collect()
 
         return background
-
 
     
     async def get_image(self, url):
@@ -160,7 +159,8 @@ class BadgePrompt:
         
         np_img = np.array(img) #np에서 512x512로 확장
         logger.info(f"3-7-4) 128x128로 보간.")
-        input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
+        input_logo_resized = await self.keep_ratio(np_img)
+        #input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
         logger.info(f"3-7-5) upscailing모델을 사용합니다.")
         upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
