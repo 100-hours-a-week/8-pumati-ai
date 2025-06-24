@@ -2,10 +2,10 @@
 
 from app.fast_api.schemas.badge_schemas import BadgeRequest  
 
-from deep_translator import GoogleTranslator
+#from deep_translator import GoogleTranslator
 #from typing import List
 import numpy as np
-from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageEnhance, ImageFont #새로 추가됨.
+from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont #새로 추가됨. ImageEnhance,
 import math, json
 import cv2
 from selenium import webdriver
@@ -21,8 +21,9 @@ from urllib.parse import urljoin
 from io import BytesIO
 from collections import Counter
 from urllib.parse import quote
+import onnxruntime as ort
 
-import logging, os, tempfile,cairosvg #subprocess, stat
+import logging, os, tempfile,cairosvg, gc #subprocess, stat
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -48,8 +49,12 @@ class BadgePrompt:
 
         # 5. Canny 엣지 적용 및 저장
         cv_image = np.array(base)
-        canny_image = cv2.Canny(cv_image, 30, 100)
+        canny_image = cv2.Canny(cv_image, 100, 200)
         logger.info("3-3) Canny이미지 배경 생성 완료")
+        
+        del base, draw, cv_image
+        gc.collect()
+
         return canny_image
 
 
@@ -69,6 +74,47 @@ class BadgePrompt:
                 closest_name = name
 
         return closest_name
+    
+    async def upscale_with_onnx(self, image: np.ndarray, model_path: str = "realesrgan-x2.onnx") -> np.ndarray:
+        # Convert BGR to RGB
+        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        img_rgb = np.transpose(img_rgb, (2, 0, 1))[np.newaxis, ...]  # shape: (1, 3, H, W)
+
+        session = ort.InferenceSession(model_path)
+        input_name = session.get_inputs()[0].name
+        output = session.run(None, {input_name: img_rgb})[0]
+
+        output_img = np.clip(output[0].transpose(1, 2, 0), 0, 1) * 255
+
+        del img_rgb, session, input_name, output
+        gc.collect()
+
+        return output_img.astype(np.uint8)
+    
+    async def keep_ratio(self, np_img):
+        h, w = np_img.shape[:2]
+
+        # 비율 유지
+        scale = 128 / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+
+        resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        # 3채널짜리 128x128 배경 생성 (흰색)
+        background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
+
+        # 중앙에 배치하기 위해 시작점 계산
+        y_offset = (128 - new_h) // 2
+        x_offset = (128 - new_w) // 2
+
+        # 배경 위에 얹기
+        background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_logo
+
+        del resized_logo
+        gc.collect()
+
+        return background
+
     
     async def get_image(self, url):
         response = requests.get(url)
@@ -112,18 +158,29 @@ class BadgePrompt:
         logger.info(f"3-7-3) 이미지의 해상도를 높입니다.")
         
         np_img = np.array(img) #np에서 512x512로 확장
+        logger.info(f"3-7-4) 128x128로 보간.")
+        input_logo_resized = await self.keep_ratio(np_img)
+        #input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
+        logger.info(f"3-7-5) upscailing모델을 사용합니다.")
+        upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
+        resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
+
         #upscaled = cv2.resize(np_img, (256, 256), interpolation=cv2.INTER_LANCZOS4)
-        logger.info(f"3-7-4) PIL에서 명암 강화")
+        
         #pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
         #blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=1.2))
         #contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
         #sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
-        logger.info(f"3-7-5) np에서 canny이미지 획득")
-        cv_image_logo = np.array(np_img) #np에서 canny이미지 획득
-        canny_logo = cv2.Canny(cv_image_logo, 50, 150) #50, 150)
+        
+        #cv_image_logo = np.array(resized) #np에서 canny이미지 획득
+        canny_logo = cv2.Canny(resized, 100, 200) #50, 150)
+
+        del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized
+        gc.collect()
+
         return canny_logo
 
-    async def find_logo_image_url(soup, page_url):
+    async def find_logo_image_url(self, soup, page_url):
         # 1. alt에 'logo'가 포함된 이미지 찾기
         img_tag = soup.find("img", alt=lambda x: x and "logo" in x.lower())
         if img_tag and img_tag.get("src"):
@@ -254,6 +311,7 @@ class BadgePrompt:
         
             finally:
                 driver.quit()
+                gc.collect()
 
     async def create_letter_logo_canny(self, team_title: str, image_size: int = 490):
         # 1. 흰 배경 이미지 생성
@@ -269,7 +327,7 @@ class BadgePrompt:
             
             try:
                 logger.error(f"3-11-3) 폰트 설정")
-                font = ImageFont.truetype("/app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
+                font = ImageFont.truetype("./app/utils/Pretendard-Black.ttf", int(image_size * 0.6))  # 시스템에 있는 TTF 폰트
             except:
                 font = ImageFont.load_default()
 
@@ -294,6 +352,9 @@ class BadgePrompt:
             # 6. 엣지 이미지 → Pillow 이미지로 복원 (mode="L")
             logger.error(f"3-11-6) 로고 생성 완료")
             canny_image = Image.fromarray(edges)
+
+            del image, draw, np_img, gray, edges
+            gc.collect()
 
             return canny_image
         except Exception as e:
@@ -356,7 +417,11 @@ class BadgePrompt:
         logger.info("4-2) 뱃지 이미지 생성 완료.")
         cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
         logger.info("4-3) 이미지 해상도: 512 x 512")
-        canny_badge = cv2.Canny(cv_image_logo, 50, 150)
+        canny_badge = cv2.Canny(cv_image_logo, 100, 200)
+
+        del badge, logo_array, logo, logo_resized, logo_gray, logo_mask, cv_image_logo
+        gc.collect()
+
         return canny_badge
     
 
@@ -403,7 +468,7 @@ if __name__ == '__main__':
     badge_canny = Badge_test_instance.insert_logo_on_badge()
 
     cv_image_logo = np.array(badge_canny)
-    canny_badge = cv2.Canny(cv_image_logo, 50, 150)
+    canny_badge = cv2.Canny(cv_image_logo, 100, 200)
     cv2.imwrite("logo_canny.png", canny_badge)
 
 

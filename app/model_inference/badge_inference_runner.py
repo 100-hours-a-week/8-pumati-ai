@@ -8,14 +8,14 @@ import torch
 from PIL import Image
 from typing import List
 
-import logging, asyncio
+import logging, asyncio, gc
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-async def get_model(mod_tags: str):
-    await badge_loader_instance.load_diffusion_model()
-    await badge_loader_instance.load_LoRA(mod_tags)
+# async def get_model(mod_tags: str):
+#     #await badge_loader_instance.load_diffusion_model()
+#     await badge_loader_instance.load_LoRA(mod_tags)
 
 async def generate_image(mod_tags: str, team_number: int, request_data: BadgeRequest, negative_prompt: str = "realistic, photo, blur, noisy, watermark", seed: int = 42, width: int = 512, height: int = 512):
     generator = torch.Generator("cuda").manual_seed(seed)
@@ -28,7 +28,7 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
 
     badge_canny, _ = await asyncio.gather(
         badge_input_instance.insert_logo_on_badge(),
-        get_model(mod_tags=mod_tags)
+        badge_loader_instance.load_LoRA(mod_tags)#get_model(mod_tags=mod_tags)
     )
     # 2) pipline로드
     # get_model(mod_tags = mod_tags)
@@ -49,5 +49,8 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
         guidance_scale=7.5,
         generator=generator
     ).images[0]
+
+    del badge_input_instance, badge_canny, control_image, prompt, generator 
+    gc.collect()
 
     return base_result
