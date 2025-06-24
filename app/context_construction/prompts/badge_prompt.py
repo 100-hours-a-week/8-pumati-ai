@@ -75,7 +75,7 @@ class BadgePrompt:
 
         return closest_name
     
-    async def upscale_with_onnx(image: np.ndarray, model_path: str = "realesrgan-x2.onnx") -> np.ndarray:
+    async def upscale_with_onnx(self, image: np.ndarray, model_path: str = "realesrgan-x2.onnx") -> np.ndarray:
         # Convert BGR to RGB
         img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
         img_rgb = np.transpose(img_rgb, (2, 0, 1))[np.newaxis, ...]  # shape: (1, 3, H, W)
