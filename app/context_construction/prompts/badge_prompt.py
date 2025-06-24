@@ -91,6 +91,32 @@ class BadgePrompt:
 
         return output_img.astype(np.uint8)
     
+    async def keep_ratio(self, np_img):
+        h, w = np_img.shape[:2]
+
+        # 비율 유지
+        scale = 128 / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+
+        resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        # 3채널짜리 128x128 배경 생성 (흰색)
+        background = np.ones((128, 128, 3), dtype=np.uint8) * 255
+
+        # 중앙에 배치하기 위해 시작점 계산
+        y_offset = (128 - new_h) // 2
+        x_offset = (128 - new_w) // 2
+
+        # 배경 위에 얹기
+        background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_logo
+
+        del resized_logo
+        gc.collect()
+
+        return background
+
+
+    
     async def get_image(self, url):
         response = requests.get(url)
         content_type = response.headers.get("Content-Type", "")
