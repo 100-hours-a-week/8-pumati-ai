@@ -5,7 +5,7 @@ from uuid import uuid5, NAMESPACE_DNS
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
-from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
+# from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
 from uuid import uuid5, NAMESPACE_DNS
 import datetime
 
@@ -47,11 +47,11 @@ def is_id_exists(doc_id: str) -> bool:
     return len(result) > 0
 
 # Summarize a text using Gemini and store it as a vector
-def summarize_and_store(text: str, metadata: dict, embedding_model, doc_id: str):
-    print(f"🔍 Gemini 요약 중... Team: {metadata.get('team_id')}, Part: {metadata.get('part')}")
-    summary = summarize_chain.invoke({"input": text})
-    print(f"📅 요약 결과 저장 중... ID: {doc_id}")
-    store_document(summary, metadata, embedding_model, doc_id)
+# def summarize_and_store(text: str, metadata: dict, embedding_model, doc_id: str):
+#     print(f"🔍 Gemini 요약 중... Team: {metadata.get('team_id')}, Part: {metadata.get('part')}")
+#     summary = summarize_chain.invoke({"input": text})
+#     print(f"📅 요약 결과 저장 중... ID: {doc_id}")
+#     store_document(summary, metadata, embedding_model, doc_id)
 
 def store_document(text, metadata, embedding_model, doc_id):
     doc_type = metadata.get("type", "other").lower()

@@ -11,7 +11,7 @@ from collections import defaultdict
 import hashlib
 from app.github_crawling.github_api import fetch_wiki_md_files
 from app.model_inference.rag_chat_runner import embedding_model
-from app.github_crawling.vector_store import summarize_and_store
+# from app.github_crawling.vector_store import summarize_and_store
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -21,6 +21,7 @@ from pathlib import Path
 from datetime import datetime
 from dateutil.parser import parse
 from app.github_crawling.vector_store import delete_document_if_exists
+from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
 
 PART_LIST = ["ai", "be", "cloud", "fe", "wiki"]
 def classify_part_from_repo(repo_name: str) -> str:
@@ -76,23 +77,34 @@ def group_data_by_week(data, week_ranges):
 
 def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
     part = classify_part_from_repo(repo)
+
     for (week_start, week_end), items in weekly_data_dict.items():
         if not items:
             continue
+
         doc_id = f"summary-{team_id}-{part}-{week_end[5:7]}-{week_end[8:10]}"
         if is_id_exists(doc_id):
             print(f"✅ 이미 저장된 문서: {doc_id} → 생략")
             continue
+
+        #요약 직접 실행
         raw_text = "\n".join(item.get("message", item.get("title", "")) for item in items)
+        print(f"🔍 Gemini 요약 중... Team: {team_id}, Part: {part}")
+        summary = summarize_chain.invoke({"input": raw_text})
+
+        #메타데이터 구성
         metadata = {
             "repo": repo,
             "date": week_end,
             "project_id": project_id,
             "team_id": team_id,
             "type": "summary",
-            "part": classify_part_from_repo(repo)
+            "part": part
         }
-        summarize_and_store(raw_text, metadata, embedding_model, doc_id)
+
+        #직접 store_document 호출 (가중치 자동 적용됨)
+        print(f"📅 요약 결과 저장 중... ID: {doc_id}")
+        store_document(summary, metadata, embedding_model, doc_id)
 
 def summarize_wiki_pages(repo, project_id, team_id):
     pages = fetch_wiki_md_files(repo)
@@ -133,8 +145,9 @@ def summarize_wiki_pages(repo, project_id, team_id):
         }
 
         print(f"🧾 wiki 문서 요약 저장: {doc_id} (페이지 {i * chunk_size + 1}~{(i + 1) * chunk_size})")
-        summarize_and_store(combined_text.strip(), metadata, embedding_model, doc_id)
-        
+        summary = summarize_chain.invoke({"input": combined_text.strip()})
+        store_document(summary, metadata, embedding_model, doc_id)
+
 def main():
     should_run = FORCE_RUN or is_weekly_run_due()
 
