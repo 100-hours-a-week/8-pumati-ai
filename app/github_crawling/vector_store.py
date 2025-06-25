@@ -54,7 +54,8 @@ def is_id_exists(doc_id: str) -> bool:
 #     store_document(summary, metadata, embedding_model, doc_id)
 
 def store_document(text, metadata, embedding_model, doc_id):
-    doc_type = metadata.get("type", "other").lower()
+    doc_type = metadata.get("type", "other").lower()  # e.g., 'summary'
+    part = metadata.get("part", "").lower()  # e.g., 'ai', 'wiki', 'fe', ...
     filename = metadata.get("filename", "").lower()
 
     default_weights = {
@@ -62,13 +63,18 @@ def store_document(text, metadata, embedding_model, doc_id):
         "pr": 1.7,
         "issue": 1.5,
         "readme": 1.3,
-        "contents": 0.8,
-        "contributor": 0.7,
-        "stats": 0.7,
         "wiki": 1.7,
+        "ai": 1.0,
+        "be": 1.0,
+        "fe": 1.0,
+        "cloud": 1.0,
+        "summary": 1.0  # fallback
     }
-    weight = default_weights.get(doc_type, 1.0)
-    if "Home" in filename or "Vision" in filename:
+
+    weight = default_weights.get(part, default_weights.get(doc_type, 1.0))
+
+    # 텍스트 내용 기반 추가 가중치
+    if "home" in filename or "vision" in filename:
         weight += 1.0
     if "프로젝트" in text or "서비스" in text:
         weight += 1.0
@@ -78,9 +84,7 @@ def store_document(text, metadata, embedding_model, doc_id):
 
     print("✅  저장 직전 metadata:", metadata)
 
-    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 문자열 doc_id → UUID 변환
-
-    # prefix 붙여서 임베딩 생성
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))
     embedding = embedding_model.embed_documents([f"passage: {text}"])[0]
 
     client.upsert(
