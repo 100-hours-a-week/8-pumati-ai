@@ -202,7 +202,7 @@ class BadgePrompt:
 
         return None 
     
-    def slugify_team_name(name: str) -> str:
+    def slugify_team_name(self, name: str) -> str:
         # 영어로만 이루어진 경우에만 분리
         if name.isascii() and name.isalpha():
             words = wordninja.split(name)
@@ -279,7 +279,8 @@ class BadgePrompt:
                 #디스콰이엇 크롤링
                 try:
                     logger.info("3-9) 디스콰이엇에서 팀 이미지를 크롤링 해 옵니다.")
-                    encoded_title = quote(team_title.lower())
+                    #encoded_title = quote(team_title.lower())
+                    encoded_title = quote(self.slugify_team_name(team_title.lower()))
                     url = f"https://disquiet.io/product/{encoded_title}"
                     driver.get(url=url)
                     #페이지가 켜질 때 까지 3초 기다림.
