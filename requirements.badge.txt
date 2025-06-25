@@ -23,5 +23,6 @@ beautifulsoup4==4.13.4
 google-cloud-tasks==2.19.2
 peft==0.15.2
 onnxruntime==1.22.0
+wordninja==2.0.0
 
 
