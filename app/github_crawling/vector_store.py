@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
 from uuid import uuid5, NAMESPACE_DNS
-import datetime
+from app.github_crawling.embedding import get_embedding
 
 # 기존 ChromaDB 관련 코드 제거 & Qdrant 설정으로 교체
 load_dotenv()
@@ -77,7 +77,7 @@ def store_document(text, metadata, embedding_model, doc_id):
     print("✅  저장 직전 metadata:", metadata)
 
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))
-    embedding = embedding_model.embed_documents([f"passage: {text}"])[0]
+    embedding = get_embedding(text)
 
     client.upsert(
         collection_name=QDRANT_COLLECTION,
