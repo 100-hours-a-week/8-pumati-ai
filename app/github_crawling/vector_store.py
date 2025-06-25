@@ -4,10 +4,10 @@ import os
 from uuid import uuid5, NAMESPACE_DNS
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import (
-    VectorParams, Distance, PayloadSchemaType
-    
-)
+from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
+from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
+from uuid import uuid5, NAMESPACE_DNS
+import datetime
 
 # 기존 ChromaDB 관련 코드 제거 & Qdrant 설정으로 교체
 load_dotenv()
@@ -45,6 +45,13 @@ def is_id_exists(doc_id: str) -> bool:
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일 방식으로 변환
     result = client.retrieve(collection_name=QDRANT_COLLECTION, ids=[uuid_id])
     return len(result) > 0
+
+# Summarize a text using Gemini and store it as a vector
+def summarize_and_store(text: str, metadata: dict, embedding_model, doc_id: str):
+    print(f"🔍 Gemini 요약 중... Team: {metadata.get('team_id')}, Part: {metadata.get('part')}")
+    summary = summarize_chain.invoke({"input": text})
+    print(f"📅 요약 결과 저장 중... ID: {doc_id}")
+    store_document(summary, metadata, embedding_model, doc_id)
 
 def store_document(text, metadata, embedding_model, doc_id):
     doc_type = metadata.get("type", "other").lower()
@@ -99,4 +106,17 @@ def show_vector_summary():
     )
     print("🔍 일부 문서 미리보기:")
     for point in results[0]:
-        print("-", point.payload.get("document", "")[:120], "...")
+        doc = point.payload.get("document", "")
+        if isinstance(doc, str):
+            print("-", doc[:120], "...")
+        else:
+            print("-", str(doc), "...")
+
+def delete_document_if_exists(doc_id: str):
+    """doc_id(문자열)를 기반으로 Qdrant에서 해당 UUID 벡터를 삭제"""
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일한 UUID 방식 적용
+    try:
+        client.delete(collection_name=QDRANT_COLLECTION, points_selector={"points": [uuid_id]})
+        print(f"🗑️ 삭제 완료: {doc_id} (UUID: {uuid_id})")
+    except Exception as e:
+        print(f"❌ 삭제 중 오류 발생: {e}")
