@@ -23,7 +23,7 @@ from collections import Counter
 from urllib.parse import quote
 import onnxruntime as ort
 
-import logging, os, tempfile,cairosvg, gc #subprocess, stat
+import logging, os, tempfile,cairosvg, gc, wordninja #subprocess, stat
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -202,10 +202,16 @@ class BadgePrompt:
 
         return None 
     
+    def slugify_team_name(self, name: str) -> str:
+        # 영어로만 이루어진 경우에만 분리
+        if name.isascii() and name.isalpha():
+            words = wordninja.split(name)
+            return "-".join(words).lower()
+        else:
+            return name  # 한글이거나 혼합된 경우 그대로 반환
+    
     async def get_disquiet_exact_team_image(self, team_title: str):
         logger.info("3-4) 각 팀의 로고를 크롤링...")
-        encoded_title = quote(team_title.lower())
-        url = f"https://disquiet.io/product/{encoded_title}"
         page_url = self.data.deploymentUrl
 
         options = Options()
@@ -273,6 +279,9 @@ class BadgePrompt:
                 #디스콰이엇 크롤링
                 try:
                     logger.info("3-9) 디스콰이엇에서 팀 이미지를 크롤링 해 옵니다.")
+                    #encoded_title = quote(team_title.lower())
+                    encoded_title = quote(self.slugify_team_name(team_title.lower()))
+                    url = f"https://disquiet.io/product/{encoded_title}"
                     driver.get(url=url)
                     #페이지가 켜질 때 까지 3초 기다림.
                     img = WebDriverWait(driver, 3).until(
