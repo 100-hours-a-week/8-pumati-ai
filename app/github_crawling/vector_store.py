@@ -5,7 +5,6 @@ from uuid import uuid5, NAMESPACE_DNS
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
-# from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
 from uuid import uuid5, NAMESPACE_DNS
 import datetime
 
@@ -46,16 +45,9 @@ def is_id_exists(doc_id: str) -> bool:
     result = client.retrieve(collection_name=QDRANT_COLLECTION, ids=[uuid_id])
     return len(result) > 0
 
-# Summarize a text using Gemini and store it as a vector
-# def summarize_and_store(text: str, metadata: dict, embedding_model, doc_id: str):
-#     print(f"🔍 Gemini 요약 중... Team: {metadata.get('team_id')}, Part: {metadata.get('part')}")
-#     summary = summarize_chain.invoke({"input": text})
-#     print(f"📅 요약 결과 저장 중... ID: {doc_id}")
-#     store_document(summary, metadata, embedding_model, doc_id)
-
 def store_document(text, metadata, embedding_model, doc_id):
-    doc_type = metadata.get("type", "other").lower()  # e.g., 'summary'
-    part = metadata.get("part", "").lower()  # e.g., 'ai', 'wiki', 'fe', ...
+    doc_type = metadata.get("type", "other").lower()
+    part = metadata.get("part", "").lower()
     filename = metadata.get("filename", "").lower()
 
     default_weights = {
@@ -68,7 +60,7 @@ def store_document(text, metadata, embedding_model, doc_id):
         "be": 1.0,
         "fe": 1.0,
         "cloud": 1.0,
-        "summary": 1.0  # fallback
+        "summary": 1.0
     }
 
     weight = default_weights.get(part, default_weights.get(doc_type, 1.0))

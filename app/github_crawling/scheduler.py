@@ -11,7 +11,6 @@ from collections import defaultdict
 import hashlib
 from app.github_crawling.github_api import fetch_wiki_md_files
 from app.model_inference.rag_chat_runner import embedding_model
-# from app.github_crawling.vector_store import summarize_and_store
 from dotenv import load_dotenv
 load_dotenv()
 
