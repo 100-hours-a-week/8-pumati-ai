@@ -2,13 +2,8 @@
 
 from app.github_crawling.github_team_repos_from_urls import get_all_repos_from_team_urls
 from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues
-from app.github_crawling.parser import parse_commit_item, parse_pr_item, parse_readme
-from app.github_crawling.text_splitter import split_text
-from app.github_crawling.embedding import get_embedding
 from app.github_crawling.vector_store import store_document, is_id_exists, show_vector_summary
-from app.github_crawling.issue_connect_pr_check import fetch_pr_from_issue
 from collections import defaultdict
-import hashlib
 from app.github_crawling.github_api import fetch_wiki_md_files
 from app.model_inference.rag_chat_runner import embedding_model
 from dotenv import load_dotenv
@@ -171,6 +166,16 @@ def main():
             continue  # 아래 크롤링 로직 건너뜀
 
         all_items = []
+        readme_data = fetch_readme(repo)
+        if readme_data:
+            all_items.append({
+                "type": "readme",
+                "repo": repo,
+                "title": "README",
+                "body": readme_data["content"],
+                "date": readme_data["date"]
+            })
+
         for item in fetch_commits(repo):
             all_items.append(item)
         for item in fetch_prs(repo):
