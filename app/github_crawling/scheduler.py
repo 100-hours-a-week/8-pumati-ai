@@ -5,7 +5,7 @@ from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readm
 from app.github_crawling.vector_store import store_document, is_id_exists, show_vector_summary
 from collections import defaultdict
 from app.github_crawling.github_api import fetch_wiki_md_files
-from app.model_inference.rag_chat_runner import embedding_model
+from app.model_inference.embedding_runner import embedding_model
 from dotenv import load_dotenv
 load_dotenv()
 
