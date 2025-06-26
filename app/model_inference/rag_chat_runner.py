@@ -89,8 +89,8 @@ class WeightedQdrantRetriever(BaseRetriever):
         docs = sorted(docs, key=lambda d: d.metadata.get("cosine_score", 0.0), reverse=True)
         return docs
 
-# llm = HyperClovaLangChainLLM()
-llm = GeminiLangChainLLM()
+llm = HyperClovaLangChainLLM()
+# llm = GeminiLangChainLLM()
 
 document_prompt = PromptTemplate(
     input_variables=["page_content"],
