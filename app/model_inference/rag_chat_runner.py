@@ -14,7 +14,6 @@ from langchain.chains.retrieval import create_retrieval_chain
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 from langchain_qdrant import QdrantVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
 
 from langsmith import traceable, client
 
@@ -22,7 +21,7 @@ from app.context_construction.question_router import is_structured_question, cla
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
-from app.model_inference.embedding_runner import embedding_model, vectorstore
+from app.model_inference.embedding_runner import vectorstore
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
