@@ -60,6 +60,7 @@ def store_document(text, metadata, embedding_model, doc_id):
         "be": 1.0,
         "fe": 1.0,
         "cloud": 1.0,
+        "release_note": 3.0,
         "summary": 1.0
     }
 

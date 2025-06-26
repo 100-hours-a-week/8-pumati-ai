@@ -16,8 +16,9 @@ from datetime import datetime
 from dateutil.parser import parse
 from app.github_crawling.vector_store import delete_document_if_exists
 from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
+from dateutil.tz import UTC
 
-PART_LIST = ["ai", "be", "cloud", "fe", "wiki"]
+PART_LIST = ["ai", "be", "cloud", "fe", "wiki", "RELEASE_NOTE"]
 def classify_part_from_repo(repo_name: str) -> str:
     lowered = repo_name.lower()
     for part in PART_LIST:
@@ -85,6 +86,9 @@ def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
         raw_text = "\n".join(item.get("message", item.get("title", "")) for item in items)
         print(f"🔍 Gemini 요약 중... Team: {team_id}, Part: {part}")
         summary = summarize_chain.invoke({"input": raw_text})
+        summary_text = summary["text"] if isinstance(summary, dict) else str(summary)
+        print("📄 요약 결과 type:", type(summary))
+        print("📄 요약 결과:", summary)
 
         #메타데이터 구성
         metadata = {
@@ -98,7 +102,7 @@ def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
 
         #직접 store_document 호출 (가중치 자동 적용됨)
         print(f"📅 요약 결과 저장 중... ID: {doc_id}")
-        store_document(summary, metadata, embedding_model, doc_id)
+        store_document(summary_text, metadata, embedding_model, doc_id)
 
 def summarize_wiki_pages(repo, project_id, team_id):
     pages = fetch_wiki_md_files(repo)
@@ -140,7 +144,11 @@ def summarize_wiki_pages(repo, project_id, team_id):
 
         print(f"🧾 wiki 문서 요약 저장: {doc_id} (페이지 {i * chunk_size + 1}~{(i + 1) * chunk_size})")
         summary = summarize_chain.invoke({"input": combined_text.strip()})
-        store_document(summary, metadata, embedding_model, doc_id)
+        
+        # dict 타입이면 'text' 필드 꺼내고, 아니면 str로 변환
+        summary_text = summary.get("text") if isinstance(summary, dict) else str(summary)
+
+        store_document(summary_text, metadata, embedding_model, doc_id)
 
 def main():
     should_run = FORCE_RUN or is_weekly_run_due()
@@ -202,6 +210,8 @@ def main():
             date_str = item.get("date")
             try:
                 parsed_date = parse(date_str)
+                if parsed_date.tzinfo is None:
+                    parsed_date = parsed_date.replace(tzinfo=UTC)
                 valid_dates.append(parsed_date)
                 item["parsed_date"] = parsed_date  # 나중에 그룹핑에 활용 가능
             except Exception:
