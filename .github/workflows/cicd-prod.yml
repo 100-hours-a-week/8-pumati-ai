@@ -12,7 +12,6 @@ on:
       - main
       - jacky
 
-
 jobs:
   build-and-push:
     # 커밋 메시지에 [gpu]가 포함된 경우에만 실행
