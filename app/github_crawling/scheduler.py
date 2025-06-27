@@ -84,11 +84,15 @@ def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
 
         #요약 직접 실행
         raw_text = "\n".join(item.get("message", item.get("title", "")) for item in items)
-        print(f"🔍 Gemini 요약 중... Team: {team_id}, Part: {part}")
-        summary = summarize_chain.invoke({"input": raw_text})
-        summary_text = summary["text"] if isinstance(summary, dict) else str(summary)
-        print("📄 요약 결과 type:", type(summary))
-        print("📄 요약 결과:", summary)
+        try:
+            print(f"🔍 Gemini 요약 중... Team: {team_id}, Part: {part}")
+            summary = summarize_chain.invoke({"input": raw_text})
+            summary_text = summary["text"] if isinstance(summary, dict) else str(summary)
+            print("📄 요약 결과 type:", type(summary))
+            print("📄 요약 결과:", summary)
+        except Exception as e:
+            print("❌ 요약 실패:", e)
+            continue  # 다음 주차로 넘어감
 
         #메타데이터 구성
         metadata = {
@@ -142,11 +146,13 @@ def summarize_wiki_pages(repo, project_id, team_id):
             "chunk": chunk_id
         }
 
-        print(f"🧾 wiki 문서 요약 저장: {doc_id} (페이지 {i * chunk_size + 1}~{(i + 1) * chunk_size})")
-        summary = summarize_chain.invoke({"input": combined_text.strip()})
-        
-        # dict 타입이면 'text' 필드 꺼내고, 아니면 str로 변환
-        summary_text = summary.get("text") if isinstance(summary, dict) else str(summary)
+        try:
+            summary = summarize_chain.invoke({"input": combined_text.strip()})
+            summary_text = summary.get("text") if isinstance(summary, dict) else str(summary)
+            print("📄 wiki 요약 결과:", summary_text)
+        except Exception as e:
+            print(f"❌ wiki 요약 실패 (chunk {chunk_id}):", e)
+            continue
 
         store_document(summary_text, metadata, embedding_model, doc_id)
 
