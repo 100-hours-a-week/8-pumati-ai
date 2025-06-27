@@ -1,4 +1,6 @@
 # app/github_crawling/scheduler.py
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from app.github_crawling.github_team_repos_from_urls import get_all_repos_from_team_urls
 from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readme, fetch_closed_issues
