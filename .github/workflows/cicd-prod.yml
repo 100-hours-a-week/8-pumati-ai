@@ -47,7 +47,7 @@ jobs:
       # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
         run: |
-          echo "${{ secrets.ENV_GPU }}" > .env
+          echo "${{ secrets.ENV_GPU_PROD }}" > .env
 
       # 환경변수들을 GitHub Actions 환경변수로 추출
       - name: Load environment variables
