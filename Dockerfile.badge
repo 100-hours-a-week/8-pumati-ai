@@ -1,0 +1,237 @@
+# ==========================================
+# Stage 1: 모델 다운로드 및 빌드 스테이지
+# ==========================================
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS model-downloader
+
+# 빌드 도구 설치 (이 스테이지에서만 사용)
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# 캐시 디렉토리 미리 생성 및 환경 변수 설정
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface /app/.cache/transformers
+
+# Python 의존성 설치 (모델 다운로드용)
+RUN pip install --upgrade pip && \
+    pip install huggingface_hub transformers diffusers torch
+
+# 🚀 모델 다운로드 스크립트 생성 및 실행
+ARG HUGGINGFACE_HUB_TOKEN
+ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+
+# 모델 다운로드 스크립트 생성
+RUN echo '#!/usr/bin/env python3\n\
+import os\n\
+import sys\n\
+import time\n\
+from huggingface_hub import login, snapshot_download\n\
+import torch\n\
+\n\
+print("🚀 Docker 빌드 중 배지 모델 다운로드 시작")\n\
+\n\
+# HF 토큰 확인\n\
+token = os.getenv("HUGGINGFACE_HUB_TOKEN")\n\
+if not token:\n\
+    print("❌ HUGGINGFACE_HUB_TOKEN가 설정되지 않았습니다!")\n\
+    sys.exit(1)\n\
+\n\
+print(f"🔑 토큰 확인: {token[:10]}****")\n\
+\n\
+# Hugging Face 로그인\n\
+try:\n\
+    login(token=token)\n\
+    print("✅ Hugging Face 로그인 성공!")\n\
+except Exception as e:\n\
+    print(f"❌ Hugging Face 로그인 실패: {e}")\n\
+    sys.exit(1)\n\
+\n\
+# 캐시 디렉토리 확인\n\
+cache_dir = "/app/.cache/huggingface"\n\
+print(f"📁 캐시 디렉토리: {cache_dir}")\n\
+\n\
+def download_with_retry(repo_id, max_retries=3):\n\
+    """재시도 로직이 있는 다운로드 함수"""\n\
+    for attempt in range(max_retries):\n\
+        try:\n\
+            print(f"📥 {repo_id} 다운로드 시도 {attempt + 1}/{max_retries}...")\n\
+            snapshot_download(\n\
+                repo_id,\n\
+                cache_dir=cache_dir,\n\
+                local_files_only=False,\n\
+                resume_download=True,\n\
+                max_workers=2\n\
+            )\n\
+            print(f"✅ {repo_id} 다운로드 완료!")\n\
+            return True\n\
+        except Exception as e:\n\
+            print(f"❌ {repo_id} 다운로드 실패 (시도 {attempt + 1}): {e}")\n\
+            if attempt < max_retries - 1:\n\
+                wait_time = (attempt + 1) * 10\n\
+                print(f"⏳ {wait_time}초 후 재시도...")\n\
+                time.sleep(wait_time)\n\
+            else:\n\
+                print(f"💥 {repo_id} 최종 다운로드 실패!")\n\
+                return False\n\
+    return False\n\
+\n\
+try:\n\
+    # 🚀 배지 서비스에 필요한 모델들 다운로드\n\
+    models = [\n\
+        ("lllyasviel/control_v11p_sd15_canny", "ControlNet Canny"),\n\
+        ("runwayml/stable-diffusion-v1-5", "SD 1.5 Base"),\n\
+        ("HHBeen/badge_LoRA", "Badge LoRA Models")\n\
+    ]\n\
+    \n\
+    for i, (repo_id, name) in enumerate(models, 1):\n\
+        print(f"📥 {i}/{len(models)} {name} 모델 다운로드 중...")\n\
+        if not download_with_retry(repo_id):\n\
+            print(f"💥 {name} 모델 다운로드 실패로 빌드 중단!")\n\
+            sys.exit(1)\n\
+        print(f"🎉 {name} 모델 다운로드 성공!")\n\
+        print("💾 메모리 정리 중...")\n\
+        time.sleep(2)  # 메모리 정리 시간\n\
+    \n\
+    print("🎉 모든 배지 모델 다운로드 성공!")\n\
+    print("💡 런타임에서 캐시된 모델을 로드하여 사용합니다.")\n\
+    \n\
+except Exception as e:\n\
+    print(f"❌ 모델 다운로드 실패: {e}")\n\
+    import traceback\n\
+    traceback.print_exc()\n\
+    sys.exit(1)\n\
+' > /app/download_models.py
+
+# 모델 다운로드 실행
+RUN chmod +x /app/download_models.py && python /app/download_models.py
+
+COPY app/ /app/
+RUN wget https://huggingface.co/qualcomm/Real-ESRGAN-General-x4v3/resolve/main/Real-ESRGAN-General-x4v3.onnx -O /app/utils/realesrgan-general-x4v3.onnx
+
+# 다운로드 스크립트 삭제 (이미지 크기 최적화)
+RUN rm /app/download_models.py
+
+# ==========================================
+# Stage 2: 런타임 스테이지 (최종 이미지)
+# ==========================================
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS runtime
+
+# 런타임에 필요한 시스템 패키지 설치 (배지 서비스에 필요한 패키지들)
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libgl1 \
+    libvulkan1 \
+    libnss3 \
+    libxss1 \
+    libappindicator3-1 \
+    libasound2 \
+    fonts-liberation \
+    xdg-utils \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libgbm1 \
+    wget \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# 🔑 빌드 시 모든 환경 변수들을 ARG로 받아서 런타임 환경 변수로 설정
+ARG HUGGINGFACE_HUB_TOKEN
+ARG BE_SERVER_URL
+ARG AI_SERVER_URL
+ARG GCP_PROJECT_ID
+ARG ARTIFACT_REGISTRY_LOCATION
+ARG GCP_QUEUE_NAME
+ARG GCP_SERVICE_EMAIL
+ENV HF_AUTH_TOKEN_VICKY=${HUGGINGFACE_HUB_TOKEN}
+ENV HF_AUTH_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+ENV HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN}
+ENV BE_SERVER_URL=${BE_SERVER_URL}
+ENV AI_SERVER_URL=${AI_SERVER_URL}
+ENV GCP_PROJECT_ID=${GCP_PROJECT_ID}
+ENV ARTIFACT_REGISTRY_LOCATION=${ARTIFACT_REGISTRY_LOCATION}
+ENV GCP_QUEUE_NAME=${GCP_QUEUE_NAME}
+ENV GCP_SERVICE_EMAIL=${GCP_SERVICE_EMAIL}
+
+# 캐시 디렉토리 환경 변수 설정
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/transformers
+ENV HF_HOME=/app/.cache/huggingface
+
+# Stage 1에서 다운로드된 모델 캐시 복사
+COPY --from=model-downloader /app/.cache /app/.cache
+
+# requirements.txt 복사 및 설치
+COPY requirements.badge.txt .
+RUN pip install --upgrade pip && \
+    pip install -r requirements.badge.txt
+
+# Chrome 설치 (팀 로고 크롤링용)
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chrome-linux64.zip && \
+    unzip chrome-linux64.zip && \
+    mv chrome-linux64 /opt/chrome && \
+    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
+    rm chrome-linux64.zip
+
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/137.0.7151.70/linux64/chromedriver-linux64.zip && \
+    unzip chromedriver-linux64.zip && \
+    mv chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
+    chmod +x /usr/bin/chromedriver && \
+    rm -rf chromedriver-linux64*
+
+# 앱 코드 복사
+COPY . .
+
+# Chrome 환경 변수 설정 (웹 크롤링용)
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+# 🔐 런타임 시작 스크립트 생성
+# 환경 변수를 .env 파일에 쓴 후 Python 앱 실행
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "🚀 배지 서비스 시작 중..."\n\
+\n\
+# 런타임에 환경 변수를 .env 파일에 저장\n\
+echo "🔑 환경 변수를 .env 파일에 설정 중..."\n\
+\n\
+if [ ! -z "$HF_AUTH_TOKEN_VICKY" ]; then\n\
+    echo "HF_AUTH_TOKEN_VICKY=$HF_AUTH_TOKEN_VICKY" > .env\n\
+    echo "HF_AUTH_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
+    echo "HUGGINGFACE_HUB_TOKEN=$HF_AUTH_TOKEN_VICKY" >> .env\n\
+    echo "✅ HF 토큰 설정 완료 (토큰: ${HF_AUTH_TOKEN_VICKY:0:10}****)"\n\
+else\n\
+    echo "❌ HF_AUTH_TOKEN_VICKY 환경 변수가 설정되지 않았습니다!"\n\
+    echo "💡 다음과 같이 환경 변수를 전달해주세요:"\n\
+    echo "   docker run -e HF_AUTH_TOKEN_VICKY=your_token ..."\n\
+    exit 1\n\
+fi\n\
+\n\
+# 모든 환경 변수들을 .env 파일에 추가\n\
+[ ! -z "$BE_SERVER_URL" ] && echo "BE_SERVER_URL=$BE_SERVER_URL" >> .env && echo "✅ BE_SERVER_URL 설정: $BE_SERVER_URL"\n\
+[ ! -z "$AI_SERVER_URL" ] && echo "AI_SERVER_URL=$AI_SERVER_URL" >> .env && echo "✅ AI_SERVER_URL 설정: $AI_SERVER_URL"\n\
+[ ! -z "$GCP_PROJECT_ID" ] && echo "GCP_PROJECT_ID=$GCP_PROJECT_ID" >> .env && echo "✅ GCP_PROJECT_ID 설정: $GCP_PROJECT_ID"\n\
+[ ! -z "$ARTIFACT_REGISTRY_LOCATION" ] && echo "ARTIFACT_REGISTRY_LOCATION=$ARTIFACT_REGISTRY_LOCATION" >> .env && echo "✅ ARTIFACT_REGISTRY_LOCATION 설정: $ARTIFACT_REGISTRY_LOCATION"\n\
+[ ! -z "$GCP_QUEUE_NAME" ] && echo "GCP_QUEUE_NAME=$GCP_QUEUE_NAME" >> .env && echo "✅ GCP_QUEUE_NAME 설정: $GCP_QUEUE_NAME"\n\
+[ ! -z "$GCP_SERVICE_EMAIL" ] && echo "GCP_SERVICE_EMAIL=$GCP_SERVICE_EMAIL" >> .env && echo "✅ GCP_SERVICE_EMAIL 설정: $GCP_SERVICE_EMAIL"\n\
+\n\
+echo "🎯 FastAPI 앱 실행 중..."\n\
+exec "$@"\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# 엔트리포인트 설정
+ENTRYPOINT ["/app/start.sh"]
+
+# 배지 서비스 FastAPI 앱 실행
+CMD ["uvicorn", "app.main_badge:app_badge", "--host", "0.0.0.0", "--port", "8080"]

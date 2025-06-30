@@ -1,0 +1,170 @@
+# cicd-crawling-dev.yml
+
+# GitHub Actions 워크플로우 이름 
+name: Build and Push Crawling Image
+
+# 워크플로우 트리거 조건 설정
+# feat/99-chatbot-deploy 브랜치에 push 이벤트가 발생했을 때 실행됩니다.
+on:
+  push:
+    branches:
+      # 브랜치는 맞게 잘 바꿔서. 
+      - feat/99-chatbot-deploy
+      - dev
+
+
+jobs:
+  build-and-push:
+    # 커밋 메시지에 [crawling]가 포함된 경우에만 실행
+    if: ${{ contains(github.event.head_commit.message, '[crawling]') }}
+    name: Build and Push Docker image
+    runs-on: self-hosted
+    
+
+    # 환경 변수 설정
+    env:
+      GCP_PROJECT_ID: ktb8team-458916 
+      ARTIFACT_REGISTRY_LOCATION: "asia-east1"
+      ARTIFACT_REGISTRY_REPO: "ktb8team"
+      IMAGE_NAME: "dev/crawling"  # 크롤링용 이미지 이름으로 변경
+      DOCKERFILE_PATH: "Dockerfile.crawling"  # 크롤링용 도커파일로 변경
+      
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 커밋 메시지 추출
+      - name: Get commit message
+        id: commit_message
+        run: |
+          {
+            echo 'message<<EOF'
+            git log -1 --pretty=%B
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+        
+
+      # 환경 변수 파일 생성 (.env) - 크롤링용 환경변수 사용
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_CRAWLING }}" > .env
+
+      # 환경변수들을 GitHub Actions 환경변수로 추출
+      - name: Load environment variables
+        run: |
+          # .env 파일에서 환경변수들을 읽어서 GitHub Actions 환경변수로 설정
+          set -a
+          source .env
+          set +a
+          echo "BUILD_USE_REMOTE_CHROMA=$USE_REMOTE_CHROMA" >> $GITHUB_ENV
+          echo "BUILD_CHROMA_HOST=$CHROMA_HOST" >> $GITHUB_ENV
+          echo "BUILD_CHROMA_PORT=$CHROMA_PORT" >> $GITHUB_ENV
+          echo "BUILD_ORG_NAME=$ORG_NAME" >> $GITHUB_ENV
+          echo "BUILD_TEAM_LIST_API_URL=$TEAM_LIST_API_URL" >> $GITHUB_ENV
+          echo "BUILD_USE_BACKEND_API=$USE_BACKEND_API" >> $GITHUB_ENV
+          echo "BUILD_GITHUB_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
+          # QDRANT 관련 환경변수 추가
+          echo "BUILD_QDRANT_API_KEY=$QDRANT_API_KEY" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_URL=$QDRANT_URL" >> $GITHUB_ENV
+          echo "BUILD_QDRANT_COLLECTION=$QDRANT_COLLECTION" >> $GITHUB_ENV
+
+      # 2. Google Cloud 인증 (서비스 계정 키 사용)
+      # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      # 3. Google Cloud SDK (gcloud CLI) 설정 (선택 사항, auth 단계에서 이미 gcloud가 설정될 수 있음)
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      # 4. Artifact Registry에 Docker 인증 설정
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
+
+      # 5. Docker 레이어 캐싱
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # 6. Docker BuildKit 활성화 - 크롤링용 빌드 (환경변수를 개별 빌드 인자로 전달)
+      - name: Build Docker image for crawling
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --platform=linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg USE_REMOTE_CHROMA="${{ env.BUILD_USE_REMOTE_CHROMA }}" \
+            --build-arg CHROMA_HOST="${{ env.BUILD_CHROMA_HOST }}" \
+            --build-arg CHROMA_PORT="${{ env.BUILD_CHROMA_PORT }}" \
+            --build-arg ORG_NAME="${{ env.BUILD_ORG_NAME }}" \
+            --build-arg TEAM_LIST_API_URL="${{ env.BUILD_TEAM_LIST_API_URL }}" \
+            --build-arg USE_BACKEND_API="${{ env.BUILD_USE_BACKEND_API }}" \
+            --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
+            --build-arg QDRANT_API_KEY="${{ env.BUILD_QDRANT_API_KEY }}" \
+            --build-arg QDRANT_URL="${{ env.BUILD_QDRANT_URL }}" \
+            --build-arg QDRANT_COLLECTION="${{ env.BUILD_QDRANT_COLLECTION }}" \
+            --label git_commit="${{ github.sha }}" \
+            --label git_author="${{ github.actor }}" \
+            --label git_message="${{ steps.commit_message.outputs.message }}" \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
+            -f ${{ env.DOCKERFILE_PATH }} .
+
+      # 빌드 후 이미지 태그 확인
+      - name: List Docker images
+        run: docker images
+
+      # 필요시 강제로 latest 태그 붙이기
+      - name: Retag image as latest
+        run: |
+          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # 실패 시 간단한 알림 추가 
+      - name: Send failure notification
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" -d '{
+            "content": "🚨 크롤링 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
+
+      # 7. Docker 이미지를 Artifact Registry에 푸시
+      - name: Push Docker image to Artifact Registry
+        run: |
+          echo "Pushing :sha tag (${{ github.sha }})..."
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          
+          echo "---------------------------------------------------------------------"
+          echo "Inspecting local 'latest' tag before pushing to registry:"
+          # 로컬에 태그된 latest 이미지의 상세 정보 (특히 Image ID 또는 Digest) 확인
+          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          echo "---------------------------------------------------------------------"
+          
+          echo "Attempting to push :latest tag..."
+          # latest 태그 푸시 시도. Actions는 기본적으로 명령어의 모든 출력을 로깅합니다.
+          docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "---------------------------------------------------------------------"
+          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
+          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보(digest, 업데이트 시간 등)를 가져옵니다.
+          # 이를 통해 Docker 클라이언트의 보고나 UI 지연과 관계없이 실제 레지스트리 상태를 확인할 수 있습니다.
+          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe 'latest' tag from Artifact Registry, or it does not exist."
+          echo "---------------------------------------------------------------------"
+          echo "Verifying pushed :sha tag in Artifact Registry (via gcloud):"
+          # 비교를 위해 방금 푸시한 :sha 태그의 정보도 가져옵니다.
+          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe ':sha' tag from Artifact Registry."
+          echo "---------------------------------------------------------------------"
+
+      # 8. 이미지 주소 출력
+      - name: Output image URL
+        run: |
+          echo "Crawling image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
