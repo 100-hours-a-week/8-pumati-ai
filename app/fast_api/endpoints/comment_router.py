@@ -105,6 +105,7 @@ async def process_comment_task(request: Request) -> dict:
     logger.info(f" Cloud Task 수신: project_id={project_id}")
 
     #댓글을 4번 생성하기 위한 루프
+    logger.info(f"3-3) {COMMENT_GENERATE_COUNT}개의 댓글 생성을 시작합니다.")
     for i in range(COMMENT_GENERATE_COUNT):
         logger.info(f"{i + 1}번째 댓글 생성")
         try:
@@ -122,7 +123,7 @@ async def process_comment_task(request: Request) -> dict:
                 author_name = fake_ko.name_female() 
                 author_nickname = fake_en.first_name_female()
 
-            logger.info(f"{i + 1}번째 댓글, 4-3) 이름: {author_name}, 닉네임: {author_nickname}의 댓글을 생성합니다.")
+            logger.info(f"{i + 1}번째 댓글, 4-3) 이름: {author_name}, 닉네임: {author_nickname}의 댓글을 생성을 시작합니다.")
             generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
 
             logger.info(f"7-1) BE에 전송할 payload를 작성합니다.")
@@ -156,7 +157,7 @@ async def prepare_response():
 # 최초 댓글 생성 요청 → Cloud Tasks로 전달
 # ------------------------------
 @comment_app.post("/api/projects/{project_id}/comments")
-async def receive_generate_request(project_id: str, request_data: CommentRequest, request: Request):
+async def receive_generate_request(project_id: str, request_data: CommentRequest): #request: Request
     logger.info(f"1-1) 댓글 생성 요청 수신 - project_id: {project_id}")
 
     response = await prepare_response()
