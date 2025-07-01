@@ -127,7 +127,7 @@ async def process_comment_task(request: Request) -> dict:
 
             logger.info(f"{i + 1}번째 댓글, 4-3) 이름: {author_name}, 닉네임: {author_nickname}의 댓글을 생성을 시작합니다.")
             generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
-
+            
             logger.info(f"7-1) BE에 전송할 payload를 작성합니다.")
             payload = {
                 "content": generated_comment,
@@ -139,7 +139,8 @@ async def process_comment_task(request: Request) -> dict:
             logger.info(f"7-2) BE에 댓글을 전송합니다.")
             response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
-            logger.info(f"7-3) 댓글 전송 성공: {endpoint}, {payload}")
+            end_time = time.perf_counter() - start
+            logger.info(f"7-3) {i + 1}번째 댓글 전송 성공: {endpoint}, {payload}. 소요시간: {end_time:.2f}초")
         except Exception as e:
             logger.error(f"7-e) 댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
             logger.error(f"댓글 생성, 전송 중 오류가 발생하여 {i + 1}번째 댓글 생성을 종료합니다.") #traceback을 남김.
