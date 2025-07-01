@@ -32,12 +32,12 @@ class GenerateComment:
                 return False
         return True
 
-    def is_semantically_relevant(self, comment: str, context: str, threshold: float = 0.69) -> bool:
+    def is_semantically_relevant(self, comment: str, context: str, threshold: float = 0.60) -> bool:
         logger.info(f"6-5-7) 유사도 측정을 시작합니다. comment: '{comment}'")
         comment_emb = self.embed_model.encode(comment, convert_to_tensor=True, show_progress_bar=False)
         context_emb = self.embed_model.encode(context, convert_to_tensor=True, show_progress_bar=False)
         similarity = util.cos_sim(comment_emb, context_emb).item()
-        logger.info(f"6-5-8) 의미 유사도: {similarity:.4f}, threshold: {threshold}")
+        logger.info(f"6-5-8) 의미 유사도: {similarity:.2f}, threshold: {threshold}")
         return similarity >= threshold
     
     # def detail_summary(self, detail_Description: str) -> str:
