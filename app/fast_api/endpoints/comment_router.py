@@ -41,7 +41,7 @@ def root():
 # 댓글 생성 요청 → Cloud Tasks 큐에 등록
 # 백그라운드에서 댓글 생성 작업을 비동기로 처리하기 위함
 # ------------------------------
-def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
+async def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_url: str):
     logger.info("2-1) 댓글 생성 큐에 보낼 데이터 작성중...")
     logger.info(f"댓글 생성 요청을 큐에 보냅니다. AI_server: {GCP_TARGET_URL}")
     logger.info(f"댓글 생성 요청을 큐에 보냅니다. BE_server: {BE_URL}")
@@ -74,6 +74,7 @@ def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, post_u
         logger.info("2-4) 댓글 생성 큐로 전송중...")
         response = client.create_task(parent=parent, task=task)
         logger.info(f" Task enqueued: {response.name}")
+        await asyncio.sleep(0)
 
     except Exception as e:
         logger.error(f"2-e) [ERROR] payload 생성 실패: {e}", exc_info=True)
