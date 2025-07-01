@@ -141,6 +141,8 @@ async def process_comment_task(request: Request) -> dict:
             logger.info(f"7-3) 댓글 전송 성공: {endpoint}, {payload}")
         except Exception as e:
             logger.error(f"7-e) 댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
+            logger.error(f"댓글 생성, 전송 중 오류가 발생하여 댓글 생성을 종료합니다.") #traceback을 남김.
+
 
 
     return JSONResponse(status_code=200, content={"status": "ok"})

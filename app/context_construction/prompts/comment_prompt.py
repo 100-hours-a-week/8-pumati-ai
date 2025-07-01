@@ -71,14 +71,14 @@ class GemmaPrompt:
         아래 프로젝트 정보를 보고 칭찬 댓글을 **하나** JSON 형태로 출력해줘. 
         반드시 프로젝트 정보를 반영하여 {"comment" : "..."} 형식의 긍정적인 댓글을 작성해줘."""
 
-        logger.info(f"instruction: {instruction}")
+        #logger.info(f"instruction: {instruction}")
 
         input_text = f"""프로젝트 정보:
         - projectName: {self.title}
         - shortIntro: {self.introduction}
         - detailedInfo: {self.detailedDescription}"""
 
-        logger.info(f"input information: {input_text}")
+        #logger.info(f"input information: {input_text}")
 
         gemma_prompt = f"""### Instruction:
         {instruction}

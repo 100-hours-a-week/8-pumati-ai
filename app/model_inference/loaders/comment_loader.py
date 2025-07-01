@@ -27,7 +27,7 @@ class GemmaModel:
         self.model = None
         self.tokenizer = None
         self._load_model()
-        self.pipe = None
+        self.pipe = self._load_LoRA()
 
     def _authenticate_huggingface(self):
         if GemmaModel._is_authenticated:
