@@ -55,6 +55,7 @@ class GemmaModel:
             torch_dtype=torch.float16,
             device_map=self.device
         )
+        logger.info("Gemma LoRA pipe 연결 완료.")
         return LoRA_pipe
 
 comment_creator = GemmaModel()

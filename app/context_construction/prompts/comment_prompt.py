@@ -69,7 +69,7 @@ class GemmaPrompt:
         """
         instruction = """너는 한국인 웹 서비스 사용 후기 작성자야. 
         아래 프로젝트 정보를 보고 칭찬 댓글을 **하나** JSON 형태로 출력해줘. 
-        반드시 프로젝트 정보를 반영하여 {"comment" : "..."} 형식의 긍정적인 댓글을 작성해줘."""
+        반드시 카테부(부트캠프)의 프로젝트 정보를 반영하여 {"comment" : "..."} 형식의 **긍정적인 댓글**을 작성해줘."""
 
         #logger.info(f"instruction: {instruction}")
 
