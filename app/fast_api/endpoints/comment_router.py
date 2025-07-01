@@ -9,7 +9,7 @@ from google.cloud import tasks_v2
 # from google.protobuf import timestamp_pb2
 # from datetime import datetime, timezone
 import requests
-import random, asyncio
+import random, asyncio, time
 
 from model_inference.comment_inference_runner import comment_generator_instance
 from fast_api.schemas.comment_schemas import CommentRequest
@@ -104,6 +104,7 @@ async def process_comment_task(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Invalid task payload")
 
     logger.info(f" Cloud Task 수신: project_id={project_id}")
+    start = time.perf_counter()
 
     #댓글을 4번 생성하기 위한 루프
     logger.info(f"3-3) {COMMENT_GENERATE_COUNT}개의 댓글 생성을 시작합니다.")
@@ -141,10 +142,11 @@ async def process_comment_task(request: Request) -> dict:
             logger.info(f"7-3) 댓글 전송 성공: {endpoint}, {payload}")
         except Exception as e:
             logger.error(f"7-e) 댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
-            logger.error(f"댓글 생성, 전송 중 오류가 발생하여 댓글 생성을 종료합니다.") #traceback을 남김.
+            logger.error(f"댓글 생성, 전송 중 오류가 발생하여 {i + 1}번째 댓글 생성을 종료합니다.") #traceback을 남김.
 
 
-
+    end_time = time.perf_counter() - start
+    logger.error(f"fin) 댓글 생성이 완료되어 서버를 종료합니다. 소요시간: {end_time:.2f}초")
     return JSONResponse(status_code=200, content={"status": "ok"})
 
 

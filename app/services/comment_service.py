@@ -33,7 +33,7 @@ class GenerateComment:
         return True
 
     def is_semantically_relevant(self, comment: str, context: str, threshold: float = 0.69) -> bool:
-        logger.info(f"6-5-7) 유사도 측정을 시작합니다.")
+        logger.info(f"6-5-7) 유사도 측정을 시작합니다. comment: '{comment}'")
         comment_emb = self.embed_model.encode(comment, convert_to_tensor=True, show_progress_bar=False)
         context_emb = self.embed_model.encode(context, convert_to_tensor=True, show_progress_bar=False)
         similarity = util.cos_sim(comment_emb, context_emb).item()
@@ -122,8 +122,8 @@ class GenerateComment:
                     logger.info(f"6-5-4) JSON 형태로 출력 성공.")
                     comment = generated_comment_dict.get("comment", "").strip()
 
-                    logger.info(f"6-5-5) JSON에서 {comment}를 출력하였습니다.")
-                    if any(word in comment for word in (prompt_builder.tags +["디자인", "UI", "UX", "좋아요", "인터페이스"])):
+                    logger.info(f"6-5-5) JSON에서 '{comment}'를 출력하였습니다.")
+                    if any(word in comment for word in ["디자인", "UI", "UX", "좋아요", "인터페이스"]): #prompt_builder.tags +
                         logger.info(f"6-5-6) tags 기반의 댓글생성에 성공하였습니다.")
                         #logger.info(f"댓글 생성 성공: {comment}")
                         return comment
