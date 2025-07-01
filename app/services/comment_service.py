@@ -102,7 +102,7 @@ class GenerateComment:
                 gemma_prompt,
                 max_new_tokens=100,
                 do_sample=True,
-                temperature=0.6,
+                temperature=0.7,
                 top_p=0.9,
                 repetition_penalty=1.1
             )
