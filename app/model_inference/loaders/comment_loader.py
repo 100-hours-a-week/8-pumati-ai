@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_NAME = "google/gemma-3-1b-it"
 LORA_MODEL = "HHBeen/comment-gemma-LoRA"
-EMBEDDING_MODEL_NAME = "BM-K/KoSimCSE-roberta-base"#"sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBEDDING_MODEL_NAME = "jhgan/ko-sbert-sts"#"sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 TEMPERATURE = 0.85
 TOP_P = 0.9
 REPETITION_PENALTY = 1.2
