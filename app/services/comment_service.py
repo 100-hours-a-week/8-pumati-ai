@@ -100,7 +100,7 @@ class GenerateComment:
 
             outputs = comment_creator.pipe(
                 gemma_prompt,
-                max_new_tokens=100,
+                max_new_tokens=60,
                 do_sample=True,
                 temperature=0.7,
                 top_p=0.9,
