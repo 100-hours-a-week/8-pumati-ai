@@ -61,12 +61,14 @@ class GenerateComment:
         prompt_builder = GemmaPrompt(request_data)
 
         logger.info(f"6-1) 유사도기반 검열 로직을 위해 context를 생성합니다.")
-        context_text = " ".join(["다음은 프로젝트의 전반적인 정보이다.",
-            "서비스 이름은", prompt_builder.title,
-            "이다. 프로젝트 슬로건은", prompt_builder.introduction,
-            "이다.", prompt_builder.detailedDescription,
-            "프로젝트의 정보에 알맞은 댓글을 생성해주세요."
-        ])
+        # context_text = " ".join(["다음은 프로젝트의 전반적인 정보이다.",
+        #     "서비스 이름은", prompt_builder.title,
+        #     "이다. 프로젝트 슬로건은", prompt_builder.introduction,
+        #     "이다.", prompt_builder.detailedDescription,
+        #     "프로젝트의 정보에 알맞은 댓글을 생성해주세요."
+        # ])
+
+        context_text = "프로젝트 상세 설명입니다" + prompt_builder.detailedDescription
 
         logger.info(f"6-2) 입력 문자의 길이가 긴 경우, 각 경우에 맞도록 요약합니다.")
         prompt_builder.detailedDescription = prompt_builder.detail_summary(prompt_builder.detailedDescription)
@@ -124,7 +126,7 @@ class GenerateComment:
                     comment = generated_comment_dict.get("comment", "").strip()
 
                     logger.info(f"6-5-6) JSON에서 '{comment}'를 출력하였습니다.")
-                    if any(word in comment for word in ["디자인", "UI", "UX", "좋아요", "인터페이스"]): #prompt_builder.tags +
+                    if any(word in comment for word in prompt_builder.tags +["디자인", "UI", "UX", "좋아요", "인터페이스"]): #prompt_builder.tags +
                         logger.info(f"6-5-7) tags 기반의 댓글생성에 성공하였습니다.")
                         #logger.info(f"댓글 생성 성공: {comment}")
                         return comment
