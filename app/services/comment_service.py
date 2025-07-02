@@ -69,7 +69,7 @@ class GenerateComment:
         ])
 
         logger.info(f"6-2) 입력 문자의 길이가 긴 경우, 각 경우에 맞도록 요약합니다.")
-        #prompt_builder.detailedDescription = prompt_builder.detail_summary(prompt_builder.detailedDescription)
+        prompt_builder.detailedDescription = prompt_builder.detail_summary(prompt_builder.detailedDescription)
         logger.info(f"6-3) 주어진 정보를 바탕으로 프롬프트를 생성합니다.")
         gemma_prompt = prompt_builder.generate_prompt()
 

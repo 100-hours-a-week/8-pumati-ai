@@ -56,7 +56,7 @@ class GemmaModel:
             "text-generation",
             model=self.model,
             tokenizer=self.tokenizer,
-            torch_dtype=torch.float32, #torch.float16,
+            torch_dtype=torch.float16, #torch.float16,
             device_map="auto"
         )
         logger.info("Gemma 모델 및 임베딩 모델 로드 완료")
