@@ -112,23 +112,24 @@ class GenerateComment:
             # logger.info(f"6-5-3) 생성된 댓글에서 프롬프트 부분을 제거합니다.")
             # output_text = output_text[len(gemma_prompt):].strip()
             output_text = outputs[0]["generated_text"][len(gemma_prompt):].strip()
+            logger.info(f"6-5-3) 생성된 output: '{output_text}'")
 
             try:
-                logger.info(f"6-5-3) 생성된 댓글 검열을 시작합니다.")
+                logger.info(f"6-5-4) 생성된 댓글 검열을 시작합니다.")
                 find_comment = re.findall(r'{.*?}', output_text, re.DOTALL)
                 generated_comment_dict = json.loads(find_comment[0].strip())
 
                 if self.validate_generated_comment(generated_comment_dict):
-                    logger.info(f"6-5-4) JSON 형태로 출력 성공.")
+                    logger.info(f"6-5-5) JSON 형태로 출력 성공.")
                     comment = generated_comment_dict.get("comment", "").strip()
 
-                    logger.info(f"6-5-5) JSON에서 '{comment}'를 출력하였습니다.")
+                    logger.info(f"6-5-6) JSON에서 '{comment}'를 출력하였습니다.")
                     if any(word in comment for word in ["디자인", "UI", "UX", "좋아요", "인터페이스"]): #prompt_builder.tags +
-                        logger.info(f"6-5-6) tags 기반의 댓글생성에 성공하였습니다.")
+                        logger.info(f"6-5-7) tags 기반의 댓글생성에 성공하였습니다.")
                         #logger.info(f"댓글 생성 성공: {comment}")
                         return comment
                     if self.is_semantically_relevant(comment, context_text):
-                        logger.info(f"6-5-9) 상세내용과 유사도 측정하여, 댓글생성에 성공하였습니다.")
+                        logger.info(f"6-5-8) 상세내용과 유사도 측정하여, 댓글생성에 성공하였습니다.")
                         logger.info(f"댓글 생성 성공: {comment}")
                         return comment
                     raise ValueError("의미 검열 불통과")

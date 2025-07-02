@@ -59,7 +59,7 @@ class GemmaPrompt:
         summary = summarize(detail_Description, ratio=ratio) or detail_Description
         summary = summarize(summary, ratio=ratio) or summary
 
-        logger.info(f"6-2-2) summary : {summary}")
+        #logger.info(f"6-2-2) summary : {summary}")
 
         return summary               
     
