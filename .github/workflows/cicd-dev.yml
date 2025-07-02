@@ -10,7 +10,7 @@ on:
     branches:
       # 브랜치는 맞게 잘 바꿔서.
       - dev
-      - feat/152-v3-챗봇
+      - feat/159-db-summary
 
 
 jobs:
