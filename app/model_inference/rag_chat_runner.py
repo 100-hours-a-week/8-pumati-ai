@@ -85,7 +85,7 @@ class WeightedQdrantRetriever(BaseRetriever):
                 "adjusted_score": adjusted_score
             }
             docs.append(Document(page_content=payload.get("document", ""), metadata=metadata))
-        docs = sorted(docs, key=lambda d: d.metadata.get("cosine_score", 0.0), reverse=True)
+        docs = sorted(docs, key=lambda d: d.metadata.get("adjusted_score", 0.0), reverse=True)
         return docs
 
 llm = HyperClovaLangChainLLM()
@@ -145,7 +145,7 @@ async def run_rag_streaming(question: str, project_id: int):
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
         project_id=project_id,
-        top_k=5
+        top_k=20
     )
 
     # 관련 문서 검색
