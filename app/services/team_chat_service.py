@@ -5,7 +5,7 @@ from app.model_inference.loaders.hyperclova_loader import HyperClovaLoader
 import warnings
 import re
 
-MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v2"
 MAX_NEW_TOKENS = 150
 TEMPERATURE = 0.2
 TOP_P = 0.7
