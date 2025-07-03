@@ -102,6 +102,8 @@ class BadgePrompt:
 
         # resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
         w, h = pil_img.size
+        if w < 50 or h < 50:
+            return None
 
         # 비율 유지하여 128 크기로 맞추기
         scale = 128 / max(h, w)
@@ -149,7 +151,11 @@ class BadgePrompt:
         if "svg" in content_type or url.lower().endswith(".svg"):
             # SVG는 cairosvg로 처리
             png_data = cairosvg.svg2png(bytestring=response.content)
-            img = Image.open(BytesIO(png_data)).convert("RGB")
+            Original_img = Image.open(BytesIO(png_data)).convert("RGB")
+            w, h = img.size
+            if w<50 or w<50:
+                scale = 52 / min(h, w)
+                img = Original_img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
         else:
             # 일반 이미지 처리
             img = Image.open(BytesIO(response.content)).convert("RGB")
