@@ -123,7 +123,25 @@ jobs:
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
-      
+
+      # 빌드 후 이미지 태그 확인 (선택사항)
+      - name: List Docker images
+        run: docker images
+
+      # ⭐ 이 단계를 푸시 전으로 이동!
+      - name: Retag image as latest
+        run: |
+          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # 리태깅 후 이미지 확인
+      - name: Verify latest tag after retag
+        run: |
+          echo "=== 리태깅 후 이미지 목록 ==="
+          docker images | grep "${{ env.IMAGE_NAME }}"
+          echo "=== latest 태그 확인 ==="
+          docker images "${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
+
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
         if: failure()
@@ -142,13 +160,4 @@ jobs:
       - name: Output image URL
         run: |
           echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-
-      # 빌드 후 이미지 태그 확인 (선택사항)
-      - name: List Docker images
-        run: docker images
-
-      - name: Retag image as latest
-        run: |
-          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
 
