@@ -60,31 +60,33 @@ async def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, 
         } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
         # 500초 후의 UTC 시간 계산
-        scheduled_time = datetime.now(timezone.utc) + timedelta(seconds=500)
+        for i in range(3):
+            scheduled_time = datetime.now(timezone.utc) + timedelta(seconds=500*(i))
 
-        # Google Cloud Task에서 요구하는 Timestamp 형식으로 변환
-        timestamp = timestamp_pb2.Timestamp()
-        timestamp.FromDatetime(scheduled_time)
+            # Google Cloud Task에서 요구하는 Timestamp 형식으로 변환
+            timestamp = timestamp_pb2.Timestamp()
+            timestamp.FromDatetime(scheduled_time)
 
-        #Cloud Tasks에 등록할 하나의 작업 정보임.
-        logger.info("2-3) 댓글 생성 task 작성중...")
-        task = {
-            "http_request": {
-                "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
-                "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
-                "headers": {"Content-Type": "application/json"}, 
-                "body": json.dumps(task_payload).encode(),
-                "oidc_token": {
-                    "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
-                }
-            },
-            "schedule_time": timestamp
-        }
+            #Cloud Tasks에 등록할 하나의 작업 정보임.
+            logger.info("2-3) 댓글 생성 task 작성중...")
+            task = {
+                "http_request": {
+                    "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
+                    "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
+                    "headers": {"Content-Type": "application/json"}, 
+                    "body": json.dumps(task_payload).encode(),
+                    "oidc_token": {
+                        "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
+                    }
+                },
+                "schedule_time": timestamp
+            }
 
-        logger.info("2-4) 댓글 생성 큐로 전송중... 500초 후에 전송합니다.")
-        response = client.create_task(parent=parent, task=task)
-        logger.info(f" Task enqueued: {response.name}")
-        await asyncio.sleep(0)
+            
+            logger.info(f"2-4) 댓글 생성 큐로 전송중... {500*(i)}초 후에 전송합니다.")
+            response = client.create_task(parent=parent, task=task)
+            logger.info(f" Task enqueued: {response.name}")
+            await asyncio.sleep(0)
 
     except Exception as e:
         logger.error(f"2-e) [ERROR] payload 생성 실패: {e}", exc_info=True)
