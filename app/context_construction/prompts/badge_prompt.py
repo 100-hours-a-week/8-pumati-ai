@@ -344,6 +344,8 @@ class BadgePrompt:
                     soup = BeautifulSoup(html, "html.parser")
                     logo_url = await self.find_logo_image_url(soup, current_url)
                     logger.info(f"3-10-2) 팀 로고 URL: {logo_url}")
+                    canny_logo = await self.get_image(img_url)
+                    return canny_logo
                 except Exception as e:
                     logger.error(f"3-10-e) 파비콘 못 찾음: {repr(e)}")
 
