@@ -91,29 +91,55 @@ class BadgePrompt:
 
         return output_img.astype(np.uint8)
     
-    async def keep_ratio(self, np_img):
-        h, w = np_img.shape[:2]
+    async def keep_ratio(self, pil_img): #np_img):
+        #h, w = np_img.shape[:2]
+        # w, h = pil_img.size
 
-        # 비율 유지
+        # # 비율 유지
+        # scale = 128 / max(h, w)
+        # new_w = int(w * scale)
+        # new_h = int(h * scale)
+
+        # resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        w, h = pil_img.size
+
+        # 비율 유지하여 128 크기로 맞추기
         scale = 128 / max(h, w)
         new_w = int(w * scale)
         new_h = int(h * scale)
 
-        resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-        # 3채널짜리 128x128 배경 생성 (흰색)
-        background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
+        # 이미지 리사이즈 (LANCZOS는 고품질)
+        resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
 
-        # 중앙에 배치하기 위해 시작점 계산
-        y_offset = (128 - new_h) // 2
+        # 흰색 배경 128x128 생성
+        background = Image.new("RGB", (128, 128), (255, 255, 255))
+
+        # 중앙 배치 좌표 계산
         x_offset = (128 - new_w) // 2
+        y_offset = (128 - new_h) // 2
 
-        # 배경 위에 얹기
-        background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_logo
+        # 배경에 붙이기
+        background.paste(resized_img, (x_offset, y_offset))
 
-        del resized_logo
+        del resized_img
         gc.collect()
 
         return background
+        # background = Image.new("RGB", (128, 128), (255, 255, 255))
+        # # 3채널짜리 128x128 배경 생성 (흰색)
+        # background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
+
+        # # 중앙에 배치하기 위해 시작점 계산
+        # y_offset = (128 - new_h) // 2
+        # x_offset = (128 - new_w) // 2
+
+        # # 배경 위에 얹기
+        # background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_logo
+
+        # del resized_logo
+        # gc.collect()
+
+        # return background
 
     
     async def get_image(self, url):
@@ -157,11 +183,13 @@ class BadgePrompt:
         #해상도 높이기 
         logger.info(f"3-7-3) 이미지의 해상도를 높입니다.")
         
-        np_img = np.array(img) #np에서 512x512로 확장
+        #np_img = np.array(img) #np에서 512x512로 확장
         logger.info(f"3-7-4) 128x128로 보간.")
-        input_logo_resized = await self.keep_ratio(np_img)
+        #input_logo_resized = await self.keep_ratio(np_img)
+        input_logo_resized = await self.keep_ratio(img)
         #input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
         logger.info(f"3-7-5) upscailing모델을 사용합니다.")
+        input_logo_resized = np.array(input_logo_resized)
         upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
