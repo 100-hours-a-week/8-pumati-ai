@@ -10,6 +10,8 @@ from google.cloud import tasks_v2
 # from datetime import datetime, timezone
 import requests
 import random, asyncio, time
+from google.protobuf import timestamp_pb2
+from datetime import datetime, timedelta, timezone
 
 from model_inference.comment_inference_runner import comment_generator_instance
 from fast_api.schemas.comment_schemas import CommentRequest
@@ -57,24 +59,34 @@ async def enqueue_comment_task(project_id: str, request_data: dict) -> None: #, 
             "requestData": request_data
         } #댓글 생성에 필요한 정보를 JSON으로 준비함.
 
-        #Cloud Tasks에 등록할 하나의 작업 정보임.
-        logger.info("2-3) 댓글 생성 task 작성중...")
-        task = {
-            "http_request": {
-                "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
-                "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
-                "headers": {"Content-Type": "application/json"}, 
-                "body": json.dumps(task_payload).encode(),
-                "oidc_token": {
-                    "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
-                }
-            }
-        }
+        # 500초 후의 UTC 시간 계산
+        for i in range(3):
+            scheduled_time = datetime.now(timezone.utc) + timedelta(seconds=500*(i))
 
-        logger.info("2-4) 댓글 생성 큐로 전송중...")
-        response = client.create_task(parent=parent, task=task)
-        logger.info(f" Task enqueued: {response.name}")
-        await asyncio.sleep(0)
+            # Google Cloud Task에서 요구하는 Timestamp 형식으로 변환
+            timestamp = timestamp_pb2.Timestamp()
+            timestamp.FromDatetime(scheduled_time)
+
+            #Cloud Tasks에 등록할 하나의 작업 정보임.
+            logger.info("2-3) 댓글 생성 task 작성중...")
+            task = {
+                "http_request": {
+                    "http_method": tasks_v2.HttpMethod.POST, # post요청을 보냄.
+                    "url": f"{GCP_TARGET_URL}/api/tasks/process-comment", # post요청을 보낼 API서버 주소(AI서버)
+                    "headers": {"Content-Type": "application/json"}, 
+                    "body": json.dumps(task_payload).encode(),
+                    "oidc_token": {
+                        "service_account_email": GCP_SERVICE_ACCOUNT_EMAIL  # ← google task가 요청을 처리할 수 있게 실행.
+                    }
+                },
+                "schedule_time": timestamp
+            }
+
+            
+            logger.info(f"2-4) 댓글 생성 큐로 전송중... {500*(i)}초 후에 전송합니다.")
+            response = client.create_task(parent=parent, task=task)
+            logger.info(f" Task enqueued: {response.name}")
+            await asyncio.sleep(0)
 
     except Exception as e:
         logger.error(f"2-e) [ERROR] payload 생성 실패: {e}", exc_info=True)
@@ -108,42 +120,47 @@ async def process_comment_task(request: Request) -> dict:
 
     #댓글을 4번 생성하기 위한 루프
     logger.info(f"3-3) {COMMENT_GENERATE_COUNT}개의 댓글 생성을 시작합니다.")
-    for i in range(COMMENT_GENERATE_COUNT):
-        logger.info(f"{i + 1}번째 댓글 생성")
-        try:
-            fake_en = Faker()
-            fake_ko = Faker('ko_KR')
-            logger.info(f"{i + 1}번째 댓글, 4-1) 가상 인물 만들기")
-            # 성별 결정
-            gender = random.choice(["male", "female"])
+    # for i in range(COMMENT_GENERATE_COUNT):
+    #     logger.info(f"{i + 1}번째 댓글 생성")
+    try:
+        fake_en = Faker()
+        fake_ko = Faker('ko_KR')
+        logger.info(f"4-1) 가상 인물 만들기")
+        #logger.info(f"{i + 1}번째 댓글, 4-1) 가상 인물 만들기")
+        # 성별 결정
+        gender = random.choice(["male", "female"])
 
-            logger.info(f"{i + 1}번째 댓글, 4-2) 성별은 {gender}입니다.")
-            if gender == "male":
-                author_name = fake_ko.name_male()
-                author_nickname = fake_en.first_name_male()
-            else:
-                author_name = fake_ko.name_female() 
-                author_nickname = fake_en.first_name_female()
+        logger.info(f"4-2) 성별은 {gender}입니다.")
+        #logger.info(f"{i + 1}번째 댓글, 4-2) 성별은 {gender}입니다.")
+        if gender == "male":
+            author_name = fake_ko.name_male()
+            author_nickname = fake_en.first_name_male()
+        else:
+            author_name = fake_ko.name_female() 
+            author_nickname = fake_en.first_name_female()
 
-            logger.info(f"{i + 1}번째 댓글, 4-3) 이름: {author_name}, 닉네임: {author_nickname}의 댓글을 생성을 시작합니다.")
-            generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
-            
-            logger.info(f"7-1) BE에 전송할 payload를 작성합니다.")
-            payload = {
-                "content": generated_comment,
-                "authorName": author_name,
-                "authorNickname": author_nickname
-            }
+        logger.info(f"4-3) 이름: {author_name}, 닉네임: {author_nickname}의 댓글을 생성을 시작합니다.")
+        #logger.info(f"{i + 1}번째 댓글, 4-3) 이름: {author_name}, 닉네임: {author_nickname}의 댓글을 생성을 시작합니다.")
+        generated_comment = comment_generator_instance.generate_comment(CommentRequest(**request_data)) #request_data를 CommentRequest형태로 변경하여 모델에 전달.
+        
+        logger.info(f"7-1) BE에 전송할 payload를 작성합니다.")
+        payload = {
+            "content": generated_comment,
+            "authorName": author_name,
+            "authorNickname": author_nickname
+        }
 
-            endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
-            logger.info(f"7-2) BE에 댓글을 전송합니다.")
-            response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
-            response.raise_for_status()
-            end_time = time.perf_counter() - start
-            logger.info(f"7-3) {i + 1}번째 댓글 전송 성공: {endpoint}, {payload}. 소요시간: {end_time:.2f}초")
-        except Exception as e:
-            logger.error(f"7-e) 댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
-            logger.error(f"댓글 생성, 전송 중 오류가 발생하여 {i + 1}번째 댓글 생성을 종료합니다.") #traceback을 남김.
+        endpoint = f"{BE_URL}/api/projects/{project_id}/comments/ai"
+        logger.info(f"7-2) BE에 댓글을 전송합니다.")
+        response = requests.post(endpoint, json=payload, headers={"Content-Type": "application/json"})
+        response.raise_for_status()
+        end_time = time.perf_counter() - start
+        logger.info(f"7-3) 댓글 전송 성공: {endpoint}, {payload}. 소요시간: {end_time:.2f}초")
+        #logger.info(f"7-3) {i + 1}번째 댓글 전송 성공: {endpoint}, {payload}. 소요시간: {end_time:.2f}초")
+    except Exception as e:
+        logger.error(f"7-e) 댓글 생성/전송 중 에러 발생: {e}", exc_info=True) #traceback을 남김.
+        logger.error(f"댓글 생성, 전송 중 오류가 발생하여 댓글 생성을 종료합니다.")
+        #logger.error(f"댓글 생성, 전송 중 오류가 발생하여 {i + 1}번째 댓글 생성을 종료합니다.") #traceback을 남김.
 
 
     end_time = time.perf_counter() - start

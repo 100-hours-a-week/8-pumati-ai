@@ -59,7 +59,7 @@ class GemmaPrompt:
         summary = summarize(detail_Description, ratio=ratio) or detail_Description
         summary = summarize(summary, ratio=ratio) or summary
 
-        logger.info(f"6-2-2) summary : {summary}")
+        #logger.info(f"6-2-2) summary : {summary}")
 
         return summary               
     
@@ -68,8 +68,8 @@ class GemmaPrompt:
         프로젝트 정보를 기반으로 LLM 프롬프트 문자열 생성
         """
         instruction = """너는 한국인 웹 서비스 사용 후기 작성자야. 
-        아래 프로젝트 정보를 보고 칭찬 댓글을 **하나** JSON 형태로 출력해줘. 
-        반드시 카테부(부트캠프)의 프로젝트 정보를 반영하여 {"comment" : "..."} 형식의 **긍정적인 댓글**을 작성해줘."""
+        아래 프로젝트 정보를 보고 칭찬 댓글을 하나 JSON 형태로 출력해. 
+        반드시 카테부(부트캠프)의 프로젝트 정보를 반영하여 {"comment" : "..."} 형식의 긍정적인 댓글을 작성해."""
 
         #logger.info(f"instruction: {instruction}")
 
