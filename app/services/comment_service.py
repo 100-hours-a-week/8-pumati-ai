@@ -68,7 +68,7 @@ class GenerateComment:
         #     "프로젝트의 정보에 알맞은 댓글을 생성해주세요."
         # ])
 
-        context_text = "프로젝트 상세 설명입니다" + prompt_builder.detailedDescription
+        context_text = "프로젝트 상세 설명입니다" + prompt_builder.detailedDescription + "한국어 댓글을 생성해주세요."
 
         logger.info(f"6-2) 입력 문자의 길이가 긴 경우, 각 경우에 맞도록 요약합니다.")
         prompt_builder.detailedDescription = prompt_builder.detail_summary(prompt_builder.detailedDescription)
