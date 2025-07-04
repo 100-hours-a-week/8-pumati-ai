@@ -3,7 +3,7 @@
 # GitHub Actions 워크플로우 이름
 name: Build and Push Anna AI Image
 
-# 워크플로우 트리거 조건 설정
+# 워크플로우 트리거 조건 설정 
 # main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
 on:
   push:
