@@ -126,21 +126,37 @@ jobs:
 
       # 빌드 후 이미지 태그 확인 (선택사항)
       - name: List Docker images
-        run: docker images
-
-      # ⭐ 이 단계를 푸시 전으로 이동!
-      - name: Retag image as latest
         run: |
-          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          echo "=== 빌드 후 모든 이미지 확인 ==="
+          docker images
+          echo "=== dev/ai 이미지만 확인 ==="
+          docker images | grep "dev/ai" || echo "dev/ai 이미지가 없습니다!"
+
+      # ⭐ 강제 리태깅 - 더 확실하게
+      - name: Force retag image as latest
+        run: |
+          echo "현재 SHA: ${{ github.sha }}"
+          CURRENT_IMAGE="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          LATEST_IMAGE="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
+          
+          echo "🏷️ 현재 이미지: $CURRENT_IMAGE"
+          echo "🏷️ latest 이미지: $LATEST_IMAGE"
+          
+          # 기존 latest 태그 제거 (있다면)
+          docker rmi "$LATEST_IMAGE" || echo "기존 latest 태그가 없습니다"
+          
+          # 새로 latest 태그 붙이기
+          docker tag "$CURRENT_IMAGE" "$LATEST_IMAGE"
+          
+          echo "✅ 리태깅 완료!"
 
       # 리태깅 후 이미지 확인
       - name: Verify latest tag after retag
         run: |
           echo "=== 리태깅 후 이미지 목록 ==="
-          docker images | grep "${{ env.IMAGE_NAME }}"
-          echo "=== latest 태그 확인 ==="
-          docker images "${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
+          docker images | grep "dev/ai"
+          echo "=== latest 태그 상세 확인 ==="
+          docker inspect "${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest" | grep -A5 -B5 "Id\|Created"
 
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
