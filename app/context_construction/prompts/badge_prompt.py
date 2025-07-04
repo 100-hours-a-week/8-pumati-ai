@@ -155,7 +155,8 @@ class BadgePrompt:
             img = Image.open(BytesIO(png_data)).convert("RGB")
             w, h = img.size
             logger.info(f"3-7-2) {w}, {h}")
-            if w < 50 or w < 50:
+            if w < 50 or h < 50:
+                logger.info(f"3-7-3) 이미지를 rescailing합니다.")
                 scale = 52 / min(h, w)
                 img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
         else:
@@ -171,7 +172,7 @@ class BadgePrompt:
         color_counts = Counter(pixels)
         most_common_colors = color_counts.most_common(3) #or ["white"]
 
-        logger.info(f"3-7-3) 팀 로고 색을 추출합니다.")
+        logger.info(f"3-7-4) 팀 로고 색을 추출합니다.")
 
         if not most_common_colors:
             # 흰색(RGB)과 가상의 count 값으로 대체
@@ -186,19 +187,20 @@ class BadgePrompt:
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.scene_color = ', '.join(BPB_color_names)
 
-        logger.info(f"3-7-4) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
+        logger.info(f"3-7-5) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
         
         #해상도 높이기 
-        logger.info(f"3-7-5) 이미지의 해상도를 높입니다.")
+        logger.info(f"3-7-6) 이미지의 해상도를 높입니다.")
         
         #np_img = np.array(img) #np에서 512x512로 확장
-        logger.info(f"3-7-6) 128x128로 보간.")
+        logger.info(f"3-7-7) 128x128로 보간.")
         #input_logo_resized = await self.keep_ratio(np_img)
         input_logo_resized = await self.keep_ratio(img)
         #input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
-        logger.info(f"3-7-7) upscailing모델을 사용합니다.")
+        logger.info(f"3-7-8) upscailing모델을 사용합니다.")
         input_logo_resized = np.array(input_logo_resized)
         upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
+        logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
         #upscaled = cv2.resize(np_img, (256, 256), interpolation=cv2.INTER_LANCZOS4)
