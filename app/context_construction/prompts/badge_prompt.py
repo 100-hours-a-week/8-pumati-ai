@@ -157,13 +157,14 @@ class BadgePrompt:
             logger.info(f"3-7-2) {w}, {h}")
             if w < 50 or h < 50:
                 logger.info(f"3-7-3) 이미지를 rescailing합니다.")
-                scale = 52 / min(h, w)
+                #이후 w < 50 or h < 50인 경우는 pass하도록 설정되어 있음.
+                scale = 52 / min(h, w) # 확장자가 svg인 경우, w,h중 작은 길이를 기준으로 52이상으로 upscailing하여 pass하지 않도록 함.
                 img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
         else:
             # 일반 이미지 처리
             img = Image.open(BytesIO(response.content)).convert("RGB")
 
-        small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
+        small_img = img.resize((64, 64))  # 주요 색 추출을 위해 이미지 사이즈 조정.
 
         # 색상 목록 추출 (flatten)
         pixels = list(small_img.getdata())
@@ -194,29 +195,24 @@ class BadgePrompt:
         
         #np_img = np.array(img) #np에서 512x512로 확장
         logger.info(f"3-7-7) 128x128로 보간.")
-        #input_logo_resized = await self.keep_ratio(np_img)
         input_logo_resized = await self.keep_ratio(img)
-        #input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
         logger.info(f"3-7-8) upscailing모델을 사용합니다.")
         input_logo_resized = np.array(input_logo_resized)
         upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
         logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
-        #upscaled = cv2.resize(np_img, (256, 256), interpolation=cv2.INTER_LANCZOS4)
-        
-        #pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
-        #blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=1.2))
-        #contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
-        #sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
-        
-        #cv_image_logo = np.array(resized) #np에서 canny이미지 획득
-        canny_logo = cv2.Canny(resized, 100, 200) #50, 150)
+        canny_logo = cv2.Canny(resized, 100, 200)
 
-        del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized
+        #선을 두껍게 변경.
+        kernel = np.ones((2, 2), np.uint8)  # 커널 크기 (선 굵기 조절)
+        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=2)  # 반복 횟수도 조절 가능
+
+
+        del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized, canny_logo
         gc.collect()
 
-        return canny_logo
+        return dilated_logo
 
     async def find_logo_image_url(self, soup, page_url):
         # 1. alt에 'logo'가 포함된 이미지 찾기
