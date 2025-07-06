@@ -182,8 +182,8 @@ class BadgePrompt:
 
         css3_colors = await self.load_css3_colors("./app/utils/css3_colors.json")
         color_names = [await self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:4]
-        if "black" in color_names:
-            color_names.remove("black")
+        # if "black" in color_names:
+        #     color_names.remove("black")
 
         self.color = ', '.join(color_names)
 
