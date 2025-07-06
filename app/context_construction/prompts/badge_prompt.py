@@ -103,8 +103,8 @@ class BadgePrompt:
         # resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
         w, h = pil_img.size
         logger.info(f"img_size: {w}, {h}")
-        if w < 50 or h < 50:
-            return None
+        # if w < 50 or h < 50:
+        #     return None
 
         # 비율 유지하여 128 크기로 맞추기
         scale = 128 / max(h, w)
@@ -209,7 +209,7 @@ class BadgePrompt:
         canny_logo = cv2.Canny(resized, 100, 200)
 
         #선을 두껍게 변경.
-        kernel = np.ones((2, 2), np.uint8)  # 커널 크기 (선 굵기 조절)
+        kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
         dilated_logo = cv2.dilate(canny_logo, kernel, iterations=2)  # 반복 횟수도 조절 가능
 
 
