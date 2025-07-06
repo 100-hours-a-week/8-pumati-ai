@@ -102,6 +102,7 @@ class BadgePrompt:
 
         # resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
         w, h = pil_img.size
+        logger.info(f"img_size: {w}, {h}")
         if w < 50 or h < 50:
             return None
 
@@ -381,6 +382,7 @@ class BadgePrompt:
             text_h = text_size[3] - text_size[1]
             text_x = (image_size - text_w) // 2
             text_y = (image_size - text_h) // 2
+            logger.info(f"text_w, text_h : {text_w}, {text_h} / text_x, text_y : {text_x}, {text_y}")
 
             # 3. 글자 그림
             logger.error(f"3-11-4) 글자 삽입")
