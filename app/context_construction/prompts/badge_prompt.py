@@ -206,11 +206,11 @@ class BadgePrompt:
         logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
-        canny_logo = cv2.Canny(resized, 50, 200)[2:-2, 2:-2]
+        canny_logo = cv2.Canny(resized, 50, 200)[3:-3, 3:-3]
 
         #선을 두껍게 변경.
         kernel = np.ones((4, 4), np.uint8)  # 커널 크기 (선 굵기 조절)
-        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=3)  # 반복 횟수도 조절 가능
+        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=4)  # 반복 횟수도 조절 가능
 
 
         del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized, canny_logo
