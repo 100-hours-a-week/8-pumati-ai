@@ -185,7 +185,7 @@ class BadgePrompt:
         logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
-        canny_logo = cv2.Canny(resized, 50, 200)[10:-10, 10:-10]
+        canny_logo = cv2.Canny(resized, 50, 200)[8:-8, 8:-8]
 
         #선을 두껍게 변경.s
         kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
