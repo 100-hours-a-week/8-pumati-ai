@@ -19,6 +19,7 @@ ARG USE_REMOTE_CHROMA
 ARG QDRANT_API_KEY
 ARG QDRANT_URL
 ARG QDRANT_COLLECTION
+ARG VLLM_API_URL
 
 # ──────────────────────────────────────────────────
 # 2. 환경변수 설정 (pip 캐시 활성화로 변경)
@@ -90,7 +91,8 @@ ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
     USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA} \
     QDRANT_API_KEY=${QDRANT_API_KEY} \
     QDRANT_URL=${QDRANT_URL} \
-    QDRANT_COLLECTION=${QDRANT_COLLECTION}
+    QDRANT_COLLECTION=${QDRANT_COLLECTION} \
+    VLLM_API_URL=${VLLM_API_URL}
 
 # ──────────────────────────────────────────────────
 # 10. 포트 노출 및 실행 명령
@@ -111,6 +113,7 @@ echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env\n\
 echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env\n\
 echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env\n\
 echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env\n\
+echo "VLLM_API_URL=${VLLM_API_URL}" >> /workspace/.env\n\
 \n\
 # FastAPI 서버 실행\n\
 exec python -m uvicorn app.main_gpu:app --host 0.0.0.0 --port 8080\n\
