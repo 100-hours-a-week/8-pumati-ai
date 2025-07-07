@@ -15,7 +15,7 @@ SUFFIX = """---
 {input}
 """.strip()
 
-gemini_summarize_prompt_template = PromptTemplate(
+summarize_prompt_template = PromptTemplate(
     input_variables=["input"],
     template=f"{PREFIX}\n\n{SUFFIX}"
 )
