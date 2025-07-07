@@ -1,4 +1,4 @@
-# app/context_construction/prompts/gemini_summarize_prompt.py
+# app/context_construction/prompts/summarize_prompt.py
 
 from langchain.prompts import PromptTemplate
 
