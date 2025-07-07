@@ -189,7 +189,7 @@ class BadgePrompt:
 
         #선을 두껍게 변경.
         kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
-        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=2)  # 반복 횟수도 조절 가능
+        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=3)  # 반복 횟수도 조절 가능
 
         del Pil_image, small_img, pixels, input_logo_resized, upscaled, resized, canny_logo
 
