@@ -25,9 +25,12 @@ if __name__ == "__main__":
         )
     )
 
-
     start = time.time()
     for _ in range(4):
         comment = comment_generator_instance.generate_comment(dummy_data)
         logger.info("생성된 댓글: %s", comment)
         logger.info("실행 시간: %.2f초", time.time() - start)
+
+#PYTHONPATH="/Users/hbin/KTD/pumati-ai/8-pumati-ai/app" \
+#/Users/hbin/KTD/pumati-ai/8-pumati-ai/.venv/bin/python \
+#/Users/hbin/KTD/pumati-ai/8-pumati-ai/app/model_inference/comment_inference_runner.py

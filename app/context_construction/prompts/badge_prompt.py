@@ -91,44 +91,60 @@ class BadgePrompt:
 
         return output_img.astype(np.uint8)
     
-    async def keep_ratio(self, np_img):
-        h, w = np_img.shape[:2]
+    async def keep_ratio(self, pil_img): #np_img):
+        #h, w = np_img.shape[:2]
+        # w, h = pil_img.size
 
-        # 비율 유지
+        # # 비율 유지
+        # scale = 128 / max(h, w)
+        # new_w = int(w * scale)
+        # new_h = int(h * scale)
+
+        # resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        w, h = pil_img.size
+        logger.info(f"img_size: {w}, {h}")
+        # if w < 50 or h < 50:
+        #     return None
+
+        # 비율 유지하여 128 크기로 맞추기
         scale = 128 / max(h, w)
         new_w = int(w * scale)
         new_h = int(h * scale)
 
-        resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-        # 3채널짜리 128x128 배경 생성 (흰색)
-        background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
+        # 이미지 리사이즈 (LANCZOS는 고품질)
+        resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
 
-        # 중앙에 배치하기 위해 시작점 계산
-        y_offset = (128 - new_h) // 2
+        # 흰색 배경 128x128 생성
+        background = Image.new("RGB", (128, 128), (255, 255, 255))
+
+        # 중앙 배치 좌표 계산
         x_offset = (128 - new_w) // 2
+        y_offset = (128 - new_h) // 2
 
-        # 배경 위에 얹기
-        background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_logo
+        # 배경에 붙이기
+        background.paste(resized_img, (x_offset, y_offset))
 
-        del resized_logo
+        del resized_img
         gc.collect()
 
         return background
+        # background = Image.new("RGB", (128, 128), (255, 255, 255))
+        # # 3채널짜리 128x128 배경 생성 (흰색)
+        # background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
 
-    
-    async def get_image(self, url):
-        response = requests.get(url)
-        content_type = response.headers.get("Content-Type", "")
+        # # 중앙에 배치하기 위해 시작점 계산
+        # y_offset = (128 - new_h) // 2
+        # x_offset = (128 - new_w) // 2
 
-        if "svg" in content_type or url.lower().endswith(".svg"):
-            # SVG는 cairosvg로 처리
-            png_data = cairosvg.svg2png(bytestring=response.content)
-            img = Image.open(BytesIO(png_data)).convert("RGB")
-        else:
-            # 일반 이미지 처리
-            img = Image.open(BytesIO(response.content)).convert("RGB")
+        # # 배경 위에 얹기
+        # background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized_logo
 
-        small_img = img.resize((64, 64))  # 너무 작게는 하지 말기
+        # del resized_logo
+        # gc.collect()
+
+        # return background
+    async def img_preprocessing(self, Pil_image):
+        small_img = Pil_image.resize((64, 64))  # 주요 색 추출을 위해 이미지 사이즈 조정.
 
         # 색상 목록 추출 (flatten)
         pixels = list(small_img.getdata())
@@ -137,7 +153,7 @@ class BadgePrompt:
         color_counts = Counter(pixels)
         most_common_colors = color_counts.most_common(3) #or ["white"]
 
-        logger.info(f"3-7-1) 팀 로고 색을 추출합니다.")
+        logger.info(f"3-7-4) 팀 로고 색을 추출합니다.")
 
         if not most_common_colors:
             # 흰색(RGB)과 가상의 count 값으로 대체
@@ -145,6 +161,9 @@ class BadgePrompt:
 
         css3_colors = await self.load_css3_colors("./app/utils/css3_colors.json")
         color_names = [await self.closest_css3_color_name(rgb, css3_colors) for rgb, _ in most_common_colors][:4]
+        # if "black" in color_names:
+        #     color_names.remove("black")
+
         self.color = ', '.join(color_names)
 
         css3_BPB_colors = await self.load_css3_colors("./app/utils/css3_blue_purple_black_colors_rgb.json")
@@ -152,33 +171,57 @@ class BadgePrompt:
         # 색상명 리스트 추출  # 예: ['red', 'lime', 'blue']
         self.scene_color = ', '.join(BPB_color_names)
 
-        logger.info(f"3-7-2) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
+        logger.info(f"3-7-5) 색 추출 완료. all colors: {self.color}, Blue, purple, black colors: {self.scene_color}")
         
         #해상도 높이기 
-        logger.info(f"3-7-3) 이미지의 해상도를 높입니다.")
+        logger.info(f"3-7-6) 이미지의 해상도를 높입니다.")
         
-        np_img = np.array(img) #np에서 512x512로 확장
-        logger.info(f"3-7-4) 128x128로 보간.")
-        input_logo_resized = await self.keep_ratio(np_img)
-        #input_logo_resized = cv2.resize(np_img, (128, 128), interpolation=cv2.INTER_CUBIC)
-        logger.info(f"3-7-5) upscailing모델을 사용합니다.")
+        #np_img = np.array(img) #np에서 512x512로 확장
+        logger.info(f"3-7-7) 128x128로 보간.")
+        input_logo_resized = await self.keep_ratio(Pil_image)
+        logger.info(f"3-7-8) upscailing모델을 사용합니다.")
+        input_logo_resized = np.array(input_logo_resized)
         upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
+        logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
-        #upscaled = cv2.resize(np_img, (256, 256), interpolation=cv2.INTER_LANCZOS4)
-        
-        #pil_img = Image.fromarray(upscaled) #PIL에서 명암 강화
-        #blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=1.2))
-        #contrast = ImageEnhance.Contrast(pil_img).enhance(1.5)   # 대비 ↑
-        #sharp = ImageEnhance.Sharpness(contrast).enhance(2.0)
-        
-        #cv_image_logo = np.array(resized) #np에서 canny이미지 획득
-        canny_logo = cv2.Canny(resized, 100, 200) #50, 150)
+        canny_logo = cv2.Canny(resized, 50, 200)[8:-8, 8:-8]
 
-        del response, img, small_img, pixels, color_counts, css3_colors, color_names, css3_BPB_colors, BPB_color_names, input_logo_resized, upscaled, resized
+        #선을 두껍게 변경.s
+        kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
+        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=2)  # 반복 횟수도 조절 가능
+
+        del Pil_image, small_img, pixels, input_logo_resized, upscaled, resized, canny_logo
+
+        return dilated_logo
+
+    
+    async def get_image(self, url):
+        response = requests.get(url)
+        content_type = response.headers.get("Content-Type", "")
+
+        if "svg" in content_type or url.lower().endswith(".svg"):
+            # SVG는 cairosvg로 처리
+            logger.info(f"3-7-1) 팀 로고 색을 추출합니다.")
+            png_data = cairosvg.svg2png(bytestring=response.content)
+            img = Image.open(BytesIO(png_data)).convert("RGB")
+            w, h = img.size
+            logger.info(f"3-7-2) {w}, {h}")
+            if w < 50 or h < 50:
+                logger.info(f"3-7-3) 이미지를 rescailing합니다.")
+                #이후 w < 50 or h < 50인 경우는 pass하도록 설정되어 있음.
+                scale = 52 / min(h, w) # 확장자가 svg인 경우, w,h중 작은 길이를 기준으로 52이상으로 upscailing하여 pass하지 않도록 함.
+                img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        else:
+            # 일반 이미지 처리
+            img = Image.open(BytesIO(response.content)).convert("RGB")
+
+        dilated_logo = await self.img_preprocessing(img)
+
+        del response, img
         gc.collect()
 
-        return canny_logo
+        return dilated_logo
 
     async def find_logo_image_url(self, soup, page_url):
         # 1. alt에 'logo'가 포함된 이미지 찾기
@@ -213,6 +256,23 @@ class BadgePrompt:
     async def get_disquiet_exact_team_image(self, team_title: str):
         logger.info("3-4) 각 팀의 로고를 크롤링...")
         page_url = self.data.deploymentUrl
+
+        if self.data.teamNumber == 20:
+            logger.info("3-4-1) 20팀 이미지를 불러옵니다")
+            img_20 = Image.open("./app/utils/20.ico")
+            return await self.img_preprocessing(img_20)
+
+
+        elif self.data.teamNumber == 14:
+            logger.info("3-4-1) 14팀 이미지를 불러옵니다.")
+            img_14 = Image.open("./app/utils/14.png")
+            return await self.img_preprocessing(img_14)
+        
+        elif self.data.teamNumber == 3:
+            logger.info("3-4-1) 3팀 이미지를 불러옵니다.")
+            img_3 = Image.open("./app/utils/3.png")
+            return await self.img_preprocessing(img_3)
+
 
         options = Options()
         options.binary_location = "/usr/bin/google-chrome"
@@ -310,6 +370,8 @@ class BadgePrompt:
                     soup = BeautifulSoup(html, "html.parser")
                     logo_url = await self.find_logo_image_url(soup, current_url)
                     logger.info(f"3-10-2) 팀 로고 URL: {logo_url}")
+                    canny_logo = await self.get_image(logo_url)
+                    return canny_logo
                 except Exception as e:
                     logger.error(f"3-10-e) 파비콘 못 찾음: {repr(e)}")
 
@@ -345,6 +407,7 @@ class BadgePrompt:
             text_h = text_size[3] - text_size[1]
             text_x = (image_size - text_w) // 2
             text_y = (image_size - text_h) // 2
+            logger.info(f"text_w, text_h : {text_w}, {text_h} / text_x, text_y : {text_x}, {text_y}")
 
             # 3. 글자 그림
             logger.error(f"3-11-4) 글자 삽입")

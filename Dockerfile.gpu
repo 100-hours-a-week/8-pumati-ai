@@ -1,7 +1,7 @@
 # Dockerfile.gpu
 
 # ──────────────────────────────────────────────────
-# 최적화된 Dockerfile.gpu - 빌드 속도 개선
+# 최적화된 Dockerfile.gpu - 빌드 속도 개선 (캐싱 강화)
 # ──────────────────────────────────────────────────
 FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 
@@ -19,26 +19,16 @@ ARG USE_REMOTE_CHROMA
 ARG QDRANT_API_KEY
 ARG QDRANT_URL
 ARG QDRANT_COLLECTION
+ARG VLLM_API_URL
 
 # ──────────────────────────────────────────────────
-# 2. 환경변수 설정 (한번에 설정하여 레이어 최소화)
+# 2. 환경변수 설정 (pip 캐시 활성화로 변경)
 # ──────────────────────────────────────────────────
-ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
-    GITHUB_TOKEN=${GITHUB_TOKEN} \
-    LANGSMITH_TRACING=${LANGSMITH_TRACING} \
-    LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT} \
-    LANGSMITH_API_KEY=${LANGSMITH_API_KEY} \
-    LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT} \
-    GEMINI_API_KEY=${GEMINI_API_KEY} \
-    USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA} \
-    QDRANT_API_KEY=${QDRANT_API_KEY} \
-    QDRANT_URL=${QDRANT_URL} \
-    QDRANT_COLLECTION=${QDRANT_COLLECTION} \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
     PYTHONPATH=/workspace \
-    PIP_NO_CACHE_DIR=0
+    PIP_NO_CACHE_DIR=1
 
 # ──────────────────────────────────────────────────
 # 3. 작업 디렉토리 설정
@@ -46,7 +36,7 @@ ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
 WORKDIR /workspace
 
 # ──────────────────────────────────────────────────
-# 4. 시스템 패키지 설치 (한 번에 설치하여 레이어 최소화)
+# 4. 시스템 패키지 설치 (캐시 마운트 활용)
 # ──────────────────────────────────────────────────
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
@@ -62,32 +52,71 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && apt-get install -y python3.10 python3.10-distutils \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 \
     && ln -sf /usr/bin/python3.10 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip \
-    && rm -rf /var/lib/apt/lists/*
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
 
-# requirements 설치
+# ──────────────────────────────────────────────────
+# 5. pip 업그레이드 (캐시 마운트 활용)
+# ──────────────────────────────────────────────────
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip
+
+# ──────────────────────────────────────────────────
+# 6. requirements 파일만 먼저 복사 (의존성 캐싱 최적화)
+# ──────────────────────────────────────────────────
 COPY requirements.gpu.txt .
-RUN pip install --no-cache-dir --upgrade pip \
- && pip uninstall -y torch torchvision torch_xla || true \
- && pip install --no-cache-dir -r requirements.gpu.txt \
- && pip install --no-cache-dir --upgrade tokenizers transformers faker
 
-# .env 파일 생성
-RUN echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env && \
-    echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> /workspace/.env && \
-    echo "LANGSMITH_TRACING=${LANGSMITH_TRACING}" >> /workspace/.env && \
-    echo "LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}" >> /workspace/.env && \
-    echo "LANGSMITH_API_KEY=${LANGSMITH_API_KEY}" >> /workspace/.env && \
-    echo "LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}" >> /workspace/.env && \
-    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env && \
-    echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env && \
-    echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env && \
-    echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env && \
-    echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env
+# ──────────────────────────────────────────────────
+# 7. Python 패키지 설치 (캐시 마운트 활용)
+# ──────────────────────────────────────────────────
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip uninstall -y torch torchvision torch_xla || true \
+    && pip install -r requirements.gpu.txt \
+    && pip install --upgrade tokenizers transformers faker
 
-# 소스 코드 복사
+# ──────────────────────────────────────────────────
+# 8. 소스 코드 복사 (가장 마지막에 수행)
+# ──────────────────────────────────────────────────
 COPY . /workspace/
 
-# FastAPI 서버 실행
+# ──────────────────────────────────────────────────
+# 9. 환경변수 파일 생성 (런타임에 생성하도록 변경)
+# ──────────────────────────────────────────────────
+ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
+    GITHUB_TOKEN=${GITHUB_TOKEN} \
+    LANGSMITH_TRACING=${LANGSMITH_TRACING} \
+    LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT} \
+    LANGSMITH_API_KEY=${LANGSMITH_API_KEY} \
+    LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT} \
+    GEMINI_API_KEY=${GEMINI_API_KEY} \
+    USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA} \
+    QDRANT_API_KEY=${QDRANT_API_KEY} \
+    QDRANT_URL=${QDRANT_URL} \
+    QDRANT_COLLECTION=${QDRANT_COLLECTION} \
+    VLLM_API_URL=${VLLM_API_URL}
+
+# ──────────────────────────────────────────────────
+# 10. 포트 노출 및 실행 명령
+# ──────────────────────────────────────────────────
 EXPOSE 8080
-CMD ["python", "-m", "uvicorn", "app.main_gpu:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# 시작 스크립트 생성 및 실행
+RUN echo '#!/bin/bash\n\
+# .env 파일 생성\n\
+echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env\n\
+echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> /workspace/.env\n\
+echo "LANGSMITH_TRACING=${LANGSMITH_TRACING}" >> /workspace/.env\n\
+echo "LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}" >> /workspace/.env\n\
+echo "LANGSMITH_API_KEY=${LANGSMITH_API_KEY}" >> /workspace/.env\n\
+echo "LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}" >> /workspace/.env\n\
+echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env\n\
+echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env\n\
+echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env\n\
+echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env\n\
+echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env\n\
+echo "VLLM_API_URL=${VLLM_API_URL}" >> /workspace/.env\n\
+\n\
+# FastAPI 서버 실행\n\
+exec python -m uvicorn app.main_gpu:app --host 0.0.0.0 --port 8080\n\
+' > /workspace/start.sh && chmod +x /workspace/start.sh
+
+CMD ["/workspace/start.sh"]
