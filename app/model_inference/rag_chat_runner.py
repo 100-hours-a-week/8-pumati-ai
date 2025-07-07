@@ -1,6 +1,7 @@
 # app/model_inference/rag_chat_runner.py
 
 import os
+import time
 from typing import List
 from dotenv import load_dotenv
 
@@ -217,5 +218,14 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 응답 스트리밍 처리
+    start_time = time.perf_counter()
+    first_token_sent = False
+
     async for char_chunk in chain.astream(prompt_input, config=config):
+        if not first_token_sent:
+            first_token_time = time.perf_counter()
+            print(f"⏱️ First token delay: {first_token_time - start_time:.3f} seconds")
+            first_token_sent = True
         yield char_chunk
+    end_time = time.perf_counter()
+    print(f"⏱️ Full generation time: {end_time - start_time:.3f} seconds")
