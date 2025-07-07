@@ -185,11 +185,11 @@ class BadgePrompt:
         logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
-        canny_logo = cv2.Canny(resized, 50, 200)[3:-3, 3:-3]
+        canny_logo = cv2.Canny(resized, 50, 200)[10:-10, 10:-10]
 
-        #선을 두껍게 변경.
+        #선을 두껍게 변경.s
         kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
-        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=3)  # 반복 횟수도 조절 가능
+        dilated_logo = cv2.dilate(canny_logo, kernel, iterations=2)  # 반복 횟수도 조절 가능
 
         del Pil_image, small_img, pixels, input_logo_resized, upscaled, resized, canny_logo
 
@@ -265,7 +265,7 @@ class BadgePrompt:
 
         elif self.data.teamNumber == 14:
             logger.info("3-4-1) 14팀 이미지를 불러옵니다.")
-            img_14 = Image.open("./app/utils/14_egg.png")
+            img_14 = Image.open("./app/utils/14.png")
             return await self.img_preprocessing(img_14)
         
         elif self.data.teamNumber == 3:
