@@ -23,6 +23,7 @@ from app.context_construction.prompts.chat_prompt import build_prompt_template, 
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
 from app.model_inference.embedding_runner import vectorstore
+from app.services.question_filter import is_project_related
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -142,6 +143,15 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
+    # Gemini 기반 질문 필터링
+    if not is_project_related(question):
+        for char in FILTERED_RESPONSE:
+            if char == '\n':
+                yield '\\n'
+            else:
+                yield char
+        return
+    
     # 문서 검색기 구성 (project_id 필터 포함)
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
@@ -163,8 +173,10 @@ async def run_rag_streaming(question: str, project_id: int):
 
     config = RunnableConfig(tags=["run_rag_streaming"])
 
-    if config and config.get("callbacks"):
-        run_id = config.get("callbacks")[0].current_run_id
+    callbacks = config.get("callbacks") if config else None
+    if isinstance(callbacks, list) and len(callbacks) > 0:
+        callback = callbacks[0]
+        run_id = getattr(callback, "run_id", None)
         if run_id:
             ls_client = client.Client()
             retrieved_doc_metadata = [
