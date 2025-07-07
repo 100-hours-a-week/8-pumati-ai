@@ -265,8 +265,13 @@ class BadgePrompt:
 
         elif self.data.teamNumber == 14:
             logger.info("3-4-1) 14팀 이미지를 불러옵니다.")
-            img_14 = Image.open("./app/utils/14.png")
+            img_14 = Image.open("./app/utils/14_egg.png")
             return await self.img_preprocessing(img_14)
+        
+        elif self.data.teamNumber == 3:
+            logger.info("3-4-1) 3팀 이미지를 불러옵니다.")
+            img_3 = Image.open("./app/utils/3.png")
+            return await self.img_preprocessing(img_3)
 
 
         options = Options()
