@@ -45,8 +45,7 @@ jobs:
 
       # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
-        run: |
-          echo "${{ secrets.ENV_GPU }}" > .env
+        run: echo "${{ secrets.ENV_GPU }}" > .env
 
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
@@ -93,40 +92,15 @@ jobs:
             ${{ runner.os }}-buildx-
 
       # 6. Docker BuildKit 활성화 + GPU 사용 (캐시 최적화)
-      - name: Build Docker image with GPU
+      - name: Build Docker image
         run: |
-          # 캐시 설정
-          CACHE_FROM=""
-          if [ "${{ steps.existing_image.outputs.existing_image }}" == "true" ]; then
-            CACHE_FROM="--cache-from ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
-          fi
-          
-          # 빌드 시작 시간 기록
-          BUILD_START=$(date +%s)
-          
-          # Docker 빌드 실행 (환경변수는 런타임에 주입되므로 빌드 인자에서 제외)
-          DOCKER_BUILDKIT=1 docker build \
+          docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
-            $CACHE_FROM \
-            --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
-            --label git_commit="${{ github.sha }}" \
-            --label git_author="${{ github.actor }}" \
-            --label git_message="${{ steps.commit_message.outputs.message }}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
-          
-          # 빌드 시간 계산 및 출력
-          BUILD_END=$(date +%s)
-          BUILD_TIME=$((BUILD_END - BUILD_START))
-          echo "🕒 빌드 소요 시간: ${BUILD_TIME}초"
-          
-          # 캐시 디렉토리 업데이트
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       # 빌드 후 이미지 태그 확인 (선택사항)
       - name: List Docker images
@@ -145,26 +119,10 @@ jobs:
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시 (상세한 로깅 추가)
-      - name: Push Docker image to Artifact Registry
+      - name: Push Docker image
         run: |
-          echo "Pushing :sha tag (${{ github.sha }})..."
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          
-          echo "---------------------------------------------------------------------"
-          echo "Inspecting local 'latest' tag before pushing to registry:"
-          # 로컬에 태그된 latest 이미지의 상세 정보 확인
-          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          echo "---------------------------------------------------------------------"
-          
-          echo "Attempting to push :latest tag..."
-          # latest 태그 푸시 시도
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          
-          echo "---------------------------------------------------------------------"
-          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
-          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보를 확인
-          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest || echo "latest 태그 조회 실패"
-          echo "---------------------------------------------------------------------"
 
       # 8. 이미지 주소 출력
       - name: Output image URL
