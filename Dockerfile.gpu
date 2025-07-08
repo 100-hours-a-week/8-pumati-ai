@@ -1,43 +1,25 @@
-# Dockerfile.gpu
+# Dockerfile.gpu (최종 최적화 버전)
 
-# ──────────────────────────────────────────────────
-# 최적화된 Dockerfile.gpu - 빌드 속도 개선 (캐싱 강화)
-# ──────────────────────────────────────────────────
+# 1. 베이스 이미지
 FROM gcr.io/deeplearning-platform-release/pytorch-gpu.2-1:latest
 
-# ──────────────────────────────────────────────────
-# 1. 빌드 인자 정의 (변경 빈도가 낮은 것부터)
-# ──────────────────────────────────────────────────
-ARG HF_AUTH_TOKEN
-ARG GITHUB_TOKEN
-ARG LANGSMITH_TRACING
-ARG LANGSMITH_ENDPOINT
-ARG LANGSMITH_API_KEY
-ARG LANGCHAIN_PROJECT
-ARG GEMINI_API_KEY
-ARG USE_REMOTE_CHROMA
-ARG QDRANT_API_KEY
-ARG QDRANT_URL
-ARG QDRANT_COLLECTION
-ARG VLLM_API_URL
+# 2. 빌드 시점에 받을 모든 환경변수를 ARG로 선언합니다.
+#    여기에 ENV_GPU에 포함된 모든 변수명을 추가해야 합니다.
+#    (예시: ARG HF_AUTH_TOKEN)
+#    하지만 더 유연한 방법은 아래 Dockerfile 레이어와 워크플로우를 사용하는 것입니다.
+#    이 파일은 지금은 그대로 둡니다. 워크플로우에서 모든 것을 처리합니다.
 
-# ──────────────────────────────────────────────────
-# 2. 환경변수 설정 (pip 캐시 활성화로 변경)
-# ──────────────────────────────────────────────────
+# 3. 기본 환경변수 설정 (변경 빈도가 가장 낮음)
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TOKENIZERS_PARALLELISM=false \
     PYTHONPATH=/workspace \
     PIP_NO_CACHE_DIR=1
 
-# ──────────────────────────────────────────────────
-# 3. 작업 디렉토리 설정
-# ──────────────────────────────────────────────────
+# 4. 작업 디렉토리 설정
 WORKDIR /workspace
 
-# ──────────────────────────────────────────────────
-# 4. 시스템 패키지 설치 (캐시 마운트 활용)
-# ──────────────────────────────────────────────────
+# 5. 시스템 패키지 설치 (의존성 변경 전까지 캐시됨)
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
@@ -54,69 +36,20 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && ln -sf /usr/bin/python3.10 /usr/bin/python \
     && ln -sf /usr/bin/pip3 /usr/bin/pip
 
-# ──────────────────────────────────────────────────
-# 5. pip 업그레이드 (캐시 마운트 활용)
-# ──────────────────────────────────────────────────
+# 6. pip 업그레이드
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip
 
-# ──────────────────────────────────────────────────
-# 6. requirements 파일만 먼저 복사 (의존성 캐싱 최적화)
-# ──────────────────────────────────────────────────
+# 7. Python 의존성 설치 (requirements.gpu.txt 변경 전까지 캐시됨)
 COPY requirements.gpu.txt .
-
-# ──────────────────────────────────────────────────
-# 7. Python 패키지 설치 (캐시 마운트 활용)
-# ──────────────────────────────────────────────────
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip uninstall -y torch torchvision torch_xla || true \
     && pip install -r requirements.gpu.txt \
     && pip install --upgrade tokenizers transformers faker
 
-# ──────────────────────────────────────────────────
-# 8. 소스 코드 복사 (가장 마지막에 수행)
-# ──────────────────────────────────────────────────
+# 8. 소스 코드 복사 (소스 코드 변경 전까지 캐시됨)
 COPY . /workspace/
 
-# ──────────────────────────────────────────────────
-# 9. 환경변수 파일 생성 (런타임에 생성하도록 변경)
-# ──────────────────────────────────────────────────
-ENV HF_AUTH_TOKEN=${HF_AUTH_TOKEN} \
-    GITHUB_TOKEN=${GITHUB_TOKEN} \
-    LANGSMITH_TRACING=${LANGSMITH_TRACING} \
-    LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT} \
-    LANGSMITH_API_KEY=${LANGSMITH_API_KEY} \
-    LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT} \
-    GEMINI_API_KEY=${GEMINI_API_KEY} \
-    USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA} \
-    QDRANT_API_KEY=${QDRANT_API_KEY} \
-    QDRANT_URL=${QDRANT_URL} \
-    QDRANT_COLLECTION=${QDRANT_COLLECTION} \
-    VLLM_API_URL=${VLLM_API_URL}
-
-# ──────────────────────────────────────────────────
-# 10. 포트 노출 및 실행 명령
-# ──────────────────────────────────────────────────
+# 9. 포트 노출 및 실행 명령
 EXPOSE 8080
-
-# 시작 스크립트 생성 및 실행
-RUN echo '#!/bin/bash\n\
-# .env 파일 생성\n\
-echo "HF_AUTH_TOKEN=${HF_AUTH_TOKEN}" > /workspace/.env\n\
-echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> /workspace/.env\n\
-echo "LANGSMITH_TRACING=${LANGSMITH_TRACING}" >> /workspace/.env\n\
-echo "LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT}" >> /workspace/.env\n\
-echo "LANGSMITH_API_KEY=${LANGSMITH_API_KEY}" >> /workspace/.env\n\
-echo "LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT}" >> /workspace/.env\n\
-echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env\n\
-echo "USE_REMOTE_CHROMA=${USE_REMOTE_CHROMA}" >> /workspace/.env\n\
-echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env\n\
-echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env\n\
-echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env\n\
-echo "VLLM_API_URL=${VLLM_API_URL}" >> /workspace/.env\n\
-\n\
-# FastAPI 서버 실행\n\
-exec python -m uvicorn app.main_gpu:app --host 0.0.0.0 --port 8080\n\
-' > /workspace/start.sh && chmod +x /workspace/start.sh
-
-CMD ["/workspace/start.sh"]
+CMD ["python", "-m", "uvicorn", "app.main_gpu:app", "--host", "0.0.0.0", "--port", "8080"]
