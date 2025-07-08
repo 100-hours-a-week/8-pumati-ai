@@ -108,6 +108,8 @@ class BadgePrompt:
         # 알파 마스크로 병합
         alpha = PIL_img.split()[3]
         bg.paste(PIL_img, (x_offset, y_offset), mask=alpha)
+        # plt.imshow(bg) #삭제
+        # plt.show()
 
         del PIL_img, alpha
         gc.collect()
@@ -141,9 +143,13 @@ class BadgePrompt:
         new_w = int(w * scale)
         new_h = int(h * scale)
 
+        line_location_w = (128 - new_w) // 2
+        line_location_h = (128 - new_h) // 2
+        #print("line_location_w", line_location_w, "line_location_h", line_location_h)
+
         # 이미지 리사이즈 (LANCZOS는 고품질)
         resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
-        # plt.imshow(resized_img, cmap='gray') #삭제
+        # plt.imshow(resized_img) #삭제
         # plt.show()
         
         background = await self.remove_alpha_to_white_bg(resized_img, new_w, new_h)
@@ -163,10 +169,10 @@ class BadgePrompt:
         # #background.paste(resized_img, (x_offset, y_offset))
         # background.paste(resized_img, mask=resized_img.split()[3])
 
-        del resized_img
+        del resized_img 
         gc.collect()
 
-        return background
+        return background, line_location_w, line_location_h
         # background = Image.new("RGB", (128, 128), (255, 255, 255))
         # # 3채널짜리 128x128 배경 생성 (흰색)
         # background = np.zeros((128, 128, 3), dtype=np.uint8) * 255
@@ -218,7 +224,7 @@ class BadgePrompt:
         
         #np_img = np.array(img) #np에서 512x512로 확장
         logger.info(f"3-7-7) 128x128로 보간.")
-        input_logo_resized = await self.keep_ratio(Pil_image)
+        input_logo_resized, line_location_w, line_location_h = await self.keep_ratio(Pil_image)
         logger.info(f"3-7-8) upscailing모델을 사용합니다.")
         input_logo_resized = np.array(input_logo_resized)
 
@@ -227,9 +233,22 @@ class BadgePrompt:
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
         canny_logo = cv2.Canny(resized, 50, 200)
 
+        #print("line_location_w", line_location_w, "line_location_h", line_location_h)
+
+        if line_location_w > 0.5 :
+            # canny_logo[line_location_w * 4 - 3 : line_location_w * 4 + 3, :] = 0
+            # canny_logo[511 - line_location_w * 4 - 3 : 511 - line_location_w * 4 + 3, :] = 0
+            canny_logo[:, line_location_w * 4 - 5 : line_location_w * 4 + 5] = 0
+            canny_logo[:, 511 - (line_location_w * 4) - 5 : 511 - (line_location_w * 4) + 5] = 0
+
+        if line_location_h > 0.5 :
+            canny_logo[line_location_h * 4 - 5 : line_location_h * 4 + 5, :] = 0
+            canny_logo[511 - line_location_h * 4 - 5 : 511 - line_location_h * 4 + 5, :] = 0
+        
         #선을 두껍게 변경.s
         kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
         dilated_logo = cv2.dilate(canny_logo, kernel, iterations=2)  # 반복 횟수도 조절 가능
+
 
         del Pil_image, small_img, pixels, input_logo_resized, upscaled, resized, canny_logo
 
@@ -311,7 +330,7 @@ class BadgePrompt:
         elif self.data.teamNumber == 3:
             logger.info("3-4-1) 3팀 이미지를 불러옵니다.")
             img_3 = Image.open("./app/utils/3.png")
-            return await self.img_preprocessing(img_3)
+            return await self.img_preprocessing(img_3) #await self.get_image("https://www.meowng.com/logo.svg")
 
 
         options = Options()
@@ -530,6 +549,8 @@ class BadgePrompt:
         cv_image_logo = cv2.resize(np.array(badge.convert("L")), (512, 512))
         logger.info("4-3) 이미지 해상도: 512 x 512")
         canny_badge = cv2.Canny(cv_image_logo, 100, 200)
+        # plt.imshow(canny_badge)
+        # plt.show()
 
         del badge, logo_array, logo, logo_resized, logo_gray, logo_mask, cv_image_logo
         gc.collect()
