@@ -9,7 +9,7 @@ on:
   push:
     branches:
       # 브랜치는 맞게 잘 바꿔서. 
-      - feat/159-db-summary
+      - feat/183-v3-deploy
       - dev
 
 
