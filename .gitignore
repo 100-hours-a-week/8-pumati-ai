@@ -27,3 +27,5 @@ chroma_db_weight/
 
 # 크롤링
 cached_wikis/
+app/utils/release_note
+app/utils/chatbot_train_data

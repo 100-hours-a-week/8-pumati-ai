@@ -9,6 +9,7 @@ COPY . .
 
 # requirements 설치 (크롤링 전용 버전 사용)
 COPY requirements.crawling.txt requirements.crawling.txt
+RUN pip uninstall -y torch_xla || true
 RUN pip install --no-cache-dir -r requirements.crawling.txt
 
 # 빌드 인자 정의

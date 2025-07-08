@@ -20,8 +20,8 @@ class HyperClovaLoader:
         # GPU > MPS > CPU 순으로 디바이스를 선택
         if torch.cuda.is_available():
             return torch.device("cuda")
-        elif torch.backends.mps.is_available():
-            return torch.device("mps")
+        # elif torch.backends.mps.is_available():
+        #     return torch.device("mps")
         return torch.device("cpu")
 
     def load(self):
