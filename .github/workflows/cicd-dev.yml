@@ -132,31 +132,8 @@ jobs:
           echo "=== dev/ai 이미지만 확인 ==="
           docker images | grep "dev/ai" || echo "dev/ai 이미지가 없습니다!"
 
-      # ⭐ 강제 리태깅 - 더 확실하게
-      - name: Force retag image as latest
-        run: |
-          echo "현재 SHA: ${{ github.sha }}"
-          CURRENT_IMAGE="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          LATEST_IMAGE="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
-          
-          echo "🏷️ 현재 이미지: $CURRENT_IMAGE"
-          echo "🏷️ latest 이미지: $LATEST_IMAGE"
-          
-          # 기존 latest 태그 제거 (있다면)
-          docker rmi "$LATEST_IMAGE" || echo "기존 latest 태그가 없습니다"
-          
-          # 새로 latest 태그 붙이기
-          docker tag "$CURRENT_IMAGE" "$LATEST_IMAGE"
-          
-          echo "✅ 리태깅 완료!"
-
-      # 리태깅 후 이미지 확인
-      - name: Verify latest tag after retag
-        run: |
-          echo "=== 리태깅 후 이미지 목록 ==="
-          docker images | grep "dev/ai"
-          echo "=== latest 태그 상세 확인 ==="
-          docker inspect "${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest" | grep -A5 -B5 "Id\|Created"
+      # ⭐ 강제 리태깅 단계 제거하고 푸시 단계를 더 상세하게 만들기
+      # - name: Force retag image as latest (이 단계 삭제)
 
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
@@ -166,14 +143,31 @@ jobs:
             "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
-      # 7. Docker 이미지를 Artifact Registry에 푸시
+      # 7. Docker 이미지를 Artifact Registry에 푸시 (상세한 로깅 추가)
       - name: Push Docker image to Artifact Registry
         run: |
+          echo "Pushing :sha tag (${{ github.sha }})..."
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          
+          echo "---------------------------------------------------------------------"
+          echo "Inspecting local 'latest' tag before pushing to registry:"
+          # 로컬에 태그된 latest 이미지의 상세 정보 확인
+          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          echo "---------------------------------------------------------------------"
+          
+          echo "Attempting to push :latest tag..."
+          # latest 태그 푸시 시도
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "---------------------------------------------------------------------"
+          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
+          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보를 확인
+          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest || echo "latest 태그 조회 실패"
+          echo "---------------------------------------------------------------------"
 
       # 8. 이미지 주소 출력
       - name: Output image URL
         run: |
           echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Latest tag: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
