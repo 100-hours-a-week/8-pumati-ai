@@ -91,7 +91,7 @@ class BadgePrompt:
 
         return output_img.astype(np.uint8)
     
-    async def remove_alpha_to_white_bg(self, PIL_img: Image.Image) -> Image.Image:
+    async def remove_alpha_to_white_bg(self, PIL_img: Image.Image, new_w, new_h) -> Image.Image:
         """
         이미지에 알파 채널이 있으면 흰 배경에 붙여서 RGB 이미지로 변환합니다.
         알파 채널이 없으면 그대로 반환합니다.
@@ -102,9 +102,12 @@ class BadgePrompt:
         # 흰 배경 생성
         bg = Image.new("RGBA", (128,128), (255, 255, 255, 255))
 
+        x_offset = (128 - new_w) // 2
+        y_offset = (128 - new_h) // 2
+
         # 알파 마스크로 병합
         alpha = PIL_img.split()[3]
-        bg.paste(PIL_img, mask=alpha)
+        bg.paste(PIL_img, (x_offset, y_offset), mask=alpha)
 
         del PIL_img, alpha
         gc.collect()
@@ -140,10 +143,12 @@ class BadgePrompt:
 
         # 이미지 리사이즈 (LANCZOS는 고품질)
         resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
-        # plt.imshow(resized_img, cmap='gray') #삭제
-        # plt.show()
+        plt.imshow(resized_img, cmap='gray') #삭제
+        plt.show()
         
-        background = await self.remove_alpha_to_white_bg(resized_img)
+        background = await self.remove_alpha_to_white_bg(resized_img, new_w, new_h)
+        plt.imshow(background)
+        plt.show()
 
         # # 흰색 배경 128x128 생성
         # background = Image.new("RGB", (128, 128), (255, 255, 255, 255))
