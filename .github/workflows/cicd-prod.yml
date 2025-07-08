@@ -10,7 +10,6 @@ on:
     branches:
       # 브랜치는 맞게 잘 바꿔서.
       - main
-      - jacky
 
 jobs:
   build-and-push:
