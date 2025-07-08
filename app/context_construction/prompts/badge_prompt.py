@@ -143,12 +143,12 @@ class BadgePrompt:
 
         # 이미지 리사이즈 (LANCZOS는 고품질)
         resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
-        plt.imshow(resized_img, cmap='gray') #삭제
-        plt.show()
+        # plt.imshow(resized_img, cmap='gray') #삭제
+        # plt.show()
         
         background = await self.remove_alpha_to_white_bg(resized_img, new_w, new_h)
-        plt.imshow(background)
-        plt.show()
+        # plt.imshow(background)
+        # plt.show()
 
         # # 흰색 배경 128x128 생성
         # background = Image.new("RGB", (128, 128), (255, 255, 255, 255))
