@@ -91,6 +91,27 @@ class BadgePrompt:
 
         return output_img.astype(np.uint8)
     
+    async def remove_alpha_to_white_bg(self, PIL_img: Image.Image) -> Image.Image:
+        """
+        이미지에 알파 채널이 있으면 흰 배경에 붙여서 RGB 이미지로 변환합니다.
+        알파 채널이 없으면 그대로 반환합니다.
+        """
+        if PIL_img.mode != "RGBA":
+            PIL_img = PIL_img.convert("RGBA")
+
+        # 흰 배경 생성
+        bg = Image.new("RGBA", (128,128), (255, 255, 255, 255))
+
+        # 알파 마스크로 병합
+        alpha = PIL_img.split()[3]
+        bg.paste(PIL_img, mask=alpha)
+
+        del PIL_img, alpha
+        gc.collect()
+
+        # RGB로 최종 변환
+        return bg.convert("RGB")
+    
     async def keep_ratio(self, pil_img): #np_img):
         #h, w = np_img.shape[:2]
         # w, h = pil_img.size
@@ -119,16 +140,23 @@ class BadgePrompt:
 
         # 이미지 리사이즈 (LANCZOS는 고품질)
         resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
+        # plt.imshow(resized_img, cmap='gray') #삭제
+        # plt.show()
+        
+        background = await self.remove_alpha_to_white_bg(resized_img)
 
-        # 흰색 배경 128x128 생성
-        background = Image.new("RGB", (128, 128), (255, 255, 255))
+        # # 흰색 배경 128x128 생성
+        # background = Image.new("RGB", (128, 128), (255, 255, 255, 255))
+        # plt.imshow(background, cmap='gray') #삭제
+        # plt.show()
 
-        # 중앙 배치 좌표 계산
-        x_offset = (128 - new_w) // 2
-        y_offset = (128 - new_h) // 2
+        # # 중앙 배치 좌표 계산
+        # x_offset = (128 - new_w) // 2
+        # y_offset = (128 - new_h) // 2
 
-        # 배경에 붙이기
-        background.paste(resized_img, (x_offset, y_offset))
+        # # 배경에 붙이기
+        # #background.paste(resized_img, (x_offset, y_offset))
+        # background.paste(resized_img, mask=resized_img.split()[3])
 
         del resized_img
         gc.collect()
@@ -188,10 +216,10 @@ class BadgePrompt:
         input_logo_resized = await self.keep_ratio(Pil_image)
         logger.info(f"3-7-8) upscailing모델을 사용합니다.")
         input_logo_resized = np.array(input_logo_resized)
+
         upscaled = await self.upscale_with_onnx(input_logo_resized, "./app/utils/realesrgan-general-x4v3.onnx")
         logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
-
         canny_logo = cv2.Canny(resized, 50, 200)
 
         #선을 두껍게 변경.s
@@ -524,12 +552,12 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     import sys
-    import os
+    import os, asyncio
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
 
 
     dummy_data = BadgeModifyRequest(
-        modificationTags="몽환적인",
+        modificationTags=["뉴스"],
         projectSummary=BadgeRequest(
             title="품앗이",
             introduction="카카오테크 부트캠프를 위한 트래픽 품앗이 플랫폼",
@@ -539,15 +567,16 @@ if __name__ == '__main__':
             tags=["품앗이"],
             teamId=4,
             term=2,
-            teamNumber=8
+            teamNumber=3
         )
     )
 
     Badge_test_instance = BadgePrompt(dummy_data.projectSummary)
-    badge_canny = Badge_test_instance.insert_logo_on_badge()
+    badge_canny = asyncio.run(Badge_test_instance.insert_logo_on_badge())
 
     cv_image_logo = np.array(badge_canny)
     canny_badge = cv2.Canny(cv_image_logo, 100, 200)
+    
     cv2.imwrite("logo_canny.png", canny_badge)
 
 
