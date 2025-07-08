@@ -17,7 +17,7 @@ HEADERS = {
     "Accept": "application/vnd.github+json"
 }
 
-USE_BACKEND_API=False # 테스트용
+# USE_BACKEND_API=False # 테스트용
 
 def fetch_team_meta():
     print(f"🐛 USE_BACKEND_API 값: {USE_BACKEND_API}")
