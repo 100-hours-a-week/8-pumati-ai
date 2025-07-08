@@ -48,7 +48,10 @@ jobs:
         run: |
           echo "${{ secrets.ENV_GPU }}" > .env
           echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" >> .env
-        working-directory: ${{ github.workspace }}
+
+      # 빌드 직전 .env 파일이 실제로 있는지 확인
+      - name: Check .env file
+        run: ls -al . && cat .env
 
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
