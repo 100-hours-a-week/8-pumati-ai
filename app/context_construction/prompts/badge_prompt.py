@@ -101,7 +101,13 @@ class BadgePrompt:
         # new_h = int(h * scale)
 
         # resized_logo = cv2.resize(np_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+
         w, h = pil_img.size
+
+        # 위 아래 2픽셀씩 자르기 (좌측, 위, 우측, 아래)
+        cropped_img = pil_img.crop((0, 2, w, h - 2))
+        w, h = cropped_img.size
+
         logger.info(f"img_size: {w}, {h}")
         # if w < 50 or h < 50:
         #     return None
@@ -185,7 +191,7 @@ class BadgePrompt:
         logger.info(f"3-7-9) 업스케일링 완료")
         resized = cv2.resize(upscaled, (512, 512), interpolation=cv2.INTER_LANCZOS4)
 
-        canny_logo = cv2.Canny(resized, 50, 200)[8:-8, 8:-8]
+        canny_logo = cv2.Canny(resized, 50, 200)
 
         #선을 두껍게 변경.s
         kernel = np.ones((3, 3), np.uint8)  # 커널 크기 (선 굵기 조절)
