@@ -105,7 +105,7 @@ class BadgePrompt:
         w, h = pil_img.size
 
         # 위 아래 2픽셀씩 자르기 (좌측, 위, 우측, 아래)
-        cropped_img = pil_img.crop((10, 10, w - 10, h - 10))
+        cropped_img = pil_img.crop((30, 30, w - 30, h - 30))
         w, h = cropped_img.size
 
         logger.info(f"img_size: {w}, {h}")
