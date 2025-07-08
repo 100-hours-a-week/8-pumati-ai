@@ -45,7 +45,9 @@ jobs:
 
       # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
-        run: echo "${{ secrets.ENV_GPU }}" > .env
+        run: |
+          echo "${{ secrets.ENV_GPU }}" > .env
+          echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" >> .env
 
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
