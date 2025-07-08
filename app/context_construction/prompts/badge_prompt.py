@@ -44,7 +44,7 @@ class BadgePrompt:
 
         draw.ellipse([
             center[0] - outer_radius, center[1] - outer_radius,
-            center[0] - outer_radius, center[1] - outer_radius
+            center[0] + outer_radius, center[1] + outer_radius
         ], outline=0, width=6)
 
         # 5. Canny 엣지 적용 및 저장
@@ -105,8 +105,8 @@ class BadgePrompt:
         w, h = pil_img.size
 
         # 위 아래 2픽셀씩 자르기 (좌측, 위, 우측, 아래)
-        cropped_img = pil_img.crop((5, 5, w - 5, h - 5))
-        w, h = cropped_img.size
+        # cropped_img = pil_img.crop((5, 5, w - 5, h - 5))
+        # w, h = cropped_img.size
 
         logger.info(f"img_size: {w}, {h}")
         # if w < 50 or h < 50:
@@ -118,7 +118,7 @@ class BadgePrompt:
         new_h = int(h * scale)
 
         # 이미지 리사이즈 (LANCZOS는 고품질)
-        resized_img = cropped_img.resize((new_w, new_h), Image.LANCZOS)
+        resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
 
         # 흰색 배경 128x128 생성
         background = Image.new("RGB", (128, 128), (255, 255, 255))
@@ -149,6 +149,7 @@ class BadgePrompt:
         # gc.collect()
 
         # return background
+
     async def img_preprocessing(self, Pil_image):
         small_img = Pil_image.resize((64, 64))  # 주요 색 추출을 위해 이미지 사이즈 조정.
 
