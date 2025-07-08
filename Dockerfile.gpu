@@ -50,6 +50,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # 8. 소스 코드 복사 (소스 코드 변경 전까지 캐시됨)
 COPY . /workspace/
 
+# .env 파일 복사 (이 줄을 추가!)
+COPY .env /workspace/.env
+
 # 9. 포트 노출 및 실행 명령
 EXPOSE 8080
 CMD ["python", "-m", "uvicorn", "app.main_gpu:app", "--host", "0.0.0.0", "--port", "8080"]

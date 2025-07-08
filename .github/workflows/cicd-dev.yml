@@ -11,6 +11,7 @@ on:
       # 브랜치는 맞게 잘 바꿔서.
       - dev
       - feat/159-db-summary
+      - jacky
 
 jobs:
   build-and-push:
@@ -42,32 +43,15 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      # 🔥 소스 코드 변경사항 체크 (캐시 최적화)
-      - name: Check for source code changes
-        id: source_changes
-        run: |
-          # 이전 커밋과 현재 커밋 간의 변경사항 확인
-          if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            # 소스 코드나 requirements.gpu.txt 변경사항 확인
-            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
-            
-            # 환경변수나 워크플로우 파일만 변경된 경우 체크
-            if echo "$CHANGED_FILES" | grep -v -E "^(\.github/workflows/|\.env|requirements\.gpu\.txt)" | grep -q .; then
-              echo "source_changed=true" >> $GITHUB_OUTPUT
-              echo "🔄 소스 코드 변경사항 감지됨"
-            else
-              echo "source_changed=false" >> $GITHUB_OUTPUT
-              echo "✅ 소스 코드 변경사항 없음 - 캐시 활용 가능"
-            fi
-          else
-            echo "source_changed=true" >> $GITHUB_OUTPUT
-            echo "🔄 첫 빌드 또는 강제 푸시 - 전체 빌드 필요"
-          fi
-
       # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
         run: |
           echo "${{ secrets.ENV_GPU }}" > .env
+          echo "HF_AUTH_TOKEN=${{ secrets.HF_AUTH_TOKEN_ANNA }}" >> .env
+
+      # 빌드 직전 .env 파일이 실제로 있는지 확인
+      - name: Check .env file
+        run: ls -al . && cat .env
 
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
@@ -114,40 +98,15 @@ jobs:
             ${{ runner.os }}-buildx-
 
       # 6. Docker BuildKit 활성화 + GPU 사용 (캐시 최적화)
-      - name: Build Docker image with GPU
+      - name: Build Docker image
         run: |
-          # 캐시 설정
-          CACHE_FROM=""
-          if [ "${{ steps.existing_image.outputs.existing_image }}" == "true" ]; then
-            CACHE_FROM="--cache-from ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
-          fi
-          
-          # 빌드 시작 시간 기록
-          BUILD_START=$(date +%s)
-          
-          # Docker 빌드 실행 (환경변수는 런타임에 주입되므로 빌드 인자에서 제외)
-          DOCKER_BUILDKIT=1 docker build \
+          docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
-            $CACHE_FROM \
-            --cache-from type=local,src=/tmp/.buildx-cache \
-            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
-            --label git_commit="${{ github.sha }}" \
-            --label git_author="${{ github.actor }}" \
-            --label git_message="${{ steps.commit_message.outputs.message }}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
-          
-          # 빌드 시간 계산 및 출력
-          BUILD_END=$(date +%s)
-          BUILD_TIME=$((BUILD_END - BUILD_START))
-          echo "🕒 빌드 소요 시간: ${BUILD_TIME}초"
-          
-          # 캐시 디렉토리 업데이트
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       # 빌드 후 이미지 태그 확인 (선택사항)
       - name: List Docker images
@@ -166,26 +125,10 @@ jobs:
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
       # 7. Docker 이미지를 Artifact Registry에 푸시 (상세한 로깅 추가)
-      - name: Push Docker image to Artifact Registry
+      - name: Push Docker image
         run: |
-          echo "Pushing :sha tag (${{ github.sha }})..."
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          
-          echo "---------------------------------------------------------------------"
-          echo "Inspecting local 'latest' tag before pushing to registry:"
-          # 로컬에 태그된 latest 이미지의 상세 정보 확인
-          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          echo "---------------------------------------------------------------------"
-          
-          echo "Attempting to push :latest tag..."
-          # latest 태그 푸시 시도
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          
-          echo "---------------------------------------------------------------------"
-          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
-          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보를 확인
-          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest || echo "latest 태그 조회 실패"
-          echo "---------------------------------------------------------------------"
 
       # 8. 이미지 주소 출력
       - name: Output image URL

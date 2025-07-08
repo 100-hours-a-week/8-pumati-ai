@@ -35,9 +35,6 @@ Thumbs.db
 htmlcov/
 
 # 환경 변수 파일
-.env
-.env.local
-.env.*.local
 
 # 빌드 아티팩트
 build/
