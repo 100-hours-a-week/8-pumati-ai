@@ -4,10 +4,9 @@ import os
 from uuid import uuid5, NAMESPACE_DNS
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import (
-    VectorParams, Distance, PayloadSchemaType
-    
-)
+from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
+from uuid import uuid5, NAMESPACE_DNS
+from app.github_crawling.embedding import get_embedding
 
 # 기존 ChromaDB 관련 코드 제거 & Qdrant 설정으로 교체
 load_dotenv()
@@ -48,6 +47,7 @@ def is_id_exists(doc_id: str) -> bool:
 
 def store_document(text, metadata, embedding_model, doc_id):
     doc_type = metadata.get("type", "other").lower()
+    part = metadata.get("part", "").lower()
     filename = metadata.get("filename", "").lower()
 
     default_weights = {
@@ -55,13 +55,19 @@ def store_document(text, metadata, embedding_model, doc_id):
         "pr": 1.7,
         "issue": 1.5,
         "readme": 1.3,
-        "contents": 0.8,
-        "contributor": 0.7,
-        "stats": 0.7,
         "wiki": 1.7,
+        "ai": 1.0,
+        "be": 1.0,
+        "fe": 1.0,
+        "cloud": 1.0,
+        "release_note": 3.0,
+        "summary": 1.0
     }
-    weight = default_weights.get(doc_type, 1.0)
-    if "Home" in filename or "Vision" in filename:
+
+    weight = default_weights.get(part, default_weights.get(doc_type, 1.0))
+
+    # 텍스트 내용 기반 추가 가중치
+    if "home" in filename or "vision" in filename:
         weight += 1.0
     if "프로젝트" in text or "서비스" in text:
         weight += 1.0
@@ -71,10 +77,8 @@ def store_document(text, metadata, embedding_model, doc_id):
 
     print("✅  저장 직전 metadata:", metadata)
 
-    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 문자열 doc_id → UUID 변환
-
-    # prefix 붙여서 임베딩 생성
-    embedding = embedding_model.embed_documents([f"passage: {text}"])[0]
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))
+    embedding = get_embedding(text)
 
     client.upsert(
         collection_name=QDRANT_COLLECTION,
@@ -99,4 +103,17 @@ def show_vector_summary():
     )
     print("🔍 일부 문서 미리보기:")
     for point in results[0]:
-        print("-", point.payload.get("document", "")[:120], "...")
+        doc = point.payload.get("document", "")
+        if isinstance(doc, str):
+            print("-", doc[:120], "...")
+        else:
+            print("-", str(doc), "...")
+
+def delete_document_if_exists(doc_id: str):
+    """doc_id(문자열)를 기반으로 Qdrant에서 해당 UUID 벡터를 삭제"""
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일한 UUID 방식 적용
+    try:
+        client.delete(collection_name=QDRANT_COLLECTION, points_selector={"points": [uuid_id]})
+        print(f"🗑️ 삭제 완료: {doc_id} (UUID: {uuid_id})")
+    except Exception as e:
+        print(f"❌ 삭제 중 오류 발생: {e}")

@@ -30,5 +30,8 @@ sentence-transformers==4.1.0
 langchain-huggingface==0.2.0
 langchain-qdrant==0.2.0
 langsmith==0.3.42
-
+langchain-core==0.3.63
 google-generativeai==0.8.5
+
+# gpu용 4bit양자화
+bitsandbytes==0.42.0

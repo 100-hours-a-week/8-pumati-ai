@@ -3,15 +3,14 @@
 # GitHub Actions 워크플로우 이름
 name: Build and Push Anna AI Image
 
-# 워크플로우 트리거 조건 설정
+# 워크플로우 트리거 조건 설정 
 # main 브랜치에 push 이벤트가 발생했을 때 실행됩니다. 필요에 따라 브랜치 이름을 변경하세요.
 on:
   push:
     branches:
       # 브랜치는 맞게 잘 바꿔서.
       - dev
-      - feat/99-chatbot-deploy
-
+      - feat/159-db-summary
 
 jobs:
   build-and-push:
@@ -20,7 +19,6 @@ jobs:
     name: Build and Push Docker image
     runs-on: self-hosted
     
-
     # 환경 변수 설정
     env:
       GCP_PROJECT_ID: ktb8team-458916 
@@ -43,30 +41,33 @@ jobs:
             git log -1 --pretty=%B
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
-        
+
+      # 🔥 소스 코드 변경사항 체크 (캐시 최적화)
+      - name: Check for source code changes
+        id: source_changes
+        run: |
+          # 이전 커밋과 현재 커밋 간의 변경사항 확인
+          if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            # 소스 코드나 requirements.gpu.txt 변경사항 확인
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            
+            # 환경변수나 워크플로우 파일만 변경된 경우 체크
+            if echo "$CHANGED_FILES" | grep -v -E "^(\.github/workflows/|\.env|requirements\.gpu\.txt)" | grep -q .; then
+              echo "source_changed=true" >> $GITHUB_OUTPUT
+              echo "🔄 소스 코드 변경사항 감지됨"
+            else
+              echo "source_changed=false" >> $GITHUB_OUTPUT
+              echo "✅ 소스 코드 변경사항 없음 - 캐시 활용 가능"
+            fi
+          else
+            echo "source_changed=true" >> $GITHUB_OUTPUT
+            echo "🔄 첫 빌드 또는 강제 푸시 - 전체 빌드 필요"
+          fi
+
       # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
         run: |
           echo "${{ secrets.ENV_GPU }}" > .env
-
-      # 환경변수들을 GitHub Actions 환경변수로 추출
-      - name: Load environment variables
-        run: |
-          # .env 파일에서 환경변수들을 읽어서 GitHub Actions 환경변수로 설정
-          set -a
-          source .env
-          set +a
-          echo "BUILD_HF_AUTH_TOKEN=$HF_AUTH_TOKEN" >> $GITHUB_ENV
-          echo "BUILD_LANGSMITH_TRACING=$LANGSMITH_TRACING" >> $GITHUB_ENV
-          echo "BUILD_LANGSMITH_ENDPOINT=$LANGSMITH_ENDPOINT" >> $GITHUB_ENV
-          echo "BUILD_LANGSMITH_API_KEY=$LANGSMITH_API_KEY" >> $GITHUB_ENV
-          echo "BUILD_LANGCHAIN_PROJECT=$LANGCHAIN_PROJECT" >> $GITHUB_ENV
-          echo "BUILD_GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
-          echo "BUILD_USE_REMOTE_CHROMA=$USE_REMOTE_CHROMA" >> $GITHUB_ENV
-          echo "BUILD_QDRANT_API_KEY=$QDRANT_API_KEY" >> $GITHUB_ENV
-          echo "BUILD_QDRANT_URL=$QDRANT_URL" >> $GITHUB_ENV
-          echo "BUILD_QDRANT_COLLECTION=$QDRANT_COLLECTION" >> $GITHUB_ENV
-          echo "BUILD_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
 
       # NVIDIA Container Toolkit 상태 확인
       - name: Verify NVIDIA Container Toolkit
@@ -75,14 +76,13 @@ jobs:
           docker info | grep -i nvidia || true
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
-      # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
       - name: Google Auth
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      # 3. Google Cloud SDK (gcloud CLI) 설정 (선택 사항, auth 단계에서 이미 gcloud가 설정될 수 있음)
+      # 3. Google Cloud SDK (gcloud CLI) 설정
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
 
@@ -90,39 +90,64 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev --quiet
 
-      # 5. Docker 레이어 캐싱
+      # 🚀 기존 이미지 확인 (캐시 활용)
+      - name: Check existing image
+        id: existing_image
+        run: |
+          # 기존 latest 이미지가 있는지 확인
+          if docker pull ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest 2>/dev/null; then
+            echo "existing_image=true" >> $GITHUB_OUTPUT
+            echo "✅ 기존 이미지 발견 - 캐시로 사용 가능"
+          else
+            echo "existing_image=false" >> $GITHUB_OUTPUT
+            echo "🔄 기존 이미지 없음 - 새로 빌드 필요"
+          fi
+
+      # 5. Docker 레이어 캐싱 (향상된 캐시 전략)
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('requirements.gpu.txt') }}-${{ hashFiles('Dockerfile.gpu') }}
           restore-keys: |
+            ${{ runner.os }}-buildx-${{ hashFiles('requirements.gpu.txt') }}-
             ${{ runner.os }}-buildx-
 
-      # 6. Docker BuildKit 활성화 + GPU 사용 - 환경변수를 개별 빌드 인자로 전달
+      # 6. Docker BuildKit 활성화 + GPU 사용 (캐시 최적화)
       - name: Build Docker image with GPU
         run: |
+          # 캐시 설정
+          CACHE_FROM=""
+          if [ "${{ steps.existing_image.outputs.existing_image }}" == "true" ]; then
+            CACHE_FROM="--cache-from ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
+          fi
+          
+          # 빌드 시작 시간 기록
+          BUILD_START=$(date +%s)
+          
+          # Docker 빌드 실행 (환경변수는 런타임에 주입되므로 빌드 인자에서 제외)
           DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
-            --build-arg HF_AUTH_TOKEN="${{ env.BUILD_HF_AUTH_TOKEN }}" \
-            --build-arg LANGSMITH_TRACING="${{ env.BUILD_LANGSMITH_TRACING }}" \
-            --build-arg LANGSMITH_ENDPOINT="${{ env.BUILD_LANGSMITH_ENDPOINT }}" \
-            --build-arg LANGSMITH_API_KEY="${{ env.BUILD_LANGSMITH_API_KEY }}" \
-            --build-arg LANGCHAIN_PROJECT="${{ env.BUILD_LANGCHAIN_PROJECT }}" \
-            --build-arg GEMINI_API_KEY="${{ env.BUILD_GEMINI_API_KEY }}" \
-            --build-arg USE_REMOTE_CHROMA="${{ env.BUILD_USE_REMOTE_CHROMA }}" \
-            --build-arg QDRANT_API_KEY="${{ env.BUILD_QDRANT_API_KEY }}" \
-            --build-arg QDRANT_URL="${{ env.BUILD_QDRANT_URL }}" \
-            --build-arg QDRANT_COLLECTION="${{ env.BUILD_QDRANT_COLLECTION }}" \
-            --build-arg GITHUB_TOKEN="${{ env.BUILD_GITHUB_TOKEN }}" \
+            $CACHE_FROM \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
+          
+          # 빌드 시간 계산 및 출력
+          BUILD_END=$(date +%s)
+          BUILD_TIME=$((BUILD_END - BUILD_START))
+          echo "🕒 빌드 소요 시간: ${BUILD_TIME}초"
+          
+          # 캐시 디렉토리 업데이트
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       # 빌드 후 이미지 태그 확인 (선택사항)
       - name: List Docker images
@@ -132,32 +157,6 @@ jobs:
           echo "=== dev/ai 이미지만 확인 ==="
           docker images | grep "dev/ai" || echo "dev/ai 이미지가 없습니다!"
 
-      # ⭐ 강제 리태깅 - 더 확실하게
-      - name: Force retag image as latest
-        run: |
-          echo "현재 SHA: ${{ github.sha }}"
-          CURRENT_IMAGE="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          LATEST_IMAGE="${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
-          
-          echo "🏷️ 현재 이미지: $CURRENT_IMAGE"
-          echo "🏷️ latest 이미지: $LATEST_IMAGE"
-          
-          # 기존 latest 태그 제거 (있다면)
-          docker rmi "$LATEST_IMAGE" || echo "기존 latest 태그가 없습니다"
-          
-          # 새로 latest 태그 붙이기
-          docker tag "$CURRENT_IMAGE" "$LATEST_IMAGE"
-          
-          echo "✅ 리태깅 완료!"
-
-      # 리태깅 후 이미지 확인
-      - name: Verify latest tag after retag
-        run: |
-          echo "=== 리태깅 후 이미지 목록 ==="
-          docker images | grep "dev/ai"
-          echo "=== latest 태그 상세 확인 ==="
-          docker inspect "${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest" | grep -A5 -B5 "Id\|Created"
-
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
         if: failure()
@@ -166,14 +165,31 @@ jobs:
             "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
-      # 7. Docker 이미지를 Artifact Registry에 푸시
+      # 7. Docker 이미지를 Artifact Registry에 푸시 (상세한 로깅 추가)
       - name: Push Docker image to Artifact Registry
         run: |
+          echo "Pushing :sha tag (${{ github.sha }})..."
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          
+          echo "---------------------------------------------------------------------"
+          echo "Inspecting local 'latest' tag before pushing to registry:"
+          # 로컬에 태그된 latest 이미지의 상세 정보 확인
+          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          echo "---------------------------------------------------------------------"
+          
+          echo "Attempting to push :latest tag..."
+          # latest 태그 푸시 시도
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+          
+          echo "---------------------------------------------------------------------"
+          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
+          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보를 확인
+          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest || echo "latest 태그 조회 실패"
+          echo "---------------------------------------------------------------------"
 
       # 8. 이미지 주소 출력
       - name: Output image URL
         run: |
           echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Latest tag: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
