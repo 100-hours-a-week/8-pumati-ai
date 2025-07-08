@@ -51,8 +51,10 @@ def fetch_team_meta():
             return [], {}
     else:
         # 수동 fallback 테스트용
+        # 수동 fallback 테스트용
         team_urls = [
             "https://github.com/orgs/100-hours-a-week/teams/8",
+            # "https://github.com/orgs/100-hours-a-week/teams/1",
             # "https://github.com/orgs/100-hours-a-week/teams/1",
             # "https://github.com/orgs/100-hours-a-week/teams/7-1",
             # "https://github.com/orgs/100-hours-a-week/teams/20",
@@ -61,6 +63,7 @@ def fetch_team_meta():
         ]
         team_meta = {
             "8": 6,
+            # "1": 9
             # "1": 9
         }
         return team_urls, team_meta
