@@ -11,6 +11,7 @@ on:
       # 브랜치는 맞게 잘 바꿔서.
       - dev
       - feat/159-db-summary
+      - jacky
 
 jobs:
   build-and-push:
@@ -41,28 +42,6 @@ jobs:
             git log -1 --pretty=%B
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
-
-      # 🔥 소스 코드 변경사항 체크 (캐시 최적화)
-      - name: Check for source code changes
-        id: source_changes
-        run: |
-          # 이전 커밋과 현재 커밋 간의 변경사항 확인
-          if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            # 소스 코드나 requirements.gpu.txt 변경사항 확인
-            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
-            
-            # 환경변수나 워크플로우 파일만 변경된 경우 체크
-            if echo "$CHANGED_FILES" | grep -v -E "^(\.github/workflows/|\.env|requirements\.gpu\.txt)" | grep -q .; then
-              echo "source_changed=true" >> $GITHUB_OUTPUT
-              echo "🔄 소스 코드 변경사항 감지됨"
-            else
-              echo "source_changed=false" >> $GITHUB_OUTPUT
-              echo "✅ 소스 코드 변경사항 없음 - 캐시 활용 가능"
-            fi
-          else
-            echo "source_changed=true" >> $GITHUB_OUTPUT
-            echo "🔄 첫 빌드 또는 강제 푸시 - 전체 빌드 필요"
-          fi
 
       # 환경 변수 파일 생성 (.env) - GPU용 환경변수 사용
       - name: Create .env file
