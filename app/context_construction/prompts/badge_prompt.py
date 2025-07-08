@@ -105,7 +105,7 @@ class BadgePrompt:
         w, h = pil_img.size
 
         # 위 아래 2픽셀씩 자르기 (좌측, 위, 우측, 아래)
-        cropped_img = pil_img.crop((30, 30, w - 30, h - 30))
+        cropped_img = pil_img.crop((15, 15, w - 15, h - 15))
         w, h = cropped_img.size
 
         logger.info(f"img_size: {w}, {h}")
@@ -118,7 +118,7 @@ class BadgePrompt:
         new_h = int(h * scale)
 
         # 이미지 리사이즈 (LANCZOS는 고품질)
-        resized_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
+        resized_img = cropped_img.resize((new_w, new_h), Image.LANCZOS)
 
         # 흰색 배경 128x128 생성
         background = Image.new("RGB", (128, 128), (255, 255, 255))
