@@ -12,6 +12,7 @@ on:
       - dev
       - feat/100-badge-DeploymentEnvironment
       - feat/125-badge-regularInstance
+      - feat/177-badge-dilated
 
 jobs:
   build-push:

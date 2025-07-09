@@ -10,7 +10,6 @@ on:
     branches:
       # 프로덕션은 main 브랜치
       - main
-      - jacky
 
 
 jobs:

@@ -21,6 +21,7 @@ ARG GITHUB_TOKEN
 ARG QDRANT_URL
 ARG QDRANT_API_KEY
 ARG QDRANT_COLLECTION
+ARG GEMINI_API_KEY
 
 # ENV로 설정
 ENV ORG_NAME=${ORG_NAME}
@@ -31,6 +32,7 @@ ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 ENV QDRANT_URL=${QDRANT_URL}
 ENV QDRANT_API_KEY=${QDRANT_API_KEY}
 ENV QDRANT_COLLECTION=${QDRANT_COLLECTION}
+ENV GEMINI_API_KEY=${GEMINI_API_KEY}
 
 # .env 파일 생성
 RUN mkdir -p /workspace && \
@@ -40,6 +42,7 @@ RUN mkdir -p /workspace && \
     echo "GITHUB_TOKEN=${GITHUB_TOKEN}" >> /workspace/.env && \
     echo "QDRANT_URL=${QDRANT_URL}" >> /workspace/.env && \
     echo "QDRANT_API_KEY=${QDRANT_API_KEY}" >> /workspace/.env && \
-    echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env
+    echo "QDRANT_COLLECTION=${QDRANT_COLLECTION}" >> /workspace/.env && \
+    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> /workspace/.env
 
 CMD ["python", "-m", "app.github_crawling.scheduler"]
