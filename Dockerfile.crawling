@@ -7,6 +7,15 @@ FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
 WORKDIR /app
 COPY . .
 
+# 시스템 패키지 업데이트 및 git 설치
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 쓰기 가능한 디렉토리 미리 생성
+RUN mkdir -p /tmp/cached_wikis && chmod 755 /tmp/cached_wikis
+
 # requirements 설치 (크롤링 전용 버전 사용)   
 COPY requirements.crawling.txt requirements.crawling.txt
 RUN pip uninstall -y torch_xla || true
