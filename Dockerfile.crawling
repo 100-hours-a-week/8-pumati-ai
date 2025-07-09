@@ -7,7 +7,7 @@ FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
 WORKDIR /app
 COPY . .
 
-# requirements 설치 (크롤링 전용 버전 사용)
+# requirements 설치 (크롤링 전용 버전 사용)   
 COPY requirements.crawling.txt requirements.crawling.txt
 RUN pip uninstall -y torch_xla || true
 RUN pip install --no-cache-dir -r requirements.crawling.txt
