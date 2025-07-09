@@ -25,4 +25,7 @@ peft==0.15.2
 onnxruntime==1.22.0
 wordninja==2.0.0
 
+#리포트 기능
+plotly==6.2.0
+kaleido==1.0.0
 
