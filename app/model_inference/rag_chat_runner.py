@@ -56,7 +56,7 @@ class StreamingLLMWrapper(Runnable):
 
 class WeightedQdrantRetriever(BaseRetriever):
     vectorstore: QdrantVectorStore
-    top_k: int = 5
+    top_k: int = 40
     project_id: int
 
     def _get_relevant_documents(self, query: str, *, config=None) -> List[Document]:
@@ -156,7 +156,7 @@ async def run_rag_streaming(question: str, project_id: int):
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
         project_id=project_id,
-        top_k=20
+        top_k=10
     )
 
     # 관련 문서 검색
