@@ -1,6 +1,7 @@
 # app/model_inference/rag_chat_runner.py
 
 import os
+import time
 from typing import List
 from dotenv import load_dotenv
 
@@ -14,13 +15,15 @@ from langchain.chains.retrieval import create_retrieval_chain
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 from langchain_qdrant import QdrantVectorStore
-from langchain_huggingface import HuggingFaceEmbeddings
 
 from langsmith import traceable, client
 
 from app.context_construction.question_router import is_structured_question, classify_question_type
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
+from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
+from app.model_inference.embedding_runner import vectorstore
+
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -83,31 +86,11 @@ class WeightedQdrantRetriever(BaseRetriever):
                 "adjusted_score": adjusted_score
             }
             docs.append(Document(page_content=payload.get("document", ""), metadata=metadata))
-        docs = sorted(docs, key=lambda d: d.metadata.get("cosine_score", 0.0), reverse=True)
+        docs = sorted(docs, key=lambda d: d.metadata.get("adjusted_score", 0.0), reverse=True)
         return docs
 
-# 임베딩 모델 및 벡터스토어 로딩
-embedding_model = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-m3",
-    encode_kwargs={"normalize_embeddings": True}
-)
-
-# Qdrant client 및 LangChain vectorstore 래퍼
-qdrant_client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY
-)
-
-vectorstore = QdrantVectorStore(
-    client=qdrant_client,
-    collection_name=QDRANT_COLLECTION,
-    embedding=embedding_model,
-    content_payload_key="document",
-)
-
-# LLM (HyperCLOVA)
-# llm = HyperClovaLangChainLLM()
-llm = GeminiLangChainLLM()
+llm = HyperClovaLangChainLLM()
+# llm = GeminiLangChainLLM()
 
 document_prompt = PromptTemplate(
     input_variables=["page_content"],
@@ -163,7 +146,7 @@ async def run_rag_streaming(question: str, project_id: int):
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
         project_id=project_id,
-        top_k=40
+        top_k=20
     )
 
     # 관련 문서 검색
@@ -235,5 +218,14 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 응답 스트리밍 처리
+    start_time = time.perf_counter()
+    first_token_sent = False
+
     async for char_chunk in chain.astream(prompt_input, config=config):
+        if not first_token_sent:
+            first_token_time = time.perf_counter()
+            print(f"⏱️ First token delay: {first_token_time - start_time:.3f} seconds")
+            first_token_sent = True
         yield char_chunk
+    end_time = time.perf_counter()
+    print(f"⏱️ Full generation time: {end_time - start_time:.3f} seconds")

@@ -8,9 +8,10 @@ name: Build and Push Crawling Image
 on:
   push:
     branches:
-      # 브랜치는 맞게 잘 바꿔서. 
-      - feat/99-chatbot-deploy
+      # 브랜치는 맞게 잘 바꿔서.   
+      - feat/159-db-summary
       - dev
+      - jacky
 
 
 jobs:
@@ -69,6 +70,7 @@ jobs:
           echo "BUILD_QDRANT_API_KEY=$QDRANT_API_KEY" >> $GITHUB_ENV
           echo "BUILD_QDRANT_URL=$QDRANT_URL" >> $GITHUB_ENV
           echo "BUILD_QDRANT_COLLECTION=$QDRANT_COLLECTION" >> $GITHUB_ENV
+          echo "BUILD_GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
 
       # 2. Google Cloud 인증 (서비스 계정 키 사용)
       # 중요: GitHub 저장소 Secrets에 'GCP_SA_KEY' 이름으로 서비스 계정 키 JSON 파일의 내용을 저장해야 합니다.
@@ -111,6 +113,7 @@ jobs:
             --build-arg QDRANT_API_KEY="${{ env.BUILD_QDRANT_API_KEY }}" \
             --build-arg QDRANT_URL="${{ env.BUILD_QDRANT_URL }}" \
             --build-arg QDRANT_COLLECTION="${{ env.BUILD_QDRANT_COLLECTION }}" \
+            --build-arg GEMINI_API_KEY="${{ env.BUILD_GEMINI_API_KEY }}" \
             --label git_commit="${{ github.sha }}" \
             --label git_author="${{ github.actor }}" \
             --label git_message="${{ steps.commit_message.outputs.message }}" \
@@ -167,4 +170,5 @@ jobs:
       - name: Output image URL
         run: |
           echo "Crawling image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
 
