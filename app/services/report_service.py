@@ -52,14 +52,16 @@ def bar_graph(daily_stats):
         x=x,
         y=gived,
         name='준 품앗이',
-        marker_color= 'rgba(239, 136, 127, 0.5)' #'rgba(55, 128, 191, 0.7)'
+        marker_color= 'rgba(239, 136, 127, 0.5)', #'rgba(55, 128, 191, 0.7)'
+        textfont=dict(size=30)
     ))
 
     fig.add_trace(go.Bar(
         x=x,
         y=received,
         name='받은 품앗이',
-        marker_color='rgba(165, 196, 231, 0.3)'#'rgba(165, 196, 231, 0.7)' #'rgba(219, 64, 82, 0.7)'
+        marker_color='rgba(165, 196, 231, 0.3)',#'rgba(165, 196, 231, 0.7)' #'rgba(219, 64, 82, 0.7)'
+        textfont=dict(size=30)
     ))
 
     fig.update_layout(
@@ -69,13 +71,18 @@ def bar_graph(daily_stats):
         barmode='group',
         template=None,#'plotly_white',
         plot_bgcolor='rgb(254,243,223)',#'lightblue',
-        bargap=0.8
+        bargap=0.8,
+        font=dict(
+        family="Nanum Gothic",  # 또는 "Nanum Gothic"
+        size=35,
+        color="black"
+        )
     )
     #fig.write_image("output.png")
         #return fig
 
     buf_bargraph = io.BytesIO()
-    fig.write_image(buf_bargraph, format='png')  # 내부적으로 kaleido 사용
+    fig.write_image(buf_bargraph, format='png', width=2000, height=1200, scale=3)  # 내부적으로 kaleido 사용
     buf_bargraph.seek(0)
     img_bargraph = Image.open(buf_bargraph)
     return img_bargraph
@@ -143,7 +150,7 @@ def donut_graph(badgeStats):
         direction='clockwise',
         textposition='outside',
         #textinfo='label+percent',
-        textfont=dict(size=13),
+        textfont=dict(size=30),
         insidetextorientation='horizontal',  # ✅ 회전 없는 텍스트
         marker=dict(colors=colors),
         domain=dict(x=[0.0, 0.8]) #왼쪽으로 이동
@@ -153,12 +160,17 @@ def donut_graph(badgeStats):
         title="받은 뱃지 비율",
         template='none',
         #paper_bgcolor='rgb(236,235,233)',
-        plot_bgcolor='rgb(236,235,233)'
+        plot_bgcolor='rgb(236,235,233)',
+        font=dict(
+        family="Nanum Gothic",  # 또는 "Nanum Gothic"
+        size=35,
+        color="black"
+        )
     )
 
     # 이미지로 변환
     buf_donutgraph = io.BytesIO()
-    fig.write_image(buf_donutgraph, format='png')
+    fig.write_image(buf_donutgraph, format='png',width=2000, height=1200,scale=3)
     buf_donutgraph.seek(0)
     img_donutgraph = Image.open(buf_donutgraph)
     return img_donutgraph
