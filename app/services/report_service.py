@@ -7,7 +7,7 @@ import io, logging, requests, os
 from dotenv import load_dotenv
 load_dotenv()
 
-BE_SERVER = os.getenv("BE_SERVER_URL")
+BE_SERVER = "https://dev.tebutebu.com"#os.getenv("BE_SERVER_URL")
 #print("BE_SERVER", BE_SERVER)
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ def bar_graph(daily_stats):
         plot_bgcolor='rgb(254,243,223)',#'lightblue',
         bargap=0.8,
         font=dict(
-            family="Apple SD Gothic Neo",  # 또는 "Nanum Gothic"
+            family="Nanum Gothic",  # 또는 "Nanum Gothic"
             size=35,
             color="black")
     )
@@ -161,7 +161,7 @@ def donut_graph(badgeStats):
         #paper_bgcolor='rgb(236,235,233)',
         plot_bgcolor='rgb(236,235,233)',
         font=dict(
-        family="Apple SD Gothic Neo",  # 또는 "Nanum Gothic"
+        family="Nanum Gothic",  # 또는 "Nanum Gothic"
         size=35,
         color="black"
         )

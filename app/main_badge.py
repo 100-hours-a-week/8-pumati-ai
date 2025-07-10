@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 import uvicorn
-from app.fast_api.endpoints.image_router import app_badge as badge_router
+#from app.fast_api.endpoints.image_router import app_badge as badge_router
 from app.fast_api.endpoints.report_router import app_report as report_router
 
 app_badge = FastAPI()
-app_badge.include_router(badge_router, tags=["badge"])
+#app_badge.include_router(badge_router, tags=["badge"])
 app_badge.include_router(report_router, tags=["report"])
 
 @app_badge.get("/healthz")
