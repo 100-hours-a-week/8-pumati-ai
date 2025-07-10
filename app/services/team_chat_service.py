@@ -6,7 +6,7 @@ import warnings
 import re
 import os
 
-MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v4"
+MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v4-awq"
 VLLM_API_URL = os.getenv("VLLM_API_URL", "http://localhost:8000/v1/completions")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="transformers.pytorch_utils")
@@ -23,6 +23,7 @@ class VLLMClient:
             "temperature": 0.1,
             "top_p": 0.2,
             "max_tokens": 230,
+            "repetition_penalty": 1.1,
             **kwargs
         }
         
