@@ -70,8 +70,8 @@ def bar_graph(daily_stats):
         #yaxis_title="푸마티 개수",
         barmode='group',
         template=None,#'plotly_white',
-        plot_bgcolor='rgb(254,243,223)',#'lightblue',
-        bargap=0.8,
+        #plot_bgcolor='rgb(254,243,223)',#'lightblue',
+        bargap=0.6,
         font=dict(
             family="Nanum Gothic", #"Malgun Gothic",  # 또는 "Nanum Gothic"
             size=35,
@@ -104,7 +104,7 @@ def donut_graph(badgeStats):
         team_number = item["giverTeamNumber"]
         count = item["badgeCount"]
         percent = count / total_badges * 100
-        label = f"{'👑 ' if i == 0 else ''}{team_number}팀<br>{count}회 ({percent:.1f}%)"
+        label = f"{'1등! ' if i == 0 else ''}{team_number}팀<br>{count}회 ({percent:.1f}%)"
         labels.append(label)
         values.append(count)
 
