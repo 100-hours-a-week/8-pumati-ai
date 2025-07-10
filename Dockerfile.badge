@@ -124,6 +124,8 @@ RUN rm /app/download_models.py
 # ==========================================
 FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime AS runtime
 
+RUN apt-get update && apt-get install -y fonts-nanum && fc-cache -fv
+
 # 런타임에 필요한 시스템 패키지 설치 (배지 서비스에 필요한 패키지들)
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
