@@ -10,9 +10,8 @@ on:
     branches:
       - cpu-dev
       - dev
-      - feat/100-badge-DeploymentEnvironment
-      - feat/125-badge-regularInstance
-      - feat/178-report-creategraphImg
+      #- feat/100-badge-DeploymentEnvironment
+      #- feat/125-badge-regularInstance
 
 jobs:
   build-push:

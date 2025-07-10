@@ -7,7 +7,7 @@ import io, logging, requests, os
 from dotenv import load_dotenv
 load_dotenv()
 
-BE_SERVER = "https://dev.tebutebu.com"#os.getenv("BE_SERVER_URL")
+BE_SERVER = os.getenv("BE_SERVER_URL")
 #print("BE_SERVER", BE_SERVER)
 
 logger = logging.getLogger(__name__)
