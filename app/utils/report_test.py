@@ -63,9 +63,9 @@ fig.update_layout(
     plot_bgcolor='rgb(254,243,223)',#'lightblue',
     bargap=0.8,
     font=dict(
-    family="Nanum Gothic",  # 또는 "Nanum Gothic"
-    size=35,
-    color="black"
+        family="Apple SD Gothic Neo",  # 또는 "Nanum Gothic"
+        size=35,
+        color="black"
     )
 )
 #fig.write_image("output.png")
