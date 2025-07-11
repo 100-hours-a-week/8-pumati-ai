@@ -6,10 +6,7 @@ import warnings
 import re
 import os
 
-MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v4"
-MAX_NEW_TOKENS = 150
-TEMPERATURE = 0.5
-TOP_P = 0.7
+MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v4-awq"
 VLLM_API_URL = os.getenv("VLLM_API_URL", "http://localhost:8000/v1/completions")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="transformers.pytorch_utils")
@@ -22,9 +19,11 @@ class VLLMClient:
         payload = {
             "model": MODEL_NAME,
             "prompt": prompt,
-            "temperature": TEMPERATURE,
-            "top_p": TOP_P,
-            "max_tokens": MAX_NEW_TOKENS,
+            "do_sample": True,
+            "temperature": 0.1,
+            "top_p": 0.2,
+            "max_tokens": 230,
+            "repetition_penalty": 1.1,
             **kwargs
         }
         
@@ -37,7 +36,7 @@ class VLLMClient:
             return result.get("choices", [{}])[0].get("text", "").strip()
         except Exception as e:
             print(f"[ERROR] vLLM API 호출 실패: {e}")
-            return "⚠️ 챗봇 응답 중 오류가 발생했어요."
+            return "⚠️ 챗봇 서버 쉬는중!"
 
 class TeamChatService:
     def __init__(self):
@@ -48,7 +47,7 @@ class TeamChatService:
         print("[DEBUG] 프롬프트:", prompt)
 
         raw_output = self.vllm_client.generate(prompt)
-        print("🧾 HyperClova full response (for debug):", repr(raw_output.replace('\n', '\\n')))
+        print("🧾 My model full response (for debug):", repr(raw_output.replace('\n', '\\n')))
 
         match = re.search(r"[가-힣][^a-zA-Z0-9]{0,10}", raw_output)
         if match:
