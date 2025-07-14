@@ -116,6 +116,12 @@ jobs:
           echo "=== dev/ai 이미지만 확인 ==="
           docker images | grep "dev/ai" || echo "dev/ai 이미지가 없습니다!"
 
+      # 필요시 강제로 latest 태그 붙이기
+      - name: Retag image as latest
+        run: |
+          docker tag ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
       # 실패 시 간단한 알림 추가 
       - name: Send failure notification
         if: failure()
@@ -124,8 +130,8 @@ jobs:
             "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
-      # 7. Docker 이미지를 Artifact Registry에 푸시 (상세한 로깅 추가)
-      - name: Push Docker image
+      # 7. Docker 이미지를 Artifact Registry에 푸시
+      - name: Push Docker image to Artifact Registry
         run: |
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
