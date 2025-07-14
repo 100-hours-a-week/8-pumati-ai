@@ -8,8 +8,8 @@ name: Build and Push Crawling Image
 on:
   push:
     branches:
-      # 브랜치는 맞게 잘 바꿔서.   
-      - feat/159-db-summary
+      # 브랜치는 맞게 잘 바꿔서. 
+      - feat/183-v3-deploy
       - dev
       - jacky
 
@@ -170,5 +170,6 @@ jobs:
       - name: Output image URL
         run: |
           echo "Crawling image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
 
 

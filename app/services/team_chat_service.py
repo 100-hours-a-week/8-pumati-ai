@@ -47,7 +47,7 @@ class TeamChatService:
         print("[DEBUG] 프롬프트:", prompt)
 
         raw_output = self.vllm_client.generate(prompt)
-        print("🧾 HyperClova full response (for debug):", repr(raw_output.replace('\n', '\\n')))
+        print("🧾 My model full response (for debug):", repr(raw_output.replace('\n', '\\n')))
 
         match = re.search(r"[가-힣][^a-zA-Z0-9]{0,10}", raw_output)
         if match:
