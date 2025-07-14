@@ -100,7 +100,7 @@ jobs:
       # 6. Docker BuildKit 활성화 + GPU 사용 (캐시 최적화)
       - name: Build Docker image
         run: |
-          docker build \
+          DOCKER_BUILDKIT=1 docker build \
             --platform=linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg CUDA_VISIBLE_DEVICES=all \
