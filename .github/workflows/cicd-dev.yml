@@ -130,24 +130,15 @@ jobs:
             "content": "🚨 빌드 실패! 깃허브 액션을 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ secrets.DISCORD_WEBHOOK_URL_AI }}
 
-      # 7. Docker 이미지를 Artifact Registry에 푸시 (상세한 로깅 추가)
-      - name: Push Docker image
+      # 7. Docker 이미지를 Artifact Registry에 푸시
+      - name: Push Docker image to Artifact Registry
         run: |
-          echo "Pushing :sha tag (${{ github.sha }})..."
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          
-          echo "---------------------------------------------------------------------"
-          echo "Inspecting local 'latest' tag before pushing to registry:"
-          # 로컬에 태그된 latest 이미지의 상세 정보 확인
-          docker inspect ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          echo "---------------------------------------------------------------------"
-          
-          echo "Attempting to push :latest tag..."
           docker push ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
-          
-          echo "---------------------------------------------------------------------"
-          echo "Describing 'latest' tag in Artifact Registry AFTER push (via gcloud):"
-          # gcloud를 사용하여 Artifact Registry에서 직접 latest 태그의 정보를 확인
-          gcloud artifacts docker images describe ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest --format='default(image_summary.digest, version, tags, update_time)' || echo "Error: Failed to describe 'latest' tag from Artifact Registry, or it does not exist."
-          echo "---------------------------------------------------------------------"
+
+      # 8. 이미지 주소 출력
+      - name: Output image URL
+        run: |
+          echo "Image pushed to: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Latest tag: ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest"
 
