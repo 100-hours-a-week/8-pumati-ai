@@ -20,9 +20,10 @@ class VLLMClient:
             "model": MODEL_NAME,
             "prompt": prompt,
             "do_sample": True,
-            "temperature": 0.1,
+            "temperature": 0.0,
             "top_p": 0.2,
-            "max_tokens": 230,
+            "max_tokens": 250,
+            "repetition_penalty": 1.1,
             **kwargs
         }
         
@@ -35,7 +36,7 @@ class VLLMClient:
             return result.get("choices", [{}])[0].get("text", "").strip()
         except Exception as e:
             print(f"[ERROR] vLLM API 호출 실패: {e}")
-            return "⚠️ 챗봇 서버 쉬는중!"
+            return "⚠️ 챗봇 서버 쉬는 중!"
 
 class TeamChatService:
     def __init__(self):
