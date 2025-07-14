@@ -31,14 +31,7 @@ class GeminiLangChainLLM(LLM):
 
         # 전체 결과 누적해서 한 번에 보기 (디버깅용)
         final_full_response = chat.history[-1].parts[0].text if chat.history else ""
-        
-        match = re.search(r"질문:\s*(.+)", prompt)
-        if match:
-            print(f"[질문] {match.group(1)}")
-        else:
-            print("[질문 부분만] (질문: ...이 프롬프트에 없음)")
-
-        print("[full response (for debug)]:", repr(final_full_response.replace('\n', '\\n')))
+        print("🧾 Gemini full response (for debug):", repr(final_full_response.replace('\n', '\\n')))
             
     @property
     def streaming(self) -> bool:

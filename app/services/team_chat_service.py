@@ -6,7 +6,7 @@ import warnings
 import re
 import os
 
-MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v4"
+MODEL_NAME = "sunnyanna/hyperclovax-sft-1.5b-v4-awq"
 VLLM_API_URL = os.getenv("VLLM_API_URL", "http://localhost:8000/v1/completions")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="transformers.pytorch_utils")
@@ -20,9 +20,9 @@ class VLLMClient:
             "model": MODEL_NAME,
             "prompt": prompt,
             "do_sample": True,
-            "temperature": 0.0,
+            "temperature": 0.1,
             "top_p": 0.2,
-            "max_tokens": 250,
+            "max_tokens": 230,
             "repetition_penalty": 1.1,
             **kwargs
         }
@@ -36,7 +36,7 @@ class VLLMClient:
             return result.get("choices", [{}])[0].get("text", "").strip()
         except Exception as e:
             print(f"[ERROR] vLLM API 호출 실패: {e}")
-            return "⚠️ 챗봇 서버 쉬는 중!"
+            return "⚠️ 챗봇 서버 쉬는중!"
 
 class TeamChatService:
     def __init__(self):
