@@ -7,45 +7,68 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
 from uuid import uuid5, NAMESPACE_DNS
 from app.github_crawling.embedding import get_embedding
+from langchain_qdrant import QdrantVectorStore
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # 기존 ChromaDB 관련 코드 제거 & Qdrant 설정으로 교체
 load_dotenv()
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "github_docs")
+QDRANT_COLLECTION_TEAM = os.getenv("QDRANT_COLLECTION_TEAM", "github_docs")
+QDRANT_COLLECTION_SUMMARY = os.getenv("QDRANT_COLLECTION_SUMMARY", "summary_docs")
 
-client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY
-)
+class QdrantCollectionManager:
+    def __init__(self, collection_type: str):
+        self.client = QdrantClient(
+            url=QDRANT_URL,
+            api_key=QDRANT_API_KEY
+        )
 
-if not client.collection_exists(collection_name=QDRANT_COLLECTION):
-    print(f"✨ '{QDRANT_COLLECTION}' 컬렉션이 존재하지 않아 새로 생성합니다.")
-    
-    # 컬렉션 생성
-    client.create_collection(
-        collection_name=QDRANT_COLLECTION,
-        vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
-    )
+        if collection_type == "summary":
+            self.collection = QDRANT_COLLECTION_SUMMARY
+        elif collection_type == "team":
+            self.collection = QDRANT_COLLECTION_TEAM
+        else:
+            raise ValueError(f"❌ Unknown collection_type: {collection_type}")
 
-    # 필드별 인덱스 생성
-    # payload_schema 인자를 sync client가 허용하지 않아서 필드별 인덱스 수동 생성
-    client.create_payload_index(QDRANT_COLLECTION, field_name="project_id", field_schema=PayloadSchemaType.INTEGER)
-    client.create_payload_index(QDRANT_COLLECTION, field_name="team_id", field_schema=PayloadSchemaType.INTEGER)
-    client.create_payload_index(QDRANT_COLLECTION, field_name="repo", field_schema=PayloadSchemaType.KEYWORD)
-    client.create_payload_index(QDRANT_COLLECTION, field_name="type", field_schema=PayloadSchemaType.KEYWORD)
-    client.create_payload_index(QDRANT_COLLECTION, field_name="weight", field_schema=PayloadSchemaType.FLOAT)
-    client.create_payload_index(QDRANT_COLLECTION, field_name="date", field_schema=PayloadSchemaType.TEXT)
+        self._ensure_collection()
 
-else:
-    print(f"➡️ '{QDRANT_COLLECTION}' 컬렉션이 이미 존재합니다. 생성을 생략합니다.")
+    def _ensure_collection(self):
+        if not self.client.collection_exists(self.collection):
+            print(f"✨ '{self.collection}' 컬렉션이 존재하지 않아 새로 생성합니다.")
+            self.client.create_collection(
+                collection_name=self.collection,
+                vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
+            )
+            for field, ftype in [
+                ("project_id", PayloadSchemaType.INTEGER),
+                ("team_id", PayloadSchemaType.INTEGER),
+                ("repo", PayloadSchemaType.KEYWORD),
+                ("type", PayloadSchemaType.KEYWORD),
+                ("weight", PayloadSchemaType.FLOAT),
+                ("date", PayloadSchemaType.TEXT),
+            ]:
+                self.client.create_payload_index(self.collection, field_name=field, field_schema=ftype)
+        else:
+            print(f"➡️ '{self.collection}' 컬렉션이 이미 존재합니다.")
 
-def is_id_exists(doc_id: str) -> bool:
-    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일 방식으로 변환
-    result = client.retrieve(collection_name=QDRANT_COLLECTION, ids=[uuid_id])
+    def get_collection_name(self):
+        return self.collection
+
+    def get_client(self):
+        return self.client
+
+def is_id_exists(doc_id: str, collection_type: str) -> bool:
+    manager = QdrantCollectionManager(collection_type)
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))
+    result = manager.get_client().retrieve(collection_name=manager.get_collection_name(), ids=[uuid_id])
     return len(result) > 0
 
-def store_document(text, metadata, embedding_model, doc_id):
+def store_document(text, metadata, embedding_model, doc_id, collection_type: str):
+    manager = QdrantCollectionManager(collection_type)
+    client = manager.get_client()
+    collection = manager.get_collection_name()
+
     doc_type = metadata.get("type", "other").lower()
     part = metadata.get("part", "").lower()
     filename = metadata.get("filename", "").lower()
@@ -66,7 +89,6 @@ def store_document(text, metadata, embedding_model, doc_id):
 
     weight = default_weights.get(part, default_weights.get(doc_type, 1.0))
 
-    # 텍스트 내용 기반 추가 가중치
     if "home" in filename or "vision" in filename:
         weight += 1.0
     if "프로젝트" in text or "서비스" in text:
@@ -81,7 +103,7 @@ def store_document(text, metadata, embedding_model, doc_id):
     embedding = get_embedding(text)
 
     client.upsert(
-        collection_name=QDRANT_COLLECTION,
+        collection_name=collection,
         points=[{
             "id": uuid_id,
             "vector": embedding,
@@ -92,28 +114,49 @@ def store_document(text, metadata, embedding_model, doc_id):
         }]
     )
 
-def show_vector_summary():
-    count = client.count(collection_name=QDRANT_COLLECTION).count
+def show_vector_summary(collection_type: str = "team"):
+    manager = QdrantCollectionManager(collection_type)
+    client = manager.get_client()
+    collection = manager.get_collection_name()
+
+    count = client.count(collection_name=collection).count
     print("📦 총 벡터 수:", count)
 
     results = client.scroll(
-        collection_name=QDRANT_COLLECTION,
+        collection_name=collection,
         limit=3,
         with_payload=True
     )
     print("🔍 일부 문서 미리보기:")
     for point in results[0]:
         doc = point.payload.get("document", "")
-        if isinstance(doc, str):
-            print("-", doc[:120], "...")
-        else:
-            print("-", str(doc), "...")
+        print("-", doc[:120] if isinstance(doc, str) else str(doc), "...")
 
-def delete_document_if_exists(doc_id: str):
-    """doc_id(문자열)를 기반으로 Qdrant에서 해당 UUID 벡터를 삭제"""
-    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))  # 동일한 UUID 방식 적용
+def delete_document_if_exists(doc_id: str, collection_type: str = "team"):
+    manager = QdrantCollectionManager(collection_type)
+    client = manager.get_client()
+    collection = manager.get_collection_name()
+    uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))
     try:
-        client.delete(collection_name=QDRANT_COLLECTION, points_selector={"points": [uuid_id]})
+        client.delete(collection_name=collection, points_selector={"points": [uuid_id]})
         print(f"🗑️ 삭제 완료: {doc_id} (UUID: {uuid_id})")
     except Exception as e:
         print(f"❌ 삭제 중 오류 발생: {e}")
+
+def get_vectorstore(collection_name: str) -> QdrantVectorStore:
+    embedding_model = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-m3",
+        encode_kwargs={"normalize_embeddings": True}
+    )
+
+    qdrant_client = QdrantClient(
+        url=QDRANT_URL,
+        api_key=QDRANT_API_KEY
+    )
+
+    return QdrantVectorStore(
+        client=qdrant_client,
+        collection_name=collection_name,
+        embedding=embedding_model,
+        content_payload_key="document",
+    )

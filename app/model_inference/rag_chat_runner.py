@@ -25,6 +25,7 @@ from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangC
 from app.model_inference.embedding_runner import vectorstore
 from app.services.question_filter import is_project_related
 from app.model_inference.routers.model_router import ModelRouter
+from app.github_crawling.vector_store import get_vectorstore
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -36,7 +37,8 @@ load_dotenv()
 
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "github_docs")
+COLLECTION_TEAM = os.getenv("QDRANT_COLLECTION_TEAM", "github_docs_team")
+COLLECTION_SUMMARY = os.getenv("QDRANT_COLLECTION_SUMMARY", "summary_docs")
 
 # 스트리밍 처리를 위한 LLM 래퍼 (SSE 용도)
 class StreamingLLMWrapper(Runnable):
@@ -145,6 +147,12 @@ def run_rag(question: str, project_id: int) -> str:
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
     
+    # 모델 라우팅 결과에 따라 벡터스토어 선택
+    collection_name = os.getenv("QDRANT_COLLECTION_SUMMARY") if selected_model == "mati-llm" \
+        else os.getenv("QDRANT_COLLECTION_TEAM")
+
+    vectorstore = get_vectorstore(collection_name=collection_name)
+
     # 문서 검색기 구성 (project_id 필터 포함)
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
@@ -162,10 +170,13 @@ async def run_rag_streaming(question: str, project_id: int):
 
     if selected_model == "mati-llm":
         llm = HyperClovaLangChainLLM()
+        vectorstore = get_vectorstore(COLLECTION_SUMMARY)
     elif selected_model == "core-llm":
         llm = GeminiLangChainLLM()
+        vectorstore = get_vectorstore(COLLECTION_TEAM)
     else:
-        llm = GeminiLangChainLLM()  # fallback
+        llm = GeminiLangChainLLM()
+        vectorstore = get_vectorstore(COLLECTION_TEAM)
 
     # LangSmith에 문서 정보 traceable하게 남기기
     retrieved_doc_metadata = [
