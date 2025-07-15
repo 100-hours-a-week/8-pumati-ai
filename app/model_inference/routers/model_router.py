@@ -11,15 +11,39 @@ class ModelRouter:
         question_type = classify_question_type(question)
         related = is_project_related(question)
 
+        valid_types = {"summary", "project", "function"}
+        for rule in self.config.get("routes", []):
+            condition = rule.get("if", "")
+            if "question_type ==" in condition:
+                qtype = condition.split("==")[-1].strip().strip("'\"")
+                if qtype not in valid_types:
+                    print(f"[🚨 Warning] Unknown question_type '{qtype}' in routing rule → skipped")
+                    continue
+
+        print(f"[질문 분석]")
+        print(f"• 질문: {question}")
+        print(f"• question_type: {question_type}")
+        print(f"• related_to_team: {related}")
+        print(f"• top_doc_score: {top_doc_score}")
+
         for rule in self.config.get("routes", []):
             condition = rule.get("if", "")
             if "question_type == 'summary'" in condition and question_type == "summary":
+                print(f"[Routing Rule] {condition} → {rule['model']}")
+                return rule["model"]
+            elif "question_type == 'project'" in condition and question_type == "project":
+                print(f"[Routing Rule] {condition} → {rule['model']}")
+                return rule["model"]
+            elif "question_type == 'function'" in condition and question_type == "function":
+                print(f"[Routing Rule] {condition} → {rule['model']}")
                 return rule["model"]
             elif (
                 "related_to == 'team'" in condition and
                 "confidence > 0.6" in condition and
                 related and top_doc_score > 0.6
             ):
+                print(f"[Routing Rule] {condition} → {rule['model']}")
                 return rule["model"]
 
-        return "core-llm"  # fallback
+        print("[⚠️ Fallback] No matched rule → core-llm")
+        return "core-llm"
