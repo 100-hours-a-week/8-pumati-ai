@@ -1,0 +1,7 @@
+routes:
+  - if: question_type == "project"
+    model: mati-llm
+  - if: question_type == "fucntion"
+    model: mati-llm
+  - if: related_to == "team" and confidence > 0.6
+    model: core-llm

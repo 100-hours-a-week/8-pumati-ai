@@ -1,5 +1,5 @@
-from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from app.context_construction.prompts.question_filter_prompt import SYSTEM_PROMPT
+from app.model_inference.loaders.gemini import GeminiLangChainLLM
 
 llm = GeminiLangChainLLM()
 

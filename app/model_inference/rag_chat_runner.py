@@ -24,6 +24,7 @@ from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
 from app.model_inference.embedding_runner import vectorstore
 from app.services.question_filter import is_project_related
+from app.model_inference.routers.model_router import ModelRouter
 
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -143,14 +144,6 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
-    # Gemini 기반 질문 필터링
-    if not is_project_related(question):
-        for char in FILTERED_RESPONSE:
-            if char == '\n':
-                yield '\\n'
-            else:
-                yield char
-        return
     
     # 문서 검색기 구성 (project_id 필터 포함)
     retriever = WeightedQdrantRetriever(
@@ -161,15 +154,27 @@ async def run_rag_streaming(question: str, project_id: int):
 
     # 관련 문서 검색
     docs = retriever.invoke(question)
+    top_score = docs[0].metadata.get("adjusted_score", 0.0) if docs else 0.0
     
+    # 2. 필터링 (Gemini 기반)
+    router = ModelRouter("app/model_inference/routers/routing_config.yaml")
+    selected_model = router.route(question, top_score)
+
+    if selected_model == "mati-llm":
+        llm = HyperClovaLangChainLLM()
+    elif selected_model == "core-llm":
+        llm = GeminiLangChainLLM()
+    else:
+        llm = GeminiLangChainLLM()  # fallback
+
     # LangSmith에 문서 정보 traceable하게 남기기
     retrieved_doc_metadata = [
-    {
-        **doc.metadata, # 모든 메타데이터 포함
-        "page_content": doc.page_content[:300] # 선택적으로 일부 내용 포함
-    }
-    for doc in docs
-]
+        {
+            **doc.metadata, # 모든 메타데이터 포함
+            "page_content": doc.page_content[:300] # 선택적으로 일부 내용 포함
+        }
+        for doc in docs
+    ]
 
     config = RunnableConfig(tags=["run_rag_streaming"])
 
@@ -238,6 +243,6 @@ async def run_rag_streaming(question: str, project_id: int):
             first_token_time = time.perf_counter()
             print(f"⏱️ First token delay: {first_token_time - start_time:.3f} seconds")
             first_token_sent = True
-        yield char_chunk
+        yield char_chunk    
     end_time = time.perf_counter()
     print(f"⏱️ Full generation time: {end_time - start_time:.3f} seconds")
