@@ -8,21 +8,56 @@ load_dotenv()
 
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "github_docs")
+
+def get_qdrant_collection(collection_type: str) -> str:
+    if collection_type == "team":
+        return os.getenv("QDRANT_COLLECTION_TEAM", "github_docs_team")
+    elif collection_type == "summary":
+        return os.getenv("QDRANT_COLLECTION_SUMMARY", "summary_docs")
+    else:
+        raise ValueError(f"Unknown collection_type: {collection_type}")
+
+def get_vectorstore(collection_type: str):
+    embedding_model = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-m3",
+        encode_kwargs={"normalize_embeddings": True}
+    )
+
+    qdrant_client = QdrantClient(
+        url=QDRANT_URL,
+        api_key=QDRANT_API_KEY
+    )
+
+    collection_name = get_qdrant_collection(collection_type)
+
+    return QdrantVectorStore(
+        client=qdrant_client,
+        collection_name=collection_name,
+        embedding=embedding_model,
+        content_payload_key="document",
+    )
 
 embedding_model = HuggingFaceEmbeddings(
     model_name="BAAI/bge-m3",
     encode_kwargs={"normalize_embeddings": True}
 )
 
-qdrant_client = QdrantClient(
-    url=QDRANT_URL,
-    api_key=QDRANT_API_KEY
-)
+def get_embedding_model():
+    return embedding_model
 
-vectorstore = QdrantVectorStore(
-    client=qdrant_client,
-    collection_name=QDRANT_COLLECTION,
-    embedding=embedding_model,
-    content_payload_key="document",
-)
+# embedding_model = HuggingFaceEmbeddings(
+#     model_name="BAAI/bge-m3",
+#     encode_kwargs={"normalize_embeddings": True}
+# )
+
+# qdrant_client = QdrantClient(
+#     url=QDRANT_URL,
+#     api_key=QDRANT_API_KEY
+# )
+
+# vectorstore = QdrantVectorStore(
+#     client=qdrant_client,
+#     collection_name=QDRANT_COLLECTION,
+#     embedding=embedding_model,
+#     content_payload_key="document",
+# )

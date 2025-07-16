@@ -14,7 +14,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 load_dotenv()
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION_TEAM = os.getenv("QDRANT_COLLECTION_TEAM", "github_docs")
+QDRANT_COLLECTION_TEAM = os.getenv("QDRANT_COLLECTION_TEAM", "github_docs_team")
 QDRANT_COLLECTION_SUMMARY = os.getenv("QDRANT_COLLECTION_SUMMARY", "summary_docs")
 
 class QdrantCollectionManager:

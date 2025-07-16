@@ -7,7 +7,7 @@ from app.github_crawling.github_api import fetch_commits, fetch_prs, fetch_readm
 from app.github_crawling.vector_store import store_document, is_id_exists, show_vector_summary
 from collections import defaultdict
 from app.github_crawling.github_api import fetch_wiki_md_files
-from app.model_inference.embedding_runner import embedding_model
+from app.model_inference.embedding_runner import get_embedding_model
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -108,7 +108,7 @@ def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
 
         #직접 store_document 호출 (가중치 자동 적용됨)
         print(f"📅 요약 결과 저장 중... ID: {doc_id}")
-        store_document(summary_text, metadata, embedding_model, doc_id)
+        store_document(summary_text, metadata, get_embedding_model, doc_id)
 
 def summarize_wiki_pages(repo, project_id, team_id):
     pages = fetch_wiki_md_files(repo)
@@ -156,7 +156,7 @@ def summarize_wiki_pages(repo, project_id, team_id):
             print(f"❌ wiki 요약 실패 (chunk {chunk_id}):", e)
             continue
 
-        store_document(summary_text, metadata, embedding_model, doc_id)
+        store_document(summary_text, metadata, get_embedding_model, doc_id)
 
 def main():
     should_run = FORCE_RUN or is_weekly_run_due()

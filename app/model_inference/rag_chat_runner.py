@@ -22,7 +22,7 @@ from app.context_construction.question_router import is_structured_question, cla
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
-from app.model_inference.embedding_runner import vectorstore
+from app.github_crawling.vector_store import get_vectorstore
 from app.services.question_filter import is_project_related
 from app.model_inference.routers.model_router import ModelRouter
 from app.github_crawling.vector_store import get_vectorstore
@@ -155,7 +155,7 @@ async def run_rag_streaming(question: str, project_id: int):
 
     # 문서 검색기 구성 (project_id 필터 포함)
     retriever = WeightedQdrantRetriever(
-        vectorstore=vectorstore,
+        vectorstore=get_vectorstore,
         project_id=project_id,
         top_k=40
     )

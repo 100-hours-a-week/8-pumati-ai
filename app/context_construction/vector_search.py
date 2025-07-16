@@ -9,7 +9,8 @@ model = SentenceTransformer("BAAI/bge-m3")
 
 # Chroma DB 연결
 client = chromadb.PersistentClient(path="./chroma_db")
-collection = client.get_or_create_collection(name="github_docs")
+collection = client.get_or_create_collection(name="github_docs_team")
+collection = client.get_or_create_collection(name="summary_docs")
 
 def search_similar_docs(
     question: str,
