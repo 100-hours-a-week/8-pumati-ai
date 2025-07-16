@@ -105,7 +105,7 @@ document_prompt = PromptTemplate(
 @traceable
 def run_rag(question: str, project_id: int) -> str:
     # 벡터 DB에서 관련 문서 검색
-    retriever = vectorstore.as_retriever(
+    retriever = get_vectorstore.as_retriever(
         search_kwargs={
             "k": 40,
             "filter": Filter(

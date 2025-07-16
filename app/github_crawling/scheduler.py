@@ -74,13 +74,14 @@ def group_data_by_week(data, week_ranges):
 
 def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
     part = classify_part_from_repo(repo)
+    collection_type = "team"
 
     for (week_start, week_end), items in weekly_data_dict.items():
         if not items:
             continue
 
         doc_id = f"summary-{team_id}-{part}-{week_end[5:7]}-{week_end[8:10]}"
-        if is_id_exists(doc_id):
+        if is_id_exists(doc_id, collection_type):
             print(f"✅ 이미 저장된 문서: {doc_id} → 생략")
             continue
 
@@ -108,10 +109,11 @@ def summarize_weekly_data(weekly_data_dict, repo, project_id, team_id):
 
         #직접 store_document 호출 (가중치 자동 적용됨)
         print(f"📅 요약 결과 저장 중... ID: {doc_id}")
-        store_document(summary_text, metadata, get_embedding_model, doc_id)
+        store_document(summary_text, metadata, get_embedding_model, doc_id, collection_type)
 
 def summarize_wiki_pages(repo, project_id, team_id):
     pages = fetch_wiki_md_files(repo)
+    collection_type = "team"
     if not pages:
         print("❌ Wiki pages가 없습니다.")
         return
@@ -134,7 +136,7 @@ def summarize_wiki_pages(repo, project_id, team_id):
         doc_id = f"summary-{team_id}-{part}-{wiki_date[5:7]}-{wiki_date[8:10]}-chunk{chunk_id:02}"
 
         # 이미 있다면 삭제 후 다시 생성
-        if is_id_exists(doc_id):
+        if is_id_exists(doc_id, collection_type):
             print(f"🗑️ 기존 요약 문서 삭제: {doc_id}")
             delete_document_if_exists(doc_id)
 
@@ -156,7 +158,7 @@ def summarize_wiki_pages(repo, project_id, team_id):
             print(f"❌ wiki 요약 실패 (chunk {chunk_id}):", e)
             continue
 
-        store_document(summary_text, metadata, get_embedding_model, doc_id)
+        store_document(summary_text, metadata, get_embedding_model, doc_id, collection_type)
 
 def main():
     should_run = FORCE_RUN or is_weekly_run_due()
