@@ -146,106 +146,85 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
-    
-    # 모델 라우팅 결과에 따라 벡터스토어 선택
-    collection_name = os.getenv("QDRANT_COLLECTION_SUMMARY") if selected_model == "mati-llm" \
-        else os.getenv("QDRANT_COLLECTION_TEAM")
+    # 1. 모델 라우팅을 위한 임시 검색기
+    initial_retriever = WeightedQdrantRetriever(
+        vectorstore=get_vectorstore(collection_name=os.getenv("QDRANT_COLLECTION_TEAM")),
+        project_id=project_id,
+        top_k=1  # 최소 문서 1개만 미리 불러오기
+    )
+    initial_docs = initial_retriever.invoke(question)
+    top_score = initial_docs[0].metadata.get("adjusted_score", 0.0) if initial_docs else 0.0
 
+    # 2. 모델 라우팅
+    router = ModelRouter("app/model_inference/routers/routing_config.yaml")
+    selected_model = router.route(question, top_score)
+
+    # 3. 컬렉션 및 LLM 설정
+    if selected_model == "mati-llm":
+        collection_name = os.getenv("QDRANT_COLLECTION_SUMMARY")
+        llm = HyperClovaLangChainLLM()
+    else:
+        collection_name = os.getenv("QDRANT_COLLECTION_TEAM")
+        llm = GeminiLangChainLLM()
+
+    # 4. 벡터스토어 및 검색기 설정
     vectorstore = get_vectorstore(collection_name=collection_name)
-
-    # 문서 검색기 구성 (project_id 필터 포함)
     retriever = WeightedQdrantRetriever(
-        vectorstore=get_vectorstore,
+        vectorstore=vectorstore,
         project_id=project_id,
         top_k=40
     )
 
-    # 관련 문서 검색
+    # 5. 문서 검색
     docs = retriever.invoke(question)
-    top_score = docs[0].metadata.get("adjusted_score", 0.0) if docs else 0.0
-    
-    # 2. 필터링 (Gemini 기반)
-    router = ModelRouter("app/model_inference/routers/routing_config.yaml")
-    selected_model = router.route(question, top_score)
 
-    if selected_model == "mati-llm":
-        llm = HyperClovaLangChainLLM()
-        vectorstore = get_vectorstore(COLLECTION_SUMMARY)
-    elif selected_model == "core-llm":
-        llm = GeminiLangChainLLM()
-        vectorstore = get_vectorstore(COLLECTION_TEAM)
-    else:
-        llm = GeminiLangChainLLM()
-        vectorstore = get_vectorstore(COLLECTION_TEAM)
-
-    # LangSmith에 문서 정보 traceable하게 남기기
+    # 6. LangSmith 추적용 metadata 저장
+    config = RunnableConfig(tags=["run_rag_streaming"])
     retrieved_doc_metadata = [
         {
-            **doc.metadata, # 모든 메타데이터 포함
-            "page_content": doc.page_content[:300] # 선택적으로 일부 내용 포함
+            **doc.metadata,
+            "page_content": doc.page_content[:300]
         }
         for doc in docs
     ]
-
-    config = RunnableConfig(tags=["run_rag_streaming"])
-
     callbacks = config.get("callbacks") if config else None
     if isinstance(callbacks, list) and len(callbacks) > 0:
         callback = callbacks[0]
         run_id = getattr(callback, "run_id", None)
         if run_id:
             ls_client = client.Client()
-            retrieved_doc_metadata = [
-                {
-                    **doc.metadata,
-                    "page_content": doc.page_content[:300]
-                }
-                for doc in docs
-            ]
             ls_client.update_run(
                 run_id,
-                inputs={
-                    "question": question,
-                    "retrieved_docs": retrieved_doc_metadata
-                }
+                inputs={"question": question, "retrieved_docs": retrieved_doc_metadata}
             )
-        
+
+    # 7. 필터링 기준 적용
     adjusted_scores = [doc.metadata.get("adjusted_score", 0.0) for doc in docs[:3]]
     avg_adjusted_scores = sum(adjusted_scores) / max(len(adjusted_scores), 1)
     print(f"➗ avg_adjusted_scores: {avg_adjusted_scores}")
     if not docs or avg_adjusted_scores < 0.5:
-        # FILTERED_RESPONSE의 각 글자를 순회하며 yield하되, 줄바꿈은 치환
         for char in FILTERED_RESPONSE:
-            if char == '\n':
-                yield '\\n' # 줄바꿈 문자를 특정 문자열로 치환하여 yield
-            else:
-                yield char
+            yield '\\n' if char == '\n' else char
         return
 
-    # 프롬프트 구성
+    # 8. 프롬프트 생성
     if is_structured_question(question):
         q_type = classify_question_type(question)
         prompt_template = build_prompt_template(q_type)
     else:
         prompt_template = general_prompt_template
 
-    # 프롬프트 입력 구성
     context = "\n".join([doc.page_content for doc in docs])
     prompt_input = {
         "question": question,
         "context": context
     }
 
-    # LangSmith 추적용 config
-    config = RunnableConfig(tags=["run_rag_streaming"])
-
-    # 스트리밍 LLM 체인 구성
+    # 9. 스트리밍 응답
     chain = (
         RunnableLambda(lambda x: prompt_template.format(**x)) |
         StreamingLLMWrapper(llm)
     )
-
-    # 응답 스트리밍 처리
     start_time = time.perf_counter()
     first_token_sent = False
 
@@ -254,6 +233,7 @@ async def run_rag_streaming(question: str, project_id: int):
             first_token_time = time.perf_counter()
             print(f"⏱️ First token delay: {first_token_time - start_time:.3f} seconds")
             first_token_sent = True
-        yield char_chunk    
+        yield char_chunk
+
     end_time = time.perf_counter()
     print(f"⏱️ Full generation time: {end_time - start_time:.3f} seconds")
