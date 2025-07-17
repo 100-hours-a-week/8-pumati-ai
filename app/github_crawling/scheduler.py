@@ -20,6 +20,7 @@ from app.github_crawling.vector_store import delete_document_if_exists
 from app.model_inference.loaders.gemini_langchain_llm import summarize_chain
 from dateutil.tz import UTC
 from app.context_construction.prompts.summarize_prompt import summarize_prompt_template
+from app.context_construction.prompts.wiki_summarize_prompt import wiki_summarize_prompt_template
 
 PART_LIST = ["ai", "be", "cloud", "fe", "wiki", "RELEASE_NOTE"]
 def classify_part_from_repo(repo_name: str) -> str:
@@ -171,8 +172,16 @@ def summarize_wiki_pages(repo, project_id, team_id):
         }
 
         try:
-            summary = summarize_chain.invoke({"input": combined_text.strip()})
+            # 프롬프트 문자열 직접 생성해서 input에 넣음
+            formatted_prompt = wiki_summarize_prompt_template.format(input=combined_text.strip())
+
+            summary = summarize_chain.invoke({
+                "input": formatted_prompt,
+                "team_id": team_id,
+                "part": "ALL"
+            })
             summary_text = summary.get("text") if isinstance(summary, dict) else str(summary)
+
             print("📄 wiki 요약 결과:", summary_text)
         except Exception as e:
             print(f"❌ wiki 요약 실패 (chunk {chunk_id}):", e)
