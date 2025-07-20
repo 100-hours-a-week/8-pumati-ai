@@ -331,6 +331,11 @@ class BadgePrompt:
             logger.info("3-4-1) 3팀 이미지를 불러옵니다.")
             img_3 = Image.open("./app/utils/3.png")
             return await self.img_preprocessing(img_3) #await self.get_image("https://www.meowng.com/logo.svg")
+        
+        elif self.data.teamNumber == 13:
+            logger.info("3-4-1) 13팀 이미지를 불러옵니다.")
+            img_13 = Image.open("./app/utils/13.png")
+            return await self.img_preprocessing(img_13)
 
 
         options = Options()
@@ -593,7 +598,7 @@ if __name__ == '__main__':
             tags=["품앗이"],
             teamId=4,
             term=2,
-            teamNumber=3
+            teamNumber=13
         )
     )
 
