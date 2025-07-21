@@ -29,3 +29,6 @@ wordninja==2.0.0
 plotly==6.2.0
 kaleido==1.0.0
 
+#GCS
+google-cloud-storage==3.2.0
+
