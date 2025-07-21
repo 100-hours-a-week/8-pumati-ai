@@ -33,7 +33,7 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
         # gcs_url = get_gcs_url(team_url)
         # logger.info(f"5-1-2) gcs url: {gcs_url}")
         try:
-            badge_canny = load_image_from_gcs(team_url)
+            control_image = load_image_from_gcs(team_url)
             await badge_loader_instance.load_LoRA(mod_tags)
         except Exception as e:
             logger.warning(f"5-1-e) gcs에서 이미지 다운로드 실패, 재생성 시도: {e}")
@@ -41,6 +41,7 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
                 badge_input_instance.insert_logo_on_badge(),
                 badge_loader_instance.load_LoRA(mod_tags)#get_model(mod_tags=mod_tags)
             )
+            control_image = Image.fromarray(badge_canny).convert("L")
 
     else:
         badge_canny, _ = await asyncio.gather(
@@ -49,8 +50,8 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
         )
         logger.info("5-4) 생성된 이미지를 GCS에 업로드 중...")
         try:
-            pil_img = Image.fromarray(badge_canny).convert("L")
-            saved_gcs_url = upload_pil_image_to_gcs(pil_img, team_url)
+            control_image = Image.fromarray(badge_canny).convert("L")
+            saved_gcs_url = upload_pil_image_to_gcs(control_image, team_url)
             logger.info(f"5-5) 업로드 완료. 저장된 url: {saved_gcs_url}")
         except Exception as e:
             logger.warning(f"5-e) GCS에 업로드 실패: {e}")
@@ -58,7 +59,7 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
     # 2) pipline로드
     # get_model(mod_tags = mod_tags)
 
-    control_image = Image.fromarray(badge_canny).convert("L")
+    #control_image = Image.fromarray(badge_canny).convert("L")
     prompt = badge_input_instance.build_badge_prompt(mod_tags, team_number)
     negative_prompt = "dark colors, gray, brown, metallic shadows, english, watermark, distortion, blurry"
     
