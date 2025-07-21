@@ -49,7 +49,8 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
         )
         logger.info("5-4) 생성된 이미지를 GCS에 업로드 중...")
         try:
-            saved_gcs_url = upload_pil_image_to_gcs(badge_canny, team_url)
+            pil_img = Image.fromarray(badge_canny).convert("L")
+            saved_gcs_url = upload_pil_image_to_gcs(pil_img, team_url)
             logger.info(f"5-5) 업로드 완료. 저장된 url: {saved_gcs_url}")
         except Exception as e:
             logger.warning(f"5-e) GCS에 업로드 실패: {e}")
