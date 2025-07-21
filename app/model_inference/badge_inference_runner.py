@@ -3,6 +3,7 @@
 from app.fast_api.schemas.badge_schemas import BadgeRequest #입력데이터
 from app.context_construction.prompts.badge_prompt import BadgePrompt #프롬프트(더미데이터 로드)
 from app.model_inference.loaders.badge_loader import badge_loader_instance #모델 파이프라인 로드
+from app.utils.GCS_management import *
 
 import torch
 from PIL import Image
@@ -25,11 +26,34 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
     badge_input_instance = BadgePrompt(request_data)
     logger.info("5-1) 이미지 생성 시작: 허깅페이스에서 LoRA 다운중...")
     # badge_canny = badge_input_instance.insert_logo_on_badge()
+    
+    team_url = f"{team_number}/2_canny.png"
+    if gcs_blob_exists(team_url):
+        logger.info(f"5-1-1) image already exist. teamURL: {team_url}")
+        # gcs_url = get_gcs_url(team_url)
+        # logger.info(f"5-1-2) gcs url: {gcs_url}")
+        try:
+            badge_canny = load_image_from_gcs(team_url)
+            await badge_loader_instance.load_LoRA(mod_tags)
+        except Exception as e:
+            logger.warning(f"5-1-e) gcs에서 이미지 다운로드 실패, 재생성 시도: {e}")
+            badge_canny, _ = await asyncio.gather(
+                badge_input_instance.insert_logo_on_badge(),
+                badge_loader_instance.load_LoRA(mod_tags)#get_model(mod_tags=mod_tags)
+            )
 
-    badge_canny, _ = await asyncio.gather(
-        badge_input_instance.insert_logo_on_badge(),
-        badge_loader_instance.load_LoRA(mod_tags)#get_model(mod_tags=mod_tags)
-    )
+    else:
+        badge_canny, _ = await asyncio.gather(
+            badge_input_instance.insert_logo_on_badge(),
+            badge_loader_instance.load_LoRA(mod_tags)#get_model(mod_tags=mod_tags)
+        )
+        logger.info("5-4) 생성된 이미지를 GCS에 업로드 중...")
+        try:
+            saved_gcs_url = upload_pil_image_to_gcs(badge_canny, team_url)
+            logger.info(f"5-5) 업로드 완료. 저장된 url: {saved_gcs_url}")
+        except Exception as e:
+            logger.warning(f"5-e) GCS에 업로드 실패: {e}")
+
     # 2) pipline로드
     # get_model(mod_tags = mod_tags)
 

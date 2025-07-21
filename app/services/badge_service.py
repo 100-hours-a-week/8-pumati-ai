@@ -10,6 +10,7 @@ import logging
 
 from app.fast_api.schemas.badge_schemas import BadgeRequest
 from app.model_inference.badge_inference_runner import generate_image
+from app.utils.GCS_management import *
 
 BE_SERVER = os.getenv("BE_SERVER_URL")
 
@@ -106,9 +107,29 @@ class BadgeService:
         '''
         BadgeService의 메인 기능.
         '''
-        logger.info("3-1) badge 이미지 생성 시작")
         # 1) 이미지 생성하기
-        image = await generate_image(mod_tags, team_number, request_data)
+        team_url = f"{team_number}/{mods_tag_name_mapping(mod_tags)}"
+        if gcs_blob_exists(team_url):
+            logger.info("3-1) badge image already exist")
+            # gcs_url = get_gcs_url(team_url)
+            # logger.info(f"3-2) gcs url: {gcs_url}")
+            try:
+                image = load_image_from_gcs(team_url)
+            except Exception as e:
+                logger.warning(f"3-e) gcs에서 이미지 다운로드 실패, 재생성 시도: {e}")
+                image = await generate_image(mod_tags, team_number, request_data)
+
+        else:
+            logger.info("3-1) badge 이미지 생성 시작")
+            image = await generate_image(mod_tags, team_number, request_data)
+            logger.info("6-2) 생성된 이미지를 GCS에 업로드 중...")
+            try:
+                saved_gcs_url = upload_pil_image_to_gcs(image, team_url)
+                logger.info(f"6-3) 업로드 완료. 저장된 url: {saved_gcs_url}")
+            except Exception as e:
+                logger.warning(f"6-e) GCS에 업로드 실패: {e}")
+
+
 
         # 2) 팀 title 입력
         #logger.info("7-1) teamtitle 붙여주기")

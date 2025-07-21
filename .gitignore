@@ -29,3 +29,6 @@ chroma_db_weight/
 cached_wikis/
 app/utils/release_note
 app/utils/chatbot_train_data
+
+#GCS 서버 정보
+app/utils/info/*.json
