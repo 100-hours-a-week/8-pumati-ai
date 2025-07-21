@@ -22,7 +22,6 @@ from app.context_construction.question_router import is_structured_question, cla
 from app.context_construction.prompts.chat_prompt import build_prompt_template, general_prompt_template
 from app.model_inference.loaders.gemini import GeminiLangChainLLM
 from app.model_inference.loaders.hyperclova_langchain_llm import HyperClovaLangChainLLM
-from app.model_inference.embedding_runner import vectorstore
 from app.services.question_filter import is_project_related
 from app.model_inference.routers.model_router import ModelRouter
 from app.github_crawling.vector_store import get_vectorstore
@@ -146,37 +145,38 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
-    
-    # 모델 라우팅 결과에 따라 벡터스토어 선택
-    collection_name = os.getenv("QDRANT_COLLECTION_SUMMARY") if selected_model == "mati-llm" \
-        else os.getenv("QDRANT_COLLECTION_TEAM")
+    # 1. 라우터 준비 (top_score는 나중에)
+    router = ModelRouter("app/model_inference/routers/routing_config.yaml")
 
-    vectorstore = get_vectorstore(collection_name=collection_name)
-
-    # 문서 검색기 구성 (project_id 필터 포함)
+    # 2. 일단 team 컬렉션으로 retriever 준비 (초기 검색용)
+    vectorstore = get_vectorstore("team")
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
         project_id=project_id,
         top_k=40
     )
-
-    # 관련 문서 검색
     docs = retriever.invoke(question)
     top_score = docs[0].metadata.get("adjusted_score", 0.0) if docs else 0.0
-    
-    # 2. 필터링 (Gemini 기반)
-    router = ModelRouter("app/model_inference/routers/routing_config.yaml")
+
+    # 3. 라우팅
     selected_model = router.route(question, top_score)
 
+    # 4. 라우팅 결과에 따라 vectorstore/llm 재설정
     if selected_model == "mati-llm":
         llm = HyperClovaLangChainLLM()
-        vectorstore = get_vectorstore(COLLECTION_SUMMARY)
-    elif selected_model == "core-llm":
-        llm = GeminiLangChainLLM()
-        vectorstore = get_vectorstore(COLLECTION_TEAM)
+        vectorstore = get_vectorstore("summary")
     else:
         llm = GeminiLangChainLLM()
-        vectorstore = get_vectorstore(COLLECTION_TEAM)
+        vectorstore = get_vectorstore("team")
+
+    # 5. retriever 재생성 (필요시)
+    retriever = WeightedQdrantRetriever(
+        vectorstore=vectorstore,
+        project_id=project_id,
+        top_k=40
+    )
+    docs = retriever.invoke(question)
+    top_score = docs[0].metadata.get("adjusted_score", 0.0) if docs else 0.0
 
     # LangSmith에 문서 정보 traceable하게 남기기
     retrieved_doc_metadata = [

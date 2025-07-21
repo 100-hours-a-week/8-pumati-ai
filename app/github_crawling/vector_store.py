@@ -143,7 +143,14 @@ def delete_document_if_exists(doc_id: str, collection_type: str = "team"):
     except Exception as e:
         print(f"❌ 삭제 중 오류 발생: {e}")
 
-def get_vectorstore(collection_name: str) -> QdrantVectorStore:
+def get_vectorstore(collection_type: str) -> QdrantVectorStore:
+    if collection_type == "team":
+        collection_name = os.getenv("QDRANT_COLLECTION_TEAM", "github_docs_team")
+    elif collection_type == "summary":
+        collection_name = os.getenv("QDRANT_COLLECTION_SUMMARY", "summary_docs")
+    else:
+        raise ValueError(f"Unknown collection_type: {collection_type}")
+
     embedding_model = HuggingFaceEmbeddings(
         model_name="BAAI/bge-m3",
         encode_kwargs={"normalize_embeddings": True}
