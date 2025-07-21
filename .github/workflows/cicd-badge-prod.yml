@@ -98,8 +98,25 @@ jobs:
           if [ ! -z "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
             # 디렉토리가 없으면 생성
             mkdir -p $(dirname "$GOOGLE_APPLICATION_CREDENTIALS")
-            # GitHub Secret에서 GCS JSON을 파일로 저장
+            
+            # PROD_GCS_JSON Secret에서 실제 JSON 내용을 파일로 저장
+            echo "📄 PROD_GCS_JSON Secret에서 GCS 키 내용을 가져와서 저장 중..."
             echo '${{ secrets.PROD_GCS_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+            
+            # JSON 파일 유효성 검증
+            echo "🔍 생성된 JSON 파일 유효성 검증 중..."
+            if python3 -m json.tool "$GOOGLE_APPLICATION_CREDENTIALS" > /dev/null 2>&1; then
+              echo "✅ JSON 파일 유효성 검증 성공"
+            else
+              echo "❌ JSON 파일 유효성 검증 실패!"
+              echo "📄 파일 내용 (처음 200자):"
+              head -c 200 "$GOOGLE_APPLICATION_CREDENTIALS"
+              echo ""
+              echo "💡 PROD_GCS_JSON Secret에 올바른 JSON 형식으로 저장되어 있는지 확인해주세요."
+              echo "🔑 GCS 서비스 계정 키 JSON 전체 내용이 PROD_GCS_JSON Secret에 저장되어야 합니다."
+              exit 1
+            fi
+            
             echo "✅ GCS 키 파일 저장 완료: $GOOGLE_APPLICATION_CREDENTIALS"
             # 파일 권한 설정 (보안)
             chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
