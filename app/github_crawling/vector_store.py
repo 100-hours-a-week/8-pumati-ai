@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance, PayloadSchemaType
 from uuid import uuid5, NAMESPACE_DNS
-from app.github_crawling.embedding import get_embedding
+from app.github_crawling.embedding import get_embedding, MODEL_NAME
 from langchain_qdrant import QdrantVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -67,7 +67,7 @@ def _get_embedding_model():
     if _embedding_model is None:
         print("💡 Caching new embedding model instance.")
         _embedding_model = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-m3",
+            model_name=MODEL_NAME,
             encode_kwargs={"normalize_embeddings": True}
         )
     return _embedding_model

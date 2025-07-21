@@ -3,6 +3,7 @@ from langchain_qdrant import QdrantVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 import os
 from dotenv import load_dotenv
+from app.github_crawling.embedding import MODEL_NAME
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ def get_qdrant_collection(collection_type: str) -> str:
 
 def get_vectorstore(collection_type: str):
     embedding_model = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-m3",
+        model_name=MODEL_NAME,
         encode_kwargs={"normalize_embeddings": True}
     )
 
@@ -38,26 +39,9 @@ def get_vectorstore(collection_type: str):
     )
 
 embedding_model = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-m3",
+    model_name=MODEL_NAME,
     encode_kwargs={"normalize_embeddings": True}
 )
 
 def get_embedding_model():
     return embedding_model
-
-# embedding_model = HuggingFaceEmbeddings(
-#     model_name="BAAI/bge-m3",
-#     encode_kwargs={"normalize_embeddings": True}
-# )
-
-# qdrant_client = QdrantClient(
-#     url=QDRANT_URL,
-#     api_key=QDRANT_API_KEY
-# )
-
-# vectorstore = QdrantVectorStore(
-#     client=qdrant_client,
-#     collection_name=QDRANT_COLLECTION,
-#     embedding=embedding_model,
-#     content_payload_key="document",
-# )

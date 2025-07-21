@@ -3,9 +3,11 @@
 from sentence_transformers import SentenceTransformer
 import chromadb
 from typing import List, Tuple
+from app.github_crawling.embedding import MODEL_NAME
+from app.github_crawling.embedding import get_st_model
 
-# Sentence Transformer 모델 로딩 (한 번만 로드)
-model = SentenceTransformer("BAAI/bge-m3")
+# Sentence Transformer 모델 로딩 (한 번만 로드, 싱글턴)
+model = get_st_model()
 
 # Chroma DB 연결
 client = chromadb.PersistentClient(path="./chroma_db")
