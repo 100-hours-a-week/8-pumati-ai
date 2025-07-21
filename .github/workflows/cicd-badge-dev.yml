@@ -10,6 +10,7 @@ on:
     branches:
       - cpu-dev
       - dev
+      - feat/207-badge-AddGCS
       #- feat/100-badge-DeploymentEnvironment
       #- feat/125-badge-regularInstance
 
