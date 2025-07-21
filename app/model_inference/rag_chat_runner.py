@@ -145,10 +145,14 @@ def run_rag(question: str, project_id: int) -> str:
 
 @traceable
 async def run_rag_streaming(question: str, project_id: int):
+    
+    start_time_all = time.perf_counter()
+
     # 1. 라우터 준비 (top_score는 나중에)
     router = ModelRouter("app/model_inference/routers/routing_config.yaml")
 
     # 2. 일단 team 컬렉션으로 retriever 준비 (초기 검색용)
+    start_time_vs1 = time.perf_counter()
     vectorstore = get_vectorstore("team")
     retriever = WeightedQdrantRetriever(
         vectorstore=vectorstore,
@@ -157,11 +161,19 @@ async def run_rag_streaming(question: str, project_id: int):
     )
     docs = retriever.invoke(question)
     top_score = docs[0].metadata.get("adjusted_score", 0.0) if docs else 0.0
+    end_time_vs1 = time.perf_counter()
+    print(f"⏱️ [1] 초기 retriever 생성 및 검색: {end_time_vs1 - start_time_vs1:.3f}초")
+
 
     # 3. 라우팅
+    start_time_route = time.perf_counter()
     selected_model = router.route(question, top_score)
+    end_time_route = time.perf_counter()
+    print(f"⏱️ [2] 모델 라우팅: {end_time_route - start_time_route:.3f}초")
+
 
     # 4. 라우팅 결과에 따라 vectorstore/llm 재설정
+    start_time_vs2 = time.perf_counter()
     if selected_model == "mati-llm":
         llm = HyperClovaLangChainLLM()
         vectorstore = get_vectorstore("summary")
@@ -177,6 +189,9 @@ async def run_rag_streaming(question: str, project_id: int):
     )
     docs = retriever.invoke(question)
     top_score = docs[0].metadata.get("adjusted_score", 0.0) if docs else 0.0
+    end_time_vs2 = time.perf_counter()
+    print(f"⏱️ [3] 최종 retriever 생성 및 검색: {end_time_vs2 - start_time_vs2:.3f}초")
+
 
     # LangSmith에 문서 정보 traceable하게 남기기
     retrieved_doc_metadata = [
@@ -246,14 +261,15 @@ async def run_rag_streaming(question: str, project_id: int):
     )
 
     # 응답 스트리밍 처리
-    start_time = time.perf_counter()
+    start_time_llm = time.perf_counter()
     first_token_sent = False
 
     async for char_chunk in chain.astream(prompt_input, config=config):
         if not first_token_sent:
-            first_token_time = time.perf_counter()
-            print(f"⏱️ First token delay: {first_token_time - start_time:.3f} seconds")
+            end_time_llm_first_token = time.perf_counter()
+            print(f"⏱️ [4] First token delay: {end_time_llm_first_token - start_time_llm:.3f}초")
             first_token_sent = True
         yield char_chunk    
-    end_time = time.perf_counter()
-    print(f"⏱️ Full generation time: {end_time - start_time:.3f} seconds")
+    end_time_all = time.perf_counter()
+    print(f"⏱️ [5] Full generation time: {end_time_all - start_time_llm:.3f}초")
+    print(f"⏱️ [Total] 총 실행 시간: {end_time_all - start_time_all:.3f}초")

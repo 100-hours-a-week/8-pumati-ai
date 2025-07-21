@@ -58,6 +58,21 @@ class QdrantCollectionManager:
     def get_client(self):
         return self.client
 
+# --- Caching a single embedding model instance ---
+_embedding_model = None
+
+def _get_embedding_model():
+    """Load the embedding model once and reuse it."""
+    global _embedding_model
+    if _embedding_model is None:
+        print("💡 Caching new embedding model instance.")
+        _embedding_model = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-m3",
+            encode_kwargs={"normalize_embeddings": True}
+        )
+    return _embedding_model
+# -----------------------------------------------
+
 def is_id_exists(doc_id: str, collection_type: str) -> bool:
     manager = QdrantCollectionManager(collection_type)
     uuid_id = str(uuid5(NAMESPACE_DNS, doc_id))
@@ -151,10 +166,7 @@ def get_vectorstore(collection_type: str) -> QdrantVectorStore:
     else:
         raise ValueError(f"Unknown collection_type: {collection_type}")
 
-    embedding_model = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-m3",
-        encode_kwargs={"normalize_embeddings": True}
-    )
+    embedding_model = _get_embedding_model()
 
     qdrant_client = QdrantClient(
         url=QDRANT_URL,
