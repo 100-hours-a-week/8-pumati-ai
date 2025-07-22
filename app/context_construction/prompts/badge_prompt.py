@@ -337,13 +337,13 @@ class BadgePrompt:
             except Exception as e:
                 logger.warning(f"3-4-e) gcs에서 이미지 다운로드 실패, 크롤링 시도: {e}")
 
-        if self.data.teamNumber == 20:
-            logger.info("3-4-1) 20팀 이미지를 불러옵니다")
-            img_20 = Image.open("./app/utils/20.ico")
-            return await self.img_preprocessing(img_20)
+        # if self.data.teamNumber == 20:
+        #     logger.info("3-4-1) 20팀 이미지를 불러옵니다")
+        #     img_20 = Image.open("./app/utils/20.ico")
+        #     return await self.img_preprocessing(img_20)
 
 
-        elif self.data.teamNumber == 14:
+        if self.data.teamNumber == 14:
             logger.info("3-4-1) 14팀 이미지를 불러옵니다.")
             img_14 = Image.open("./app/utils/14.png")
             return await self.img_preprocessing(img_14)
