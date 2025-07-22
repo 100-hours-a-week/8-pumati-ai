@@ -97,10 +97,10 @@ def mods_tag_name_mapping(mod_tags: str):
         return "6_wood.png"
 
     elif mod_tags == "픽셀":
-        return "6_pixel.png"
+        return "7_pixel.png"
 
     elif mod_tags == "게임":
-        return "7_game.png"
+        return "8_game.png"
     
     else:
         return "3_original.png"
