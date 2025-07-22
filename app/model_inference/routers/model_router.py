@@ -7,9 +7,9 @@ class ModelRouter:
         with open(routing_config_path, "r") as f:
             self.config = yaml.safe_load(f)
 
-    def route(self, question: str, top_doc_score: float) -> str:
+    def route(self, question: str, top_doc_score: float, docs: list[str]) -> str:
         question_type = classify_question_type(question)
-        related = is_project_related(question)
+        related = is_project_related(question, docs)
 
         valid_types = {"summary", "project", "function"}
         for rule in self.config.get("routes", []):

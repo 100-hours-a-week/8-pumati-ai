@@ -167,10 +167,13 @@ async def run_rag_streaming(question: str, project_id: int):
 
     # 3. 라우팅
     start_time_route = time.perf_counter()
-    selected_model = router.route(question, top_score)
+    selected_model = router.route(
+        question,
+        top_score,
+        docs=[doc.page_content for doc in docs]
+    )
     end_time_route = time.perf_counter()
     print(f"⏱️ [2] 모델 라우팅: {end_time_route - start_time_route:.3f}초")
-
 
     # 4. 라우팅 결과에 따라 vectorstore/llm 재설정
     start_time_vs2 = time.perf_counter()

@@ -3,11 +3,14 @@ from app.model_inference.loaders.gemini import GeminiLangChainLLM
 
 llm = GeminiLangChainLLM()
 
-def is_project_related(question: str) -> bool:
+def is_project_related(question: str, docs: list[str]) -> bool:
     """
-    질문이 팀/프로젝트(GitHub 활동) 관련인지 Gemini LLM으로 판별한다.
-    관련 있으면 True, 없으면 False 반환.
+    질문이 문서 내용과 관련 있는지 판단.
+    관련 있으면 True, 없으면 False.
     """
-    prompt = f"{SYSTEM_PROMPT}\n\n질문: {question}\n답변:"
+    # 문서 목록 포맷팅
+    context_str = "\n".join([f"{i+1}. {doc}" for i, doc in enumerate(docs)])
+    prompt = f"{SYSTEM_PROMPT}\n\n질문:\n{question}\n\n문서 목록:\n{context_str}\n\n정답:"
+    
     result = llm._call(prompt).strip().lower()
-    return result == "yes" 
+    return result == "yes"
