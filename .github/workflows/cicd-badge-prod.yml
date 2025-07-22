@@ -71,6 +71,8 @@ jobs:
           export ARTIFACT_REGISTRY_LOCATION=$(grep "ARTIFACT_REGISTRY_LOCATION=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           export GCP_QUEUE_NAME=$(grep "GCP_QUEUE_NAME=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           export GCP_SERVICE_EMAIL=$(grep "GCP_SERVICE_EMAIL=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export GOOGLE_APPLICATION_CREDENTIALS=$(grep "GOOGLE_APPLICATION_CREDENTIALS=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
+          export BUCKET_NAME=$(grep "BUCKET_NAME=" temp_env | cut -d'=' -f2- | tr -d '"' | tr -d ' ')
           
           echo "🔑 환경 변수들 확인:"
           echo "HF_AUTH_TOKEN_VICKY: ${HF_AUTH_TOKEN_VICKY:0:10}****"
@@ -80,6 +82,8 @@ jobs:
           echo "ARTIFACT_REGISTRY_LOCATION: $ARTIFACT_REGISTRY_LOCATION"
           echo "GCP_QUEUE_NAME: $GCP_QUEUE_NAME"
           echo "GCP_SERVICE_EMAIL: $GCP_SERVICE_EMAIL"
+          echo "GOOGLE_APPLICATION_CREDENTIALS: $GOOGLE_APPLICATION_CREDENTIALS"
+          echo "BUCKET_NAME: $BUCKET_NAME"
           
           # HF 토큰 유효성 검증
           if [ -z "$HF_AUTH_TOKEN_VICKY" ]; then
@@ -88,6 +92,62 @@ jobs:
           fi
           
           echo "✅ HF 토큰 추출 성공!"
+          
+          # 🔑 GCS 서비스 계정 키 파일 생성
+          echo "🔑 GCS 서비스 계정 키 파일 생성 중..."
+          if [ ! -z "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            # 디렉토리가 없으면 생성
+            mkdir -p $(dirname "$GOOGLE_APPLICATION_CREDENTIALS")
+            
+            # PROD_GCS_JSON Secret에서 실제 JSON 내용을 파일로 저장
+            echo "📄 PROD_GCS_JSON Secret에서 GCS 키 내용을 가져와서 저장 중..."
+            
+            # 임시로 base64 인코딩된 경우도 처리
+            if echo '${{ secrets.PROD_GCS_JSON }}' | base64 -d > /dev/null 2>&1; then
+              echo "🔍 base64로 인코딩된 것으로 감지, 디코딩 중..."
+              echo '${{ secrets.PROD_GCS_JSON }}' | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
+            else
+              echo "🔍 일반 텍스트로 처리 중..."
+              # GitHub Actions에서 여러 줄 처리를 위한 더 안전한 방법
+              echo '${{ secrets.PROD_GCS_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+            fi
+            
+            echo "📊 파일 정보:"
+            echo "  - 파일 크기: $(wc -c < "$GOOGLE_APPLICATION_CREDENTIALS") bytes"
+            echo "  - 첫 번째 줄: $(head -n1 "$GOOGLE_APPLICATION_CREDENTIALS" | cut -c1-50)..."
+            echo "  - 마지막 줄: $(tail -n1 "$GOOGLE_APPLICATION_CREDENTIALS" | cut -c1-50)..."
+            
+            # JSON 파일 유효성 검증
+            echo "🔍 생성된 JSON 파일 유효성 검증 중..."
+            if python3 -m json.tool "$GOOGLE_APPLICATION_CREDENTIALS" > /dev/null 2>&1; then
+              echo "✅ JSON 파일 유효성 검증 성공"
+            else
+              echo "❌ JSON 파일 유효성 검증 실패!"
+              echo "📄 파일 줄 수: $(wc -l < "$GOOGLE_APPLICATION_CREDENTIALS")"
+              echo "📄 첫 5줄:"
+              head -n5 "$GOOGLE_APPLICATION_CREDENTIALS" | sed 's/^/  /'
+              echo "📄 마지막 5줄:"
+              tail -n5 "$GOOGLE_APPLICATION_CREDENTIALS" | sed 's/^/  /'
+              echo ""
+              echo "💡 JSON 유효성 검사 상세 오류:"
+              python3 -m json.tool "$GOOGLE_APPLICATION_CREDENTIALS" 2>&1 | head -n10
+              echo ""
+              echo "🔑 확인 사항:"
+              echo "  1. PROD_GCS_JSON Secret이 올바른 JSON 형식인지 확인"
+              echo "  2. 줄바꿈이나 특수 문자가 제대로 처리되었는지 확인"
+              echo "  3. base64 인코딩이 필요한지 확인"
+              # 검증 실패 시에도 빌드를 계속 진행 (임시로)
+              echo "⚠️ JSON 검증 실패했지만 빌드를 계속 진행합니다..."
+            fi
+            
+            echo "✅ GCS 키 파일 저장 완료: $GOOGLE_APPLICATION_CREDENTIALS"
+            # 파일 권한 설정 (보안)
+            chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+            echo "🔐 파일 권한 설정 완료 (600)"
+          else
+            echo "❌ GOOGLE_APPLICATION_CREDENTIALS 환경 변수가 설정되지 않았습니다!"
+            exit 1
+          fi
           
           # 🐳 Docker 이미지 빌드 (배지 모델 포함)
           echo "🐳 배지 서비스 Docker 이미지 빌드 시작..."
@@ -108,14 +168,22 @@ jobs:
             --build-arg ARTIFACT_REGISTRY_LOCATION="${ARTIFACT_REGISTRY_LOCATION}" \
             --build-arg GCP_QUEUE_NAME="${GCP_QUEUE_NAME}" \
             --build-arg GCP_SERVICE_EMAIL="${GCP_SERVICE_EMAIL}" \
+            --build-arg GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS}" \
+            --build-arg BUCKET_NAME="${BUCKET_NAME}" \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest \
             -f ${{ env.DOCKERFILE_PATH }} .
           
           echo "✅ 배지 서비스 Docker 이미지 빌드 완료!"
           
-          # 임시 파일 정리
+          # 🧹 보안 정리: 임시 파일들 삭제
+          echo "🧹 보안을 위한 임시 파일 정리 중..."
           rm temp_env
+          if [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            rm "$GOOGLE_APPLICATION_CREDENTIALS"
+            echo "🗑️ GCS 키 파일 삭제 완료: $GOOGLE_APPLICATION_CREDENTIALS"
+          fi
+          echo "✅ 모든 임시 파일 정리 완료"
 
       # 5. Docker 이미지를 Artifact Registry에 푸시
       - name: Push Docker image to Artifact Registry
@@ -148,12 +216,14 @@ jobs:
           echo ""
           echo "docker run \\"
           echo "  -e HF_AUTH_TOKEN_VICKY=\"your_hf_token_here\" \\"
-          echo "  -e BE_SERVER_URL=\"https://tebutebu.com/\" \\"
-          echo "  -e AI_SERVER_URL=\"https://badge-prod-325953343194.asia-east1.run.app/\" \\"
-          echo "  -e GCP_PROJECT_ID=\"ktb8team-458916\" \\"
-          echo "  -e ARTIFACT_REGISTRY_LOCATION=\"asia-east1\" \\"
-          echo "  -e GCP_QUEUE_NAME=\"badge-queue\" \\"
-          echo "  -e GCP_SERVICE_EMAIL=\"ai-task-invoker@ktb8team-458916.iam.gserviceaccount.com\" \\"
+          echo "  -e BE_SERVER_URL=\"$BE_SERVER_URL\" \\"
+          echo "  -e AI_SERVER_URL=\"$AI_SERVER_URL\" \\"
+          echo "  -e GCP_PROJECT_ID=\"$GCP_PROJECT_ID\" \\"
+          echo "  -e ARTIFACT_REGISTRY_LOCATION=\"$ARTIFACT_REGISTRY_LOCATION\" \\"
+          echo "  -e GCP_QUEUE_NAME=\"$GCP_QUEUE_NAME\" \\"
+          echo "  -e GCP_SERVICE_EMAIL=\"$GCP_SERVICE_EMAIL\" \\"
+          echo "  -e GOOGLE_APPLICATION_CREDENTIALS=\"$GOOGLE_APPLICATION_CREDENTIALS\" \\"
+          echo "  -e BUCKET_NAME=\"$BUCKET_NAME\" \\"
           echo "  -p 8080:8080 \\"
           echo "  --gpus all \\"
           echo "  ${{ env.ARTIFACT_REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
