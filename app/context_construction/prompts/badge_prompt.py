@@ -116,7 +116,7 @@ class BadgePrompt:
         # RGB로 최종 변환
         return bg.convert("RGB")
     
-    async def keep_ratio(self, pil_img): #np_img):
+    async def keep_ratio(self, pil_img):
         #h, w = np_img.shape[:2]
         # w, h = pil_img.size
 
