@@ -10,6 +10,7 @@ on:
     branches:
       - cpu-dev
       - dev
+      - feat/213-badge-NoCanny
       #- feat/100-badge-DeploymentEnvironment
       #- feat/125-badge-regularInstance
 
