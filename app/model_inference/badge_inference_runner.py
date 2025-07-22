@@ -76,7 +76,7 @@ async def generate_image(mod_tags: str, team_number: int, request_data: BadgeReq
         generator=generator
     ).images[0]
 
-    del badge_input_instance, badge_canny, control_image, prompt, generator 
+    del badge_input_instance, control_image, prompt, generator 
     gc.collect()
 
     return base_result
