@@ -1,5 +1,6 @@
 # app/model_inference/loaders/gemini.py
 
+from google import generativeai
 from langchain_core.language_models import LLM
 from typing import List, Optional
 import google.generativeai as genai
@@ -8,18 +9,21 @@ from pydantic import PrivateAttr
 from typing import List, Optional
 from langchain_core.callbacks import CallbackManagerForLLMRun
 import re
+import google.generativeai as genai
+from google.generativeai.generative_models import GenerativeModel
+from google.generativeai.client import configure
 
 
 # Gemini API 키 설정
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 class GeminiLangChainLLM(LLM):
     model_name: str = "gemini-1.5-flash"
-    _model: genai.GenerativeModel = PrivateAttr()
+    _model: GenerativeModel = PrivateAttr()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._model = genai.GenerativeModel(self.model_name)
+        self._model = GenerativeModel(self.model_name)
 
     async def astream(self, prompt: str, **kwargs):
         chat = self._model.start_chat()
