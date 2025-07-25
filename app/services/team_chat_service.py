@@ -49,9 +49,12 @@ class TeamChatService:
         raw_output = self.vllm_client.generate(prompt)
         print("🧾 My model full response (for debug):", repr(raw_output.replace('\n', '\\n')))
 
-        match = re.search(r"[가-힣][^a-zA-Z0-9]{0,10}", raw_output)
-        if match:
-            cleaned = raw_output[match.start():]
-        else:
-            cleaned = raw_output
-        return cleaned
+        # 그대로 리턴
+        return raw_output
+
+        # match = re.search(r"[가-힣][^a-zA-Z0-9]{0,10}", raw_output)
+        # if match:
+        #     cleaned = raw_output[match.start():]
+        # else:
+        #     cleaned = raw_output
+        # return cleaned
