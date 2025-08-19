@@ -1,3 +1,5 @@
+[🔗 전체 프로젝트 wiki](https://github.com/100-hours-a-week/8-pumati-wiki/wiki)
+
 # 목차
 
 1. 운세 기능
